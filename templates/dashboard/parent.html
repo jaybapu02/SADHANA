@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12 mb-4">
+        <h2 class="fw-bold">Parent Dashboard</h2>
+        <p class="text-muted">Welcome, {{ request.user.username }}! You are monitoring your child's progress.</p>
+        <hr>
+    </div>
+
+    <!-- Add Child Section -->
+    <div class="col-md-5 mb-4">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-link text-primary me-2"></i>Connect with Child</h5>
+                <form action="{% url 'send_request' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="child_id" class="form-label text-muted small">Enter Child ID</label>
+                        <input type="text" class="form-control" id="child_id" name="child_id" placeholder="e.g. 8A4F9C21" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Send Request</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Sent Requests list -->
+        <div class="card shadow-sm border-0 rounded-4 mt-4">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Connection Status</h5>
+                {% if sent_requests %}
+                    <ul class="list-group list-group-flush">
+                        {% for req in sent_requests %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                                <div>
+                                    <strong>{{ req.child.username }}</strong>
+                                    <div class="small text-muted">ID: {{ req.child.child_id }}</div>
+                                </div>
+                                <div>
+                                    {% if req.status == 'PENDING' %}
+                                        <span class="badge bg-warning text-dark"><i class="fa-solid fa-hourglass-half"></i> Pending</span>
+                                    {% elif req.status == 'ACCEPTED' %}
+                                        <span class="badge bg-success"><i class="fa-solid fa-check"></i> Connected</span>
+                                    {% elif req.status == 'REJECTED' %}
+                                        <span class="badge bg-danger"><i class="fa-solid fa-xmark"></i> Rejected</span>
+                                    {% endif %}
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0 small">No requests sent yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Connected Children Section -->
+    <div class="col-md-7 mb-4">
+        <div class="card shadow border-0 rounded-4 h-100">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-children text-success me-2"></i>My Children</h5>
+                
+                {% if connected_children %}
+                    <div class="row g-3">
+                        {% for child in connected_children %}
+                            <div class="col-md-6">
+                                <div class="card bg-secondary bg-opacity-10 border-0 h-100 rounded-3">
+                                    <div class="card-body text-center">
+                                        <div class="mb-3">
+                                            <i class="fa-solid fa-user-graduate fa-3x text-primary"></i>
+                                        </div>
+                                        <h5 class="fw-bold">{{ child.username }}</h5>
+                                        <a href="{% url 'parent_child_stats' child.id %}" class="btn btn-sm btn-outline-primary mt-2">View Study Stats</a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fa-solid fa-magnifying-glass text-muted fa-3x mb-3"></i>
+                        <p class="text-muted">You are not connected to any children yet.</p>
+                        <p class="small">Use the form on the left to send a connection request using their Child ID.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12 mb-4">
+        <h2 class="fw-bold">Child Dashboard</h2>
+        <p class="text-muted">Welcome, {{ request.user.username }}! Ready to start studying?</p>
+        <hr>
+    </div>
+
+ <!-- Connection Info Section -->
+<div class="col-md-5 mb-4">
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body">
+            <h5 class="fw-bold mb-3">
+                <i class="fa-solid fa-id-card text-primary me-2"></i>My Connection Info
+            </h5>
+
+            <p>Your unique Child ID to share with your parents:</p>
+
+            <div class="bg-light text-dark p-3 rounded-3 text-center fs-3 fw-bold mb-2" style="font-family: monospace;">
+                {{ request.user.child_id }}
+            </div>
+
+            <p class="small text-muted text-center">
+                <i class="fa-solid fa-circle-info"></i> Parents need this ID to connect.
+            </p>
+        </div>
+    </div>
+
+    <!-- ✅ SHOW CONNECTED PARENT -->
+    {% if parents %}
+<div class="card shadow-sm border-0 rounded-4 mt-4 bg-success bg-opacity-10 border-success">
+    <div class="card-body text-center">
+        <h5 class="fw-bold text-success">
+            <i class="fa-solid fa-link"></i> Linked Parents
+        </h5>
+
+        {% for p in parents %}
+            <p class="mb-1 mt-2 fs-5">{{ p.username }}</p>
+        {% endfor %}
+
+        <p class="small text-muted">
+            Your study session data is being shared with these parents.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+    <!-- ✅ ALWAYS SHOW PENDING REQUESTS -->
+    <div class="card shadow-sm border-0 rounded-4 mt-4 border-warning">
+        <div class="card-body">
+            <h5 class="fw-bold mb-3">
+                <i class="fa-solid fa-bell text-warning me-2"></i>Pending Requests
+            </h5>
+
+            {% if pending_requests %}
+                <ul class="list-group list-group-flush">
+                    {% for req in pending_requests %}
+                        <li class="list-group-item bg-transparent px-0 border-0 mb-2">
+                            <div class="d-flex justify-content-between align-items-center bg-secondary bg-opacity-25 p-3 rounded-3">
+
+                                <div>
+                                    <strong>{{ req.parent.username }}</strong>
+                                    <div class="small">wants to connect</div>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <form action="{% url 'respond_request' req.id 'accept' %}" method="POST">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-success">
+                                            <i class="fa-solid fa-check"></i>
+                                        </button>
+                                    </form>
+
+                                    <form action="{% url 'respond_request' req.id 'reject' %}" method="POST">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </form>
+                                </div>
+
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted small text-center py-4">
+                    No pending requests right now.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+    <!-- Study Overview & Charts -->
+    <div class="col-md-7 mb-4">
+        <!-- Start Study Button -->
+        <div class="card bg-primary bg-opacity-10 border-0 rounded-4 mb-4 shadow text-center">
+            <div class="card-body py-4">
+                <i class="fa-solid fa-brain fa-3x text-primary mb-3 mt-2"></i>
+                <h4 class="fw-bold mb-3">Ready for a Session?</h4>
+                <a href="{% url 'study_session' %}" class="btn btn-lg btn-primary rounded-pill px-5 shadow fw-bold">Start Studying <i class="fa-solid fa-play ms-2"></i></a>
+            </div>
+        </div>
+        
+        <!-- Summary Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 rounded-4 h-100 bg-secondary bg-opacity-10">
+                    <div class="card-body text-center p-3">
+                        <i class="fa-solid fa-book-open text-primary mb-2"></i>
+                        <h6 class="small text-muted text-uppercase">Today's Study</h6>
+                        <h4 class="fw-bold m-0">{{ today_study_time }} <span class="fs-6 text-muted">m</span></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 rounded-4 h-100 bg-secondary bg-opacity-10">
+                    <div class="card-body text-center p-3">
+                        <i class="fa-solid fa-triangle-exclamation text-danger mb-2"></i>
+                        <h6 class="small text-muted text-uppercase">Distraction</h6>
+                        <h4 class="fw-bold m-0">{{ today_distraction }} <span class="fs-6 text-muted">s</span></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 rounded-4 h-100 bg-secondary bg-opacity-10">
+                    <div class="card-body text-center p-3">
+                        <i class="fa-solid fa-bullseye text-success mb-2"></i>
+                        <h6 class="small text-muted text-uppercase">Avg Focus</h6>
+                        <h4 class="fw-bold m-0">{{ avg_focus }}<span class="fs-6 text-muted">%</span></h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body">
+                <h5 class="fw-bold mb-4">Focus Trend (Today)</h5>
+                <canvas id="childFocusChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('childFocusChart').getContext('2d');
+    const chartLabels = {{ chart_labels|safe }};
+    const chartData = {{ chart_scores|safe }};
+    
+    // Check if data is empty
+    const noData = chartLabels.length === 0;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: noData ? ['No Data'] : chartLabels,
+            datasets: [{
+                label: 'Focus Score (%)',
+                data: noData ? [0] : chartData,
+                backgroundColor: 'rgba(13, 110, 253, 0.5)',
+                borderColor: '#0d6efd',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

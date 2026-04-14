@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .timer-container {
+        position: relative;
+        width: 320px;
+        height: 320px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: conic-gradient(var(--bs-primary) 100%, #2a2c30 0);
+        box-shadow: 0 0 30px rgba(var(--bs-primary-rgb), 0.3), inset 0 0 20px rgba(0,0,0,0.5);
+        transition: all 0.3s ease;
+    }
+
+    .timer-inner {
+        width: 300px;
+        height: 300px;
+        background-color: var(--bs-body-bg);
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+    }
+
+    .timer-text {
+        font-size: 5rem;
+        font-weight: 700;
+        font-family: 'Inter', monospace;
+        line-height: 1;
+        letter-spacing: -2px;
+    }
+
+    .timer-label {
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--bs-secondary);
+        font-weight: 600;
+        margin-top: 10px;
+    }
+
+    #distraction-warning {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(220, 53, 69, 0.95);
+        z-index: 9999;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    #inc-study, #dec-study, #inc-break, #dec-break {
+        font-size: 14px;
+        margin: 0 5px;
+        cursor: pointer;
+    }
+</style>
+
+<div id="distraction-warning">
+    <i class="fa-solid fa-triangle-exclamation fa-5x mb-4"></i>
+    <h1 class="display-3 fw-bold">Distraction Detected!</h1>
+    <p class="lead" id="distraction-message">Stay focused!</p>
+    <button class="btn btn-dark btn-lg mt-4 px-5 fw-bold" id="resume-btn">Resume</button>
+</div>
+
+<div class="row mt-4 mb-5">
+    <div class="col-12 text-center mb-4">
+        <h2 class="fw-bold">Study Session</h2>
+    </div>
+
+    <div class="col-md-8 mx-auto text-center">
+
+        <!-- MODE SWITCH (UPDATED) -->
+        <div class="mb-4 mode-switch btn-group" role="group">
+
+            <button type="button" class="btn btn-primary fw-bold" id="mode-study">
+                <span id="dec-study">➖</span>
+                Study (<span id="set-study-min">25</span>m)
+                <span id="inc-study">➕</span>
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary fw-bold" id="mode-break">
+                <span id="dec-break">➖</span>
+                Break (<span id="set-break-min">5</span>m)
+                <span id="inc-break">➕</span>
+            </button>
+
+        </div>
+
+        <!-- TIMER -->
+        <div class="timer-container shadow-lg mb-5" id="timer-circle">
+            <div class="timer-inner">
+                <div class="timer-text" id="time-display">25:00</div>
+                <div class="timer-label" id="mode-label">Study Time</div>
+            </div>
+        </div>
+
+        <!-- CONTROLS -->
+        <div class="d-flex justify-content-center gap-3">
+            <button class="btn btn-success btn-lg px-5 shadow rounded-pill fw-bold" id="start-btn">Start</button>
+            <button class="btn btn-warning btn-lg px-4 shadow rounded-pill fw-bold" id="pause-btn" style="display:none;">Pause</button>
+            <button class="btn btn-outline-danger btn-lg px-4 rounded-pill fw-bold" id="stop-btn">End Session</button>
+        </div>
+
+        <!-- STATS -->
+        <div class="mt-4">
+            <div>Study: <span id="stat-study">0m</span></div>
+            <div>Break: <span id="stat-break">0m</span></div>
+            <div>Distraction: <span id="stat-distraction">0s</span></div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+
+const CONF = {
+    STUDY_MIN: 25,
+    BREAK_MIN: 5
+};
+
+let state = {
+    mode: 'study',
+    isRunning: false,
+    timeLeft: CONF.STUDY_MIN * 60,
+    totalTime: CONF.STUDY_MIN * 60,
+
+    actualStudySeconds: 0,
+    actualBreakSeconds: 0,
+    distractionSeconds: 0,
+
+    timer: null
+};
+
+const els = {
+    display: document.getElementById('time-display'),
+    label: document.getElementById('mode-label'),
+
+    start: document.getElementById('start-btn'),
+    pause: document.getElementById('pause-btn'),
+    stop: document.getElementById('stop-btn'),
+
+    studyBtn: document.getElementById('mode-study'),
+    breakBtn: document.getElementById('mode-break'),
+
+    incStudy: document.getElementById('inc-study'),
+    decStudy: document.getElementById('dec-study'),
+    incBreak: document.getElementById('inc-break'),
+    decBreak: document.getElementById('dec-break'),
+
+    setStudyMin: document.getElementById('set-study-min'),
+    setBreakMin: document.getElementById('set-break-min'),
+
+    statStudy: document.getElementById('stat-study'),
+    statBreak: document.getElementById('stat-break'),
+    statDist: document.getElementById('stat-distraction')
+};
+
+function updateDisplay() {
+    let m = Math.floor(state.timeLeft / 60).toString().padStart(2,'0');
+    let s = (state.timeLeft % 60).toString().padStart(2,'0');
+    els.display.innerText = `${m}:${s}`;
+
+    els.statStudy.innerText = Math.floor(state.actualStudySeconds/60) + "m";
+    els.statBreak.innerText = Math.floor(state.actualBreakSeconds/60) + "m";
+    els.statDist.innerText = state.distractionSeconds + "s";
+}
+
+function setMode(mode, min) {
+    if(state.isRunning) return;
+
+    state.mode = mode;
+    state.totalTime = min * 60;
+    state.timeLeft = state.totalTime;
+
+    els.label.innerText = mode === 'study' ? 'Study Time' : 'Break Time';
+    updateDisplay();
+}
+
+function adjustTime(type, change) {
+    if(state.isRunning) return;
+
+    if(type === 'study') {
+        CONF.STUDY_MIN = Math.max(5, CONF.STUDY_MIN + change);
+        els.setStudyMin.innerText = CONF.STUDY_MIN;
+
+        if(state.mode === 'study') setMode('study', CONF.STUDY_MIN);
+    } else {
+        CONF.BREAK_MIN = Math.max(1, CONF.BREAK_MIN + change);
+        els.setBreakMin.innerText = CONF.BREAK_MIN;
+
+        if(state.mode === 'break') setMode('break', CONF.BREAK_MIN);
+    }
+}
+
+function startTimer() {
+    if(state.isRunning) return;
+
+    state.isRunning = true;
+    els.start.style.display = 'none';
+    els.pause.style.display = 'inline-block';
+
+    state.timer = setInterval(() => {
+        if(state.timeLeft > 0) {
+            state.timeLeft--;
+
+            if(state.mode === 'study') state.actualStudySeconds++;
+            if(state.mode === 'break') state.actualBreakSeconds++;
+
+            updateDisplay();
+        } else {
+            alert("Time Up!");
+            clearInterval(state.timer);
+            state.isRunning = false;
+        }
+    },1000);
+}
+
+function pauseTimer() {
+    clearInterval(state.timer);
+    state.isRunning = false;
+    els.start.style.display = 'inline-block';
+    els.pause.style.display = 'none';
+}
+
+function endSession() {
+    pauseTimer();
+    alert("Session Ended");
+}
+
+/* EVENTS */
+
+els.start.onclick = startTimer;
+els.pause.onclick = pauseTimer;
+els.stop.onclick = endSession;
+
+els.studyBtn.onclick = () => setMode('study', CONF.STUDY_MIN);
+els.breakBtn.onclick = () => setMode('break', CONF.BREAK_MIN);
+
+/* +/- controls */
+
+els.incStudy.onclick = (e) => { e.stopPropagation(); adjustTime('study', 5); };
+els.decStudy.onclick = (e) => { e.stopPropagation(); adjustTime('study', -5); };
+
+els.incBreak.onclick = (e) => { e.stopPropagation(); adjustTime('break', 1); };
+els.decBreak.onclick = (e) => { e.stopPropagation(); adjustTime('break', -1); };
+
+updateDisplay();
+
+</script>
+{% endblock %}
