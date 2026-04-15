@@ -2,24 +2,47 @@
 
 {% block content %}
 <div class="row align-items-center mt-5">
+
+    <!-- LEFT CONTENT -->
     <div class="col-md-6 text-center text-md-start mb-4">
         <h1 class="display-4 fw-bold">Focus Your Mind.</h1>
         <h1 class="display-4 fw-bold text-primary">Master Your Time.</h1>
+
         <p class="lead mt-4 text-muted">
-            Sadhana isn't just a timer app. It's a complete discipline and productivity ecosystem designed to help you stay focused during study time. Effort + commitment = Daily progress.
+            Sadhana isn't just a timer app. It's a complete discipline and productivity ecosystem designed to help you stay focused during study time.
         </p>
+
+        <!-- Tagline -->
+        <h4 class="fw-semibold mt-3 text-dark">
+            <i>Effort + commitment = Daily progress</i>
+        </h4>
+
         <div class="mt-5">
-            <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-4 me-2 shadow">Get Started</a>
-            <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg px-4">Login</a>
+            <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-4 me-2 shadow">
+                Get Started
+            </a>
+            <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg px-4">
+                Login
+            </a>
         </div>
     </div>
+
+    <!-- RIGHT IMAGE SECTION -->
     <div class="col-md-6 text-center">
-        <!-- We'll replace this with an illustration generated via AI later -->
-        <div class="bg-secondary rounded p-5 d-flex align-items-center justify-content-center" style="height: 400px; opacity: 0.8;">
-            <i class="fa-solid fa-graduation-cap display-1 text-light"></i>
-            <br>
-            <h3 class="text-light ms-3">Sadhana Platform</h3>
+        <div 
+            class="rounded d-flex align-items-center justify-content-center position-relative overflow-hidden"
+            style="
+                height: 440px;
+                background-color: #2f4f58; /* ✅ dark teal background */
+                background-image: url('https://illustrations.popsy.co/gray/studying.svg');
+                background-size: 85%;
+                background-position: center;
+                background-repeat: no-repeat;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3); /* ✅ premium shadow */
+            "
+        >
         </div>
     </div>
+
 </div>
 {% endblock %}
