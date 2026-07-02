@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "tasks",
     "notifications",
     "relationships",
+    "admin_panel",
 ]
 
 MIDDLEWARE = [

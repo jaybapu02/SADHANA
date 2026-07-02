@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header"><i class="fa-solid fa-pen"></i> Edit Task</div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Task Name</label>
+                        <input type="text" name="task_name" class="form-control" value="{{ task.task_name }}" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" name="status" class="form-check-input" id="id_status" {% if task.status %}checked{% endif %}>
+                        <label class="form-check-label" for="id_status">Completed</label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <a href="{% url 'admin_list_tasks' %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

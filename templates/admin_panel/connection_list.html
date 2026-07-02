@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fa-solid fa-handshake"></i> Connection Requests</h4>
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
+            <option value="ACCEPTED" {% if status_filter == 'ACCEPTED' %}selected{% endif %}>Accepted</option>
+            <option value="REJECTED" {% if status_filter == 'REJECTED' %}selected{% endif %}>Rejected</option>
+        </select>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-dark table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Parent</th>
+                <th>Child</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in connections %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td>{{ c.parent.username }}</td>
+                <td>{{ c.child.username }}</td>
+                <td>
+                    <span class="badge bg-{% if c.status == 'ACCEPTED' %}success{% elif c.status == 'PENDING' %}warning text-dark{% else %}danger{% endif %}">
+                        {{ c.status }}
+                    </span>
+                </td>
+                <td>{{ c.created_at|date:"M d, Y" }}</td>
+                <td>
+                    <a href="{% url 'admin_edit_connection' c.id %}" class="btn btn-sm btn-outline-info" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                    <a href="{% url 'admin_delete_connection' c.id %}" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted">No connection requests found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if connections.has_other_pages %}
+<nav>
+    <ul class="pagination pagination-sm justify-content-center">
+        {% if connections.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ connections.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a></li>
+        {% endif %}
+        {% for i in connections.paginator.page_range %}
+        <li class="page-item {% if connections.number == i %}active{% endif %}"><a class="page-link" href="?page={{ i }}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ i }}</a></li>
+        {% endfor %}
+        {% if connections.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ connections.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

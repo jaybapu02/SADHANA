@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fa-solid fa-shield-halved"></i> Admin Panel</h2>
+    <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm">Back to App</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-primary"><i class="fa-solid fa-users"></i> Users</h5>
+                <p class="display-6 fw-bold">{{ total_users }}</p>
+                <small class="text-muted">{{ total_children }} Children · {{ total_parents }} Parents</small>
+                <div class="mt-2"><a href="{% url 'admin_list_users' %}" class="btn btn-sm btn-outline-primary">Manage</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-success"><i class="fa-solid fa-clock"></i> Sessions</h5>
+                <p class="display-6 fw-bold">{{ total_sessions }}</p>
+                <small class="text-muted">Study sessions recorded</small>
+                <div class="mt-2"><a href="{% url 'admin_list_sessions' %}" class="btn btn-sm btn-outline-success">Manage</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-info h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-info"><i class="fa-solid fa-list-check"></i> Tasks</h5>
+                <p class="display-6 fw-bold">{{ total_tasks }}</p>
+                <small class="text-muted">To-do items</small>
+                <div class="mt-2"><a href="{% url 'admin_list_tasks' %}" class="btn btn-sm btn-outline-info">Manage</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-warning"><i class="fa-solid fa-bell"></i> Notifications</h5>
+                <p class="display-6 fw-bold">{{ total_notifications }}</p>
+                <small class="text-muted">Distraction alerts</small>
+                <div class="mt-2"><a href="{% url 'admin_list_notifications' %}" class="btn btn-sm btn-outline-warning">Manage</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-secondary h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-secondary"><i class="fa-solid fa-handshake"></i> Connections</h5>
+                <p class="display-6 fw-bold">{{ total_connections }}</p>
+                <small class="text-muted">{{ pending_connections }} pending</small>
+                <div class="mt-2"><a href="{% url 'admin_list_connections' %}" class="btn btn-sm btn-outline-secondary">Manage</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-light h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title"><i class="fa-solid fa-bullseye"></i> Goals</h5>
+                <p class="display-6 fw-bold">{{ total_goals|default:"0" }}</p>
+                <small class="text-muted">Study targets</small>
+                <div class="mt-2"><a href="{% url 'admin_list_goals' %}" class="btn btn-sm btn-outline-light">Manage</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if recent_sessions %}
+<div class="card">
+    <div class="card-header"><i class="fa-solid fa-clock-rotate-left"></i> Recent Study Sessions</div>
+    <div class="card-body p-0">
+        <table class="table table-dark table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Child</th>
+                    <th>Start</th>
+                    <th>Duration</th>
+                    <th>Distraction</th>
+                    <th>Focus</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in recent_sessions %}
+                <tr>
+                    <td>{{ s.child.username }}</td>
+                    <td>{{ s.start_time|date:"M d, H:i" }}</td>
+                    <td>{{ s.duration }} min</td>
+                    <td>{{ s.distraction_time }} sec</td>
+                    <td>{{ s.focus_score }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
