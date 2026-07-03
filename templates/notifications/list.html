@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row mt-4">
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="fw-bold"><i class="fa-solid fa-bell text-warning me-2"></i>Notifications</h2>
+            <div>
+                {% if unread_count > 0 %}
+                    <a href="{% url 'mark_all_read' %}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-check-double me-1"></i> Mark All Read</a>
+                {% endif %}
+                <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm ms-2"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+            </div>
+        </div>
+        <hr>
+    </div>
+
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body">
+                {% if unread_count > 0 %}
+                    <div class="alert alert-info d-flex align-items-center">
+                        <i class="fa-solid fa-circle-info me-2"></i>
+                        You have <strong>{{ unread_count }}</strong> unread notification(s).
+                    </div>
+                {% endif %}
+
+                {% if notifications %}
+                    <div class="list-group list-group-flush">
+                        {% for notif in notifications %}
+                            <div class="list-group-item bg-transparent px-0 border-bottom d-flex justify-content-between align-items-start {% if not notif.status %}border-start border-4 border-primary ps-2{% endif %}">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        {% if not notif.status %}
+                                            <span class="badge bg-primary rounded-pill">New</span>
+                                        {% endif %}
+                                        <small class="text-muted">{{ notif.time|timesince }} ago</small>
+                                        {% if notif.child %}
+                                            <span class="badge bg-info bg-opacity-25 text-info">{{ notif.child.username }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="mb-1">{{ notif.message }}</p>
+                                </div>
+                                <div class="d-flex gap-1 ms-3">
+                                    {% if not notif.status %}
+                                        <a href="{% url 'mark_read' notif.id %}" class="btn btn-sm btn-outline-primary" title="Mark as read">
+                                            <i class="fa-solid fa-check"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fa-solid fa-bell-slash text-muted fa-4x mb-3"></i>
+                        <p class="text-muted">No notifications yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

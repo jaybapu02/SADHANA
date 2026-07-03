@@ -8,6 +8,6 @@ urlpatterns = [
     path('dashboard/', include('dashboard.urls')),
     path('study/', include('study.urls')),
     path('tasks/', include('tasks.urls')),
-    # path('notifications/', include('notifications.urls')),
+    path('notifications/', include('notifications.urls')),
     path('relationships/', include('relationships.urls')),
 ]

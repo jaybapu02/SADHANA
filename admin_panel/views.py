@@ -158,9 +158,20 @@ def edit_task(request, task_id):
     if request.method == 'POST':
         name = request.POST.get('task_name')
         status = request.POST.get('status') == 'on'
+        priority = request.POST.get('priority', 'MEDIUM')
+        due_date_str = request.POST.get('due_date', '')
+        due_date = None
+        if due_date_str:
+            try:
+                from datetime import datetime
+                due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
         if name:
             task.task_name = name
             task.status = status
+            task.priority = priority
+            task.due_date = due_date
             task.save()
             messages.success(request, 'Task updated.')
             return redirect('admin_list_tasks')

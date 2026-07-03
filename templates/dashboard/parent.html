@@ -1,14 +1,22 @@
 {% extends 'base.html' %}
-
 {% block content %}
 <div class="row mt-4">
     <div class="col-12 mb-4">
-        <h2 class="fw-bold">Parent Dashboard</h2>
-        <p class="text-muted">Welcome, {{ request.user.username }}! You are monitoring your child's progress.</p>
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h2 class="fw-bold">Parent Dashboard</h2>
+                <p class="text-muted">Welcome, {{ request.user.username }}! You are monitoring your child's progress.</p>
+            </div>
+            <a href="{% url 'notification_list' %}" class="btn btn-outline-warning position-relative">
+                <i class="fa-solid fa-bell"></i> Notifications
+                {% if unread_count > 0 %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ unread_count }}</span>
+                {% endif %}
+            </a>
+        </div>
         <hr>
     </div>
 
-    <!-- Add Child Section -->
     <div class="col-md-5 mb-4">
         <div class="card shadow-sm border-0 rounded-4">
             <div class="card-body">
@@ -23,8 +31,7 @@
                 </form>
             </div>
         </div>
-        
-        <!-- Sent Requests list -->
+
         <div class="card shadow-sm border-0 rounded-4 mt-4">
             <div class="card-body">
                 <h5 class="fw-bold mb-3"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Connection Status</h5>
@@ -55,12 +62,11 @@
         </div>
     </div>
 
-    <!-- Connected Children Section -->
     <div class="col-md-7 mb-4">
         <div class="card shadow border-0 rounded-4 h-100">
             <div class="card-body">
                 <h5 class="fw-bold mb-3"><i class="fa-solid fa-children text-success me-2"></i>My Children</h5>
-                
+
                 {% if connected_children %}
                     <div class="row g-3">
                         {% for child in connected_children %}
@@ -71,7 +77,29 @@
                                             <i class="fa-solid fa-user-graduate fa-3x text-primary"></i>
                                         </div>
                                         <h5 class="fw-bold">{{ child.username }}</h5>
-                                        <a href="{% url 'parent_child_stats' child.id %}" class="btn btn-sm btn-outline-primary mt-2">View Study Stats</a>
+                                        <div class="d-grid gap-1 mt-2">
+                                            <a href="{% url 'parent_child_stats' child.id %}" class="btn btn-sm btn-outline-primary">Study Stats</a>
+                                            <a href="{% url 'parent_child_todo' child.id %}" class="btn btn-sm btn-outline-success">To-Do Progress</a>
+                                        </div>
+
+                                        {% for ct in children_todo %}
+                                            {% if ct.child.id == child.id %}
+                                                <hr class="my-2">
+                                                <div class="small text-start px-2">
+                                                    <div class="d-flex justify-content-between">
+                                                        <span class="text-muted">Today's Tasks:</span>
+                                                        <span class="fw-bold">{{ ct.today_completed }}/{{ ct.today_total }}</span>
+                                                    </div>
+                                                    <div class="progress mt-1" style="height:6px;">
+                                                        <div class="progress-bar bg-success" style="width:{{ ct.today_pct }}%"></div>
+                                                    </div>
+                                                    <div class="d-flex justify-content-between mt-1">
+                                                        <span class="text-muted">Week:</span>
+                                                        <span class="fw-bold">{{ ct.week_pct }}%</span>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
                                     </div>
                                 </div>
                             </div>

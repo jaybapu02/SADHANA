@@ -12,7 +12,9 @@
                 <th>ID</th>
                 <th>Child</th>
                 <th>Task</th>
+                <th>Priority</th>
                 <th>Status</th>
+                <th>Due</th>
                 <th>Date</th>
                 <th>Actions</th>
             </tr>
@@ -22,8 +24,17 @@
             <tr>
                 <td>{{ t.id }}</td>
                 <td>{{ t.child.username }}</td>
-                <td>{{ t.task_name }}</td>
+                <td>
+                    {{ t.task_name }}
+                    {% if t.parent %}<span class="badge bg-info">parent</span>{% endif %}
+                </td>
+                <td>
+                    <span class="badge {% if t.priority == 'HIGH' %}bg-danger{% elif t.priority == 'MEDIUM' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                        {{ t.get_priority_display }}
+                    </span>
+                </td>
                 <td>{% if t.status %}<span class="badge bg-success">Done</span>{% else %}<span class="badge bg-secondary">Pending</span>{% endif %}</td>
+                <td>{{ t.due_date|date:"M d"|default:"--" }}</td>
                 <td>{{ t.date|date:"M d, Y" }}</td>
                 <td>
                     <a href="{% url 'admin_edit_task' t.id %}" class="btn btn-sm btn-outline-info" title="Edit"><i class="fa-solid fa-pen"></i></a>
@@ -31,7 +42,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="text-center text-muted">No tasks found.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted">No tasks found.</td></tr>
             {% endfor %}
         </tbody>
     </table>
