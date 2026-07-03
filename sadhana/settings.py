@@ -27,6 +27,15 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# Session expires on server restart (cache cleared on shutdown)
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
+
 
 # Application definition
 
