@@ -192,7 +192,7 @@ def delete_task(request, task_id):
 
 @user_passes_test(is_admin, login_url='login')
 def list_notifications(request):
-    notifications = Notification.objects.select_related('parent', 'child').all().order_by('-time')
+    notifications = Notification.objects.select_related('recipient', 'sender').all().order_by('-timestamp')
     paginator = Paginator(notifications, 20)
     page = paginator.get_page(request.GET.get('page'))
     return render(request, 'admin_panel/notification_list.html', {'notifications': page})

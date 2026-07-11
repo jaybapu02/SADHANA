@@ -9,14 +9,13 @@ from relationships.models import ConnectionRequest
 from study.models import StudySession
 from tasks.models import Task
 from notifications.models import Notification
+from notifications.services import NotificationService
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
+
 @login_required
 def dashboard_router(request):
-    """
-    Redirects users to their respective dashboards based on their role.
-    """
     if request.user.role == 'PARENT':
         return redirect('parent_dashboard')
     elif request.user.role == 'CHILD':
@@ -24,14 +23,15 @@ def dashboard_router(request):
     else:
         return redirect('/admin/')
 
+
 @login_required
 def parent_dashboard(request):
     if request.user.role != 'PARENT':
         return redirect('dashboard_router')
-        
+
     sent_requests = ConnectionRequest.objects.filter(parent=request.user).order_by('-created_at')
     connected_children = [req.child for req in sent_requests if req.status == 'ACCEPTED']
-    
+
     today = timezone.now().date()
     children_todo = []
     for child in connected_children:
@@ -40,13 +40,13 @@ def parent_dashboard(request):
         tc = today_tasks.filter(status=True).count()
         tp = today_tasks.filter(status=False).count()
         pct = round((tc / tt * 100) if tt > 0 else 0)
-        
+
         week_start = today - timedelta(days=today.weekday())
         week_tasks = Task.objects.filter(child=child, date__gte=week_start)
         wt = week_tasks.count()
         wc = week_tasks.filter(status=True).count()
         wpct = round((wc / wt * 100) if wt > 0 else 0)
-        
+
         children_todo.append({
             'child': child,
             'today_total': tt,
@@ -55,46 +55,27 @@ def parent_dashboard(request):
             'today_pct': pct,
             'week_pct': wpct,
         })
-        
+
         if tt > 0 and pct < 50:
             existing = Notification.objects.filter(
-                parent=request.user, child=child,
-                message__icontains='below 50%',
-                time__date=today
+                recipient=request.user, sender=child,
+                notification_type=Notification.NotificationType.LOW_COMPLETION,
+                timestamp__date=today
             )
             if not existing:
-                Notification.objects.create(
-                    parent=request.user, child=child,
-                    message=f"Alert: {child.username}'s daily task completion is below 50% ({pct}%)"
-                )
-        
-        high_incomplete = today_tasks.filter(status=False, priority='HIGH').count()
-        if high_incomplete > 0:
-            existing_high = Notification.objects.filter(
-                parent=request.user, child=child,
-                message__icontains='important task',
-                time__date=today
-            )
-            if not existing_high:
-                Notification.objects.create(
-                    parent=request.user, child=child,
-                    message=f"Reminder: {child.username} has {high_incomplete} important task(s) incomplete"
-                )
-        
+                NotificationService.low_completion(request.user, child, pct)
+
         if tt > 0 and tc == tt:
-            existing_all = Notification.objects.filter(
-                parent=request.user, child=child,
-                message__icontains='completed ALL',
-                time__date=today
+            existing = Notification.objects.filter(
+                recipient=request.user, sender=child,
+                notification_type=Notification.NotificationType.ALL_TASKS_DONE,
+                timestamp__date=today
             )
-            if not existing_all:
-                Notification.objects.create(
-                    parent=request.user, child=child,
-                    message=f"Great news! {child.username} completed ALL tasks for today!"
-                )
-    
-    unread_count = Notification.objects.filter(parent=request.user, status=False).count()
-    
+            if not existing:
+                NotificationService.all_tasks_done(request.user, child)
+
+    unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+
     context = {
         'sent_requests': sent_requests,
         'connected_children': connected_children,
@@ -103,31 +84,29 @@ def parent_dashboard(request):
     }
     return render(request, 'dashboard/parent.html', context)
 
+
 @login_required
 def parent_child_stats(request, child_id):
     if request.user.role != 'PARENT':
         return redirect('dashboard_router')
-        
-    # Verify connection
+
     req = ConnectionRequest.objects.filter(parent=request.user, child_id=child_id, status='ACCEPTED').first()
     if not req:
         return redirect('parent_dashboard')
-        
+
     child = req.child
     sessions = StudySession.objects.filter(child=child).order_by('start_time')
-    
-    # Aggregations for today
+
     today = timezone.now().date()
     today_sessions = sessions.filter(start_time__date=today)
-    
+
     today_duration = today_sessions.aggregate(Sum('duration'))['duration__sum'] or 0
     today_distraction = today_sessions.aggregate(Sum('distraction_time'))['distraction_time__sum'] or 0
     avg_focus = today_sessions.aggregate(Avg('focus_score'))['focus_score__avg'] or 0
-    
-    # Data for Chart.js
+
     labels = [s.start_time.strftime('%H:%M') for s in today_sessions]
     scores = [s.focus_score for s in today_sessions]
-    
+
     context = {
         'child': child,
         'sessions': sessions.order_by('-start_time')[:10],
@@ -138,6 +117,7 @@ def parent_child_stats(request, child_id):
         'chart_scores': scores
     }
     return render(request, 'dashboard/child_stats.html', context)
+
 
 @login_required
 def parent_child_todo_dashboard(request, child_id):
@@ -192,6 +172,7 @@ def parent_child_todo_dashboard(request, child_id):
     }
     return render(request, 'tasks/parent_child_todo.html', context)
 
+
 @login_required
 def child_dashboard(request):
     if request.user.role != 'CHILD':
@@ -228,8 +209,8 @@ def child_dashboard(request):
     today_completed = today_tasks.filter(status=True).count()
     today_pending = today_tasks.filter(status=False).count()
     today_pct = round((today_completed / today_total * 100) if today_total > 0 else 0)
-    
-    unread_notif = Notification.objects.filter(child=request.user, status=False).count()
+
+    unread_notif = Notification.objects.filter(recipient=request.user, is_read=False).count()
 
     context = {
         'pending_requests': pending_requests,

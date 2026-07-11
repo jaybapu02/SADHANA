@@ -5,30 +5,15 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 
 from .models import StudySession
-from relationships.models import ConnectionRequest
-from notifications.models import Notification
+from notifications.services import NotificationService
 
 
 @login_required
 def study_session(request):
-    # Only child can access
     if request.user.role != 'CHILD':
         return redirect('dashboard_router')
 
-    # ✅ Get ALL accepted parents (NOT just one)
-    accepted_requests = ConnectionRequest.objects.filter(
-        child=request.user,
-        status='ACCEPTED'
-    )
-
-    # Extract parents
-    parents = [req.parent for req in accepted_requests]
-
-    context = {
-        'parent_ids': [parent.id for parent in parents]  # useful if needed in JS
-    }
-
-    return render(request, 'study/session.html', context)
+    return render(request, 'study/session.html')
 
 
 @login_required
@@ -41,7 +26,6 @@ def save_session(request):
             break_minutes = data.get('break_minutes', 0)
             distraction_seconds = data.get('distraction_seconds', 0)
 
-            # ✅ Save session
             session = StudySession.objects.create(
                 child=request.user,
                 end_time=timezone.now(),
@@ -50,23 +34,13 @@ def save_session(request):
                 distraction_time=distraction_seconds
             )
 
-            # ✅ Notify ALL parents (NOT just one)
             if distraction_seconds > 120:
-                accepted_requests = ConnectionRequest.objects.filter(
-                    child=request.user,
-                    status='ACCEPTED'
+                NotificationService.notify_all_parents(
+                    request.user,
+                    NotificationService.distraction_alert,
+                    distraction_minutes=distraction_seconds // 60,
+                    duration_minutes=duration_minutes
                 )
-
-                for req in accepted_requests:
-                    Notification.objects.create(
-                        parent=req.parent,
-                        child=request.user,
-                        message=(
-                            f"{request.user.username} was distracted for "
-                            f"{distraction_seconds // 60} minutes during their "
-                            f"{duration_minutes}-minute study session."
-                        )
-                    )
 
             return JsonResponse({
                 'status': 'success',

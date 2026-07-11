@@ -10,8 +10,9 @@
         <thead>
             <tr>
                 <th>ID</th>
-                <th>To (Parent)</th>
-                <th>From (Child)</th>
+                <th>Recipient</th>
+                <th>Sender</th>
+                <th>Type</th>
                 <th>Message</th>
                 <th>Time</th>
                 <th>Status</th>
@@ -22,17 +23,18 @@
             {% for n in notifications %}
             <tr>
                 <td>{{ n.id }}</td>
-                <td>{{ n.parent.username }}</td>
-                <td>{{ n.child.username|default:"—" }}</td>
+                <td>{{ n.recipient.username }}</td>
+                <td>{{ n.sender_name|default:"—" }}</td>
+                <td><span class="badge bg-info">{{ n.notification_type }}</span></td>
                 <td>{{ n.message }}</td>
-                <td>{{ n.time|date:"M d, H:i" }}</td>
-                <td>{% if n.status %}<span class="badge bg-success">Read</span>{% else %}<span class="badge bg-warning text-dark">Unread</span>{% endif %}</td>
+                <td>{{ n.timestamp|date:"M d, H:i" }}</td>
+                <td>{% if n.is_read %}<span class="badge bg-success">Read</span>{% else %}<span class="badge bg-warning text-dark">Unread</span>{% endif %}</td>
                 <td>
                     <a href="{% url 'admin_delete_notification' n.id %}" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" class="text-center text-muted">No notifications found.</td></tr>
+            <tr><td colspan="8" class="text-center text-muted">No notifications found.</td></tr>
             {% endfor %}
         </tbody>
     </table>

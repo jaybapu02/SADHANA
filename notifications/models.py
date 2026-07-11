@@ -1,12 +1,43 @@
 from django.db import models
 from django.conf import settings
 
+
 class Notification(models.Model):
-    parent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications', limit_choices_to={'role': 'PARENT'})
-    child = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='caused_notifications')
+    class NotificationType(models.TextChoices):
+        TASK_ASSIGNED = 'TASK_ASSIGNED', 'Task Assigned'
+        TASK_EDITED = 'TASK_EDITED', 'Task Edited'
+        DEADLINE_CHANGED = 'DEADLINE_CHANGED', 'Deadline Changed'
+        APPRECIATION = 'APPRECIATION', 'Appreciation'
+        TASK_COMPLETED = 'TASK_COMPLETED', 'Task Completed'
+        ALL_TASKS_DONE = 'ALL_TASKS_DONE', 'All Tasks Done'
+        DEADLINE_MISSED = 'DEADLINE_MISSED', 'Deadline Missed'
+        LOW_COMPLETION = 'LOW_COMPLETION', 'Low Completion'
+        STUDY_STREAK = 'STUDY_STREAK', 'Study Streak'
+        DISTRACTION_ALERT = 'DISTRACTION_ALERT', 'Distraction Alert'
+        TASK_REOPENED = 'TASK_REOPENED', 'Task Reopened'
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='sent_notifications'
+    )
+    sender_name = models.CharField(max_length=150)
+    notification_type = models.CharField(
+        max_length=50,
+        choices=NotificationType.choices
+    )
     message = models.TextField()
-    time = models.DateTimeField(auto_now_add=True)
-    status = models.BooleanField(default=False, help_text="False = Unread, True = Read")
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-timestamp']
 
     def __str__(self):
-        return f"To {self.parent.username} - {self.message[:20]}"
+        return f"To {self.recipient.username} - {self.message[:50]}"

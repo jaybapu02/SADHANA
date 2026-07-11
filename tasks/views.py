@@ -5,8 +5,9 @@ from django.utils import timezone
 from django.db.models import Q
 from datetime import timedelta, datetime, date
 from .models import Task
-from notifications.models import Notification
+from notifications.services import NotificationService
 from relationships.models import ConnectionRequest
+
 
 @login_required
 def todo_dashboard(request):
@@ -67,6 +68,7 @@ def todo_dashboard(request):
     }
     return render(request, 'tasks/todo_dashboard.html', context)
 
+
 @login_required
 def add_task(request):
     if request.method == 'POST' and request.user.role == 'CHILD':
@@ -91,6 +93,7 @@ def add_task(request):
         else:
             messages.error(request, 'Task name cannot be empty.')
     return redirect('todo_dashboard')
+
 
 @login_required
 def edit_task(request, task_id):
@@ -118,6 +121,7 @@ def edit_task(request, task_id):
     context = {'edit_task': task}
     return render(request, 'tasks/todo_dashboard.html', context)
 
+
 @login_required
 def toggle_task(request, task_id):
     if request.user.role == 'CHILD':
@@ -125,30 +129,27 @@ def toggle_task(request, task_id):
         task.status = not task.status
         task.save()
 
-        parents = ConnectionRequest.objects.filter(child=request.user, status='ACCEPTED')
         if task.status:
-            for p in parents:
-                Notification.objects.create(
-                    parent=p.parent,
-                    child=request.user,
-                    message=f"{request.user.username} completed task: {task.task_name}"
-                )
+            NotificationService.notify_all_parents(
+                request.user,
+                NotificationService.task_completed,
+                task=task
+            )
             all_today = Task.objects.filter(child=request.user, date=timezone.now().date())
             if all_today.count() > 0 and all_today.filter(status=False).count() == 0:
-                for p in parents:
-                    Notification.objects.create(
-                        parent=p.parent,
-                        child=request.user,
-                        message=f"{request.user.username} completed ALL tasks for today! "
-                    )
-        else:
-            for p in parents:
-                Notification.objects.create(
-                    parent=p.parent,
-                    child=request.user,
-                    message=f"{request.user.username} re-opened task: {task.task_name}"
+                NotificationService.notify_all_parents(
+                    request.user,
+                    NotificationService.all_tasks_done
                 )
+                NotificationService.all_tasks_done_child(request.user)
+        else:
+            NotificationService.notify_all_parents(
+                request.user,
+                NotificationService.task_reopened,
+                task=task
+            )
     return redirect('todo_dashboard')
+
 
 @login_required
 def delete_task(request, task_id):
@@ -157,6 +158,7 @@ def delete_task(request, task_id):
         task.delete()
         messages.info(request, 'Task deleted.')
     return redirect('todo_dashboard')
+
 
 @login_required
 def parent_assign_task(request, child_id):
@@ -180,7 +182,7 @@ def parent_assign_task(request, child_id):
             except ValueError:
                 pass
         if task_name:
-            Task.objects.create(
+            task = Task.objects.create(
                 child=child,
                 parent=request.user,
                 task_name=task_name,
@@ -188,21 +190,13 @@ def parent_assign_task(request, child_id):
                 due_date=due_date,
                 date=timezone.now().date()
             )
-            Notification.objects.create(
-                parent=request.user,
-                child=child,
-                message=f"You assigned a new task to {child.username}: {task_name}"
-            )
-            Notification.objects.create(
-                parent=request.user,
-                child=child,
-                message=f"New task from {request.user.username}: {task_name}"
-            )
+            NotificationService.task_assigned(request.user, child, task)
             messages.success(request, f'Task assigned to {child.username}!')
         return redirect('parent_child_todo', child_id=child_id)
 
     context = {'child': child}
     return render(request, 'tasks/parent_assign_task.html', context)
+
 
 @login_required
 def parent_child_todo(request, child_id):
@@ -260,6 +254,45 @@ def parent_child_todo(request, child_id):
     }
     return render(request, 'tasks/parent_child_todo.html', context)
 
+
+@login_required
+def parent_edit_task(request, task_id):
+    if request.user.role != 'PARENT':
+        return redirect('dashboard_router')
+    task = get_object_or_404(Task, id=task_id, parent=request.user)
+    child_id = task.child.id
+
+    if request.method == 'POST':
+        task_name = request.POST.get('task_name', '').strip()
+        priority = request.POST.get('priority', task.priority)
+        due_date_str = request.POST.get('due_date', '')
+        due_date = None
+        if due_date_str:
+            try:
+                due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        old_due_date = task.due_date
+        if task_name:
+            task.task_name = task_name
+            task.priority = priority
+            task.due_date = due_date
+            task.save()
+
+            if old_due_date != due_date and due_date is not None:
+                NotificationService.deadline_changed(request.user, task.child, task)
+            else:
+                NotificationService.task_edited(request.user, task.child, task)
+
+            messages.success(request, 'Task updated!')
+        else:
+            messages.error(request, 'Task name cannot be empty.')
+        return redirect('parent_child_todo', child_id=child_id)
+
+    context = {'edit_task': task, 'child': task.child}
+    return render(request, 'tasks/parent_edit_task.html', context)
+
+
 @login_required
 def parent_remove_task(request, task_id):
     if request.user.role != 'PARENT':
@@ -269,3 +302,27 @@ def parent_remove_task(request, task_id):
     task.delete()
     messages.info(request, 'Task removed.')
     return redirect('parent_child_todo', child_id=child_id)
+
+
+@login_required
+def parent_send_appreciation(request, child_id):
+    if request.user.role != 'PARENT':
+        return redirect('dashboard_router')
+
+    conn = ConnectionRequest.objects.filter(parent=request.user, child_id=child_id, status='ACCEPTED').first()
+    if not conn:
+        messages.error(request, 'Not connected to this child.')
+        return redirect('parent_dashboard')
+
+    child = conn.child
+    if request.method == 'POST':
+        appreciation_msg = request.POST.get('message', '').strip()
+        if appreciation_msg:
+            NotificationService.appreciation_sent(request.user, child, appreciation_msg)
+            messages.success(request, f'Appreciation sent to {child.username}!')
+        else:
+            messages.error(request, 'Message cannot be empty.')
+        return redirect('parent_child_todo', child_id=child_id)
+
+    context = {'child': child}
+    return render(request, 'tasks/parent_appreciation.html', context)
