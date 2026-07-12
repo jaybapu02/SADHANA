@@ -149,6 +149,46 @@ class NotificationService:
         )
 
     @staticmethod
+    def access_requested(parent, child, app_name, session):
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.ACCESS_REQUESTED,
+            message=f"Your child \"{child.username}\" requested access to \"{app_name}\" during a focus session."
+        )
+
+    @staticmethod
+    def access_approved(child, parent, app_name):
+        return NotificationService._notify_child(
+            child=child, parent=parent,
+            notification_type=Notification.NotificationType.ACCESS_APPROVED,
+            message=f"Your parent approved access to \"{app_name}\"."
+        )
+
+    @staticmethod
+    def access_rejected(child, parent, app_name):
+        return NotificationService._notify_child(
+            child=child, parent=parent,
+            notification_type=Notification.NotificationType.ACCESS_REJECTED,
+            message=f"Your parent denied access to \"{app_name}\". Please continue your study session."
+        )
+
+    @staticmethod
+    def focus_completed(parent, child, duration_minutes):
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.FOCUS_COMPLETED,
+            message=f"Your child \"{child.username}\" completed a {duration_minutes}-minute focus session!"
+        )
+
+    @staticmethod
+    def focus_interrupted(parent, child, duration_minutes):
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.FOCUS_INTERRUPTED,
+            message=f"Your child \"{child.username}\" ended their focus session early after {duration_minutes} minutes."
+        )
+
+    @staticmethod
     def notify_all_parents(child, notify_func, *args, **kwargs):
         from relationships.models import ConnectionRequest
         connections = ConnectionRequest.objects.filter(

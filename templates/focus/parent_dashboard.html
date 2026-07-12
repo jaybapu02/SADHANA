@@ -1,0 +1,612 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .request-card { transition: all 0.2s ease; }
+    .request-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .nav-pills .nav-link.active { background-color: var(--bs-primary); }
+    .stat-card { border-radius: 12px; padding: 1rem; text-align: center; }
+    .list-item-enter { animation: slideIn 0.3s ease; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+</style>
+
+<div class="row mt-4">
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h2 class="fw-bold"><i class="fa-solid fa-bullseye text-primary me-2"></i>Focus Mode Control</h2>
+                <p class="text-muted">Manage access requests and focus settings for your children.</p>
+            </div>
+        </div>
+        <hr>
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-pills mb-4 gap-2" id="focusTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="requests-tab" data-bs-toggle="pill" data-bs-target="#requests" type="button">
+            <i class="fa-solid fa-clock me-1"></i> Pending Requests
+            <span class="badge bg-danger ms-1" id="pendingCount">{{ pending_requests|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="children-tab" data-bs-toggle="pill" data-bs-target="#children" type="button">
+            <i class="fa-solid fa-chart-line me-1"></i> Focus Analytics
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="whitelist-tab" data-bs-toggle="pill" data-bs-target="#whitelist" type="button">
+            <i class="fa-solid fa-check-circle me-1"></i> Whitelist
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="blacklist-tab" data-bs-toggle="pill" data-bs-target="#blacklist" type="button">
+            <i class="fa-solid fa-ban me-1"></i> Blacklist
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="history-tab" data-bs-toggle="pill" data-bs-target="#history" type="button">
+            <i class="fa-solid fa-clock-rotate-left me-1"></i> History
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- Pending Requests Tab -->
+    <div class="tab-pane fade show active" id="requests" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-clock text-warning me-2"></i>Pending Access Requests</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="autoExpire()"><i class="fa-solid fa-hourglass-end me-1"></i> Auto-Expire Old</button>
+                </div>
+
+                {% if pending_requests %}
+                <div class="row g-3" id="pendingRequestsContainer">
+                    {% for req in pending_requests %}
+                    <div class="col-md-6 request-card" id="req-{{ req.id }}">
+                        <div class="card border-warning border-opacity-25 h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="fw-bold mb-0">{{ req.blacklist_item.name }}</h6>
+                                        <small class="text-muted">{{ req.child.username }}</small>
+                                    </div>
+                                    <span class="badge bg-warning text-dark"><i class="fa-solid fa-hourglass-half me-1"></i>{{ req.requested_at|timesince }} ago</span>
+                                </div>
+                                <p class="small text-muted mb-2">
+                                    <i class="fa-solid fa-clock me-1"></i>During {{ req.session.planned_duration }}min focus session
+                                </p>
+                                <div class="d-flex gap-2">
+                                    <form method="POST" action="{% url 'api_approve_request' req.id %}" class="d-inline" onsubmit="return handleApprove(event, this, {{ req.id }})">
+                                        {% csrf_token %}
+                                        <div class="input-group input-group-sm mb-2">
+                                            <input type="number" name="grant_minutes" class="form-control" placeholder="Grant (min)" min="1" value="60" style="max-width:100px;">
+                                            <button type="submit" class="btn btn-success btn-sm"><i class="fa-solid fa-check me-1"></i>Approve</button>
+                                        </div>
+                                    </form>
+                                    <form method="POST" action="{% url 'api_reject_request' req.id %}" class="d-inline" onsubmit="return handleReject(event, this, {{ req.id }})">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-xmark me-1"></i>Reject</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fa-solid fa-check-circle text-success fa-3x mb-3"></i>
+                    <p class="text-muted mb-0">No pending requests. Your children are focused!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div class="tab-pane fade" id="children" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-chart-line text-info me-2"></i>Focus Analytics</h5>
+                {% if children %}
+                <div class="mb-3">
+                    <select class="form-select" id="childSelect" onchange="loadAnalytics()" style="max-width:300px;">
+                        <option value="">-- Select a child --</option>
+                        {% for child in children %}
+                        <option value="{{ child.id }}">{{ child.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="analyticsDisplay">
+                    <div class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-arrow-up fa-3x mb-3"></i>
+                        <p>Select a child to view focus analytics.</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fa-solid fa-chain-broken fa-3x mb-3"></i>
+                    <p>No children connected yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Whitelist Tab -->
+    <div class="tab-pane fade" id="whitelist" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-check-circle text-success me-2"></i>Allowed Apps & Websites</h5>
+                    <button class="btn btn-sm btn-primary" onclick="showAddWhitelistModal()"><i class="fa-solid fa-plus me-1"></i> Add</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Identifier</th>
+                                <th>Default</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="whitelistTableBody">
+                            <tr><td colspan="5" class="text-muted text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blacklist Tab -->
+    <div class="tab-pane fade" id="blacklist" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-ban text-danger me-2"></i>Restricted Apps & Websites</h5>
+                    <button class="btn btn-sm btn-primary" onclick="showAddBlacklistModal()"><i class="fa-solid fa-plus me-1"></i> Add</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Identifier</th>
+                                <th>Default</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blacklistTableBody">
+                            <tr><td colspan="5" class="text-muted text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Tab -->
+    <div class="tab-pane fade" id="history" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-clock-rotate-left text-secondary me-2"></i>Access Request History</h5>
+                {% if history %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Child</th>
+                                <th>App / Website</th>
+                                <th>Requested</th>
+                                <th>Status</th>
+                                <th>Responded</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for req in history %}
+                            <tr>
+                                <td>{{ req.child.username }}</td>
+                                <td>{{ req.blacklist_item.name }}</td>
+                                <td>{{ req.requested_at|timesince }} ago</td>
+                                <td>
+                                    {% if req.status == 'APPROVED' %}
+                                    <span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Approved</span>
+                                    {% elif req.status == 'REJECTED' %}
+                                    <span class="badge bg-danger"><i class="fa-solid fa-xmark me-1"></i>Rejected</span>
+                                    {% elif req.status == 'EXPIRED' %}
+                                    <span class="badge bg-secondary"><i class="fa-solid fa-hourglass-end me-1"></i>Expired</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">{{ req.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ req.responded_at|timesince }} ago</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fa-solid fa-inbox fa-3x mb-3"></i>
+                    <p>No history yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Whitelist Modal -->
+<div class="modal fade" id="addWhitelistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add to Whitelist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" id="wlName" placeholder="e.g. Notion">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="wlCategory">
+                        <option value="APP">Application</option>
+                        <option value="WEBSITE">Website</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">App Executable (for apps)</label>
+                    <input type="text" class="form-control" id="wlAppName" placeholder="e.g. Notion.exe">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">URL Pattern (for websites)</label>
+                    <input type="text" class="form-control" id="wlUrlPattern" placeholder="e.g. notion.so">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="addWhitelistItem()"><i class="fa-solid fa-plus me-1"></i> Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Blacklist Modal -->
+<div class="modal fade" id="addBlacklistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add to Blacklist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" id="blName" placeholder="e.g. TikTok">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="blCategory">
+                        <option value="APP">Application</option>
+                        <option value="WEBSITE">Website</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">App Executable (for apps)</label>
+                    <input type="text" class="form-control" id="blAppName" placeholder="e.g. tiktok.exe">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">URL Pattern (for websites)</label>
+                    <input type="text" class="form-control" id="blUrlPattern" placeholder="e.g. tiktok.com">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="addBlacklistItem()"><i class="fa-solid fa-plus me-1"></i> Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            document.cookie.split(';').forEach(c => {
+                const trimmed = c.trim();
+                if (trimmed.startsWith(name + '=')) {
+                    cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+                }
+            });
+        }
+        return cookieValue;
+    }
+
+    // Approve / Reject handlers
+    function handleApprove(event, form, reqId) {
+        event.preventDefault();
+        const formData = new FormData(form);
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const el = document.getElementById(`req-${reqId}`);
+                if (el) el.remove();
+                updatePendingCount();
+                alert(data.message);
+            } else { alert(data.error || 'Error'); }
+        })
+        .catch(() => alert('Network error'));
+    }
+
+    function handleReject(event, form, reqId) {
+        event.preventDefault();
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const el = document.getElementById(`req-${reqId}`);
+                if (el) el.remove();
+                updatePendingCount();
+                alert(data.message);
+            } else { alert(data.error || 'Error'); }
+        })
+        .catch(() => alert('Network error'));
+    }
+
+    function updatePendingCount() {
+        const count = document.querySelectorAll('.request-card').length;
+        document.getElementById('pendingCount').textContent = count;
+    }
+
+    function autoExpire() {
+        if (!confirm('Auto-expire all pending requests older than 5 minutes?')) return;
+        fetch('/focus/parent/api/auto-expire/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') },
+            body: new URLSearchParams({ timeout_minutes: 5 })
+        })
+        .then(r => r.json())
+        .then(data => {
+            alert(`Expired ${data.expired_count} old request(s).`);
+            location.reload();
+        });
+    }
+
+    // Load analytics
+    function loadAnalytics() {
+        const childId = document.getElementById('childSelect').value;
+        if (!childId) return;
+        fetch(`/focus/parent/api/analytics/${childId}/`)
+            .then(r => r.json())
+            .then(data => {
+                const d = data.daily;
+                const w = data.weekly;
+                const m = data.monthly;
+                const ar = data.access_requests;
+                    document.getElementById('analyticsDisplay').innerHTML = `
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <div class="card bg-primary bg-opacity-10 border-0 stat-card">
+                                <h6 class="text-muted small">Daily Focus</h6>
+                                <h3 class="fw-bold">${d.focus_minutes}m</h3>
+                                <small class="text-muted">${d.completed} completed / ${d.interrupted} interrupted</small>
+                                <small class="text-danger">${Math.round(d.distraction_seconds/60)}m distracted</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success bg-opacity-10 border-0 stat-card">
+                                <h6 class="text-muted small">Weekly Focus</h6>
+                                <h3 class="fw-bold">${w.focus_minutes}m</h3>
+                                <small class="text-muted">${w.completed} completed / ${w.interrupted} interrupted</small>
+                                <small class="text-danger">${Math.round(w.distraction_seconds/60)}m distracted</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info bg-opacity-10 border-0 stat-card">
+                                <h6 class="text-muted small">Monthly Focus</h6>
+                                <h3 class="fw-bold">${m.focus_minutes}m</h3>
+                                <small class="text-muted">${m.completed} completed / ${m.interrupted} interrupted</small>
+                                <small class="text-danger">${Math.round(m.distraction_seconds/60)}m distracted</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning bg-opacity-10 border-0 stat-card">
+                                <h6 class="text-muted small">Access Requests</h6>
+                                <h3 class="fw-bold">${ar.total} Total</h3>
+                                <small class="text-muted">${ar.approved} Approved / ${ar.rejected} Rejected</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+    }
+
+    // Whitelist CRUD
+    function loadWhitelist() {
+        fetch('/focus/parent/api/whitelist/')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('whitelistTableBody');
+                if (data.items && data.items.length > 0) {
+                    tbody.innerHTML = data.items.map(i => `
+                        <tr>
+                            <td>${i.name}</td>
+                            <td><span class="badge ${i.category === 'APP' ? 'bg-secondary' : 'bg-info'}">${i.category}</span></td>
+                            <td><code>${i.app_name || i.url_pattern || '—'}</code></td>
+                            <td>${i.is_default ? '<span class="badge bg-success">Default</span>' : '<span class="badge bg-secondary">Custom</span>'}</td>
+                            <td>${i.is_default ? '' : `<button class="btn btn-sm btn-outline-danger" onclick="removeWhitelist(${i.id})"><i class="fa-solid fa-trash"></i></button>`}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No items.</td></tr>';
+                }
+            });
+    }
+
+    function showAddWhitelistModal() {
+        new bootstrap.Modal(document.getElementById('addWhitelistModal')).show();
+    }
+
+    function addWhitelistItem() {
+        const data = {
+            name: document.getElementById('wlName').value,
+            category: document.getElementById('wlCategory').value,
+            app_name: document.getElementById('wlAppName').value,
+            url_pattern: document.getElementById('wlUrlPattern').value,
+        };
+        if (!data.name) { alert('Name is required.'); return; }
+        fetch('/focus/parent/api/whitelist/add/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(data)
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'success') {
+                bootstrap.Modal.getInstance(document.getElementById('addWhitelistModal')).hide();
+                loadWhitelist();
+            } else { alert(d.error || 'Error'); }
+        });
+    }
+
+    function removeWhitelist(id) {
+        if (!confirm('Remove this item from whitelist?')) return;
+        fetch(`/focus/parent/api/whitelist/remove/${id}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(r => r.json())
+        .then(d => { if (d.status === 'success') loadWhitelist(); else alert(d.error); });
+    }
+
+    // Blacklist CRUD
+    function loadBlacklist() {
+        fetch('/focus/parent/api/blacklist/')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('blacklistTableBody');
+                if (data.items && data.items.length > 0) {
+                    tbody.innerHTML = data.items.map(i => `
+                        <tr>
+                            <td>${i.name}</td>
+                            <td><span class="badge ${i.category === 'APP' ? 'bg-secondary' : 'bg-info'}">${i.category}</span></td>
+                            <td><code>${i.app_name || i.url_pattern || '—'}</code></td>
+                            <td>${i.is_default ? '<span class="badge bg-success">Default</span>' : '<span class="badge bg-secondary">Custom</span>'}</td>
+                            <td>${i.is_default ? '' : `<button class="btn btn-sm btn-outline-danger" onclick="removeBlacklist(${i.id})"><i class="fa-solid fa-trash"></i></button>`}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">No items.</td></tr>';
+                }
+            });
+    }
+
+    function showAddBlacklistModal() {
+        new bootstrap.Modal(document.getElementById('addBlacklistModal')).show();
+    }
+
+    function addBlacklistItem() {
+        const data = {
+            name: document.getElementById('blName').value,
+            category: document.getElementById('blCategory').value,
+            app_name: document.getElementById('blAppName').value,
+            url_pattern: document.getElementById('blUrlPattern').value,
+        };
+        if (!data.name) { alert('Name is required.'); return; }
+        fetch('/focus/parent/api/blacklist/add/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(data)
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'success') {
+                bootstrap.Modal.getInstance(document.getElementById('addBlacklistModal')).hide();
+                loadBlacklist();
+            } else { alert(d.error || 'Error'); }
+        });
+    }
+
+    function removeBlacklist(id) {
+        if (!confirm('Remove this item from blacklist?')) return;
+        fetch(`/focus/parent/api/blacklist/remove/${id}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(r => r.json())
+        .then(d => { if (d.status === 'success') loadBlacklist(); else alert(d.error); });
+    }
+
+    // Poll for new requests every 15 seconds
+    function pollRequests() {
+        fetch('/focus/parent/api/requests/')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('pendingRequestsContainer');
+                const existingIds = new Set();
+                container.querySelectorAll('.request-card').forEach(el => existingIds.add(el.id.replace('req-', '')));
+
+                data.requests.forEach(req => {
+                    if (!existingIds.has(String(req.id))) {
+                        const div = document.createElement('div');
+                        div.className = 'col-md-6 request-card list-item-enter';
+                        div.id = `req-${req.id}`;
+                        div.innerHTML = `
+                            <div class="card border-warning border-opacity-25 h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h6 class="fw-bold mb-0">${req.app_name}</h6>
+                                            <small class="text-muted">${req.child_name}</small>
+                                        </div>
+                                        <span class="badge bg-warning text-dark">just now</span>
+                                    </div>
+                                    <p class="small text-muted mb-2">
+                                        <i class="fa-solid fa-clock me-1"></i>During ${req.session_duration}min focus session
+                                    </p>
+                                    <div class="d-flex gap-2">
+                                        <form method="POST" action="/focus/parent/api/approve/${req.id}/" class="d-inline" onsubmit="return handleApprove(event, this, ${req.id})">
+                                            <input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="number" name="grant_minutes" class="form-control" placeholder="Grant (min)" min="1" value="60" style="max-width:100px;">
+                                                <button type="submit" class="btn btn-success btn-sm"><i class="fa-solid fa-check me-1"></i>Approve</button>
+                                            </div>
+                                        </form>
+                                        <form method="POST" action="/focus/parent/api/reject/${req.id}/" class="d-inline" onsubmit="return handleReject(event, this, ${req.id})">
+                                            <input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
+                                            <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-xmark me-1"></i>Reject</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        container.prepend(div);
+                    }
+                });
+                updatePendingCount();
+            })
+            .catch(() => {});
+    }
+
+    // Init
+    loadWhitelist();
+    loadBlacklist();
+    setInterval(pollRequests, 15000);
+</script>
+{% endblock %}

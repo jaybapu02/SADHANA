@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "notifications",
     "relationships",
     "admin_panel",
+    "focus",
 ]
 
 MIDDLEWARE = [

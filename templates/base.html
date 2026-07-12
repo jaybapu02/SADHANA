@@ -42,9 +42,17 @@
                         </li>
                         {% if user.role == 'CHILD' %}
                         <li class="nav-item">
+                            <a class="nav-link" href="{% url 'focus_session' %}"><i class="fa-solid fa-bullseye"></i> Focus</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="{% url 'todo_dashboard' %}"><i class="fa-solid fa-list-check"></i> To-Do</a>
                         </li>
                         {% endif %}
+                    {% if user.role == 'PARENT' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'parent_focus_dashboard' %}"><i class="fa-solid fa-bullseye"></i> Focus</a>
+                        </li>
+                    {% endif %}
                         <li class="nav-item">
                             <a class="nav-link position-relative" href="{% url 'notification_list' %}">
                                 <i class="fa-solid fa-bell"></i>

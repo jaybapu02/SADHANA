@@ -1,0 +1,715 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .focus-timer {
+        font-size: 5rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 2px;
+    }
+    .focus-timer.active { color: var(--bs-success); }
+    .focus-timer.interrupted { color: var(--bs-danger); }
+    .focus-timer.completed { color: var(--bs-info); }
+    .app-badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        margin: 0.2rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .app-badge.whitelist { background: rgba(25, 135, 84, 0.15); color: var(--bs-success); border: 1px solid rgba(25, 135, 84, 0.3); }
+    .app-badge.blacklist { background: rgba(220, 53, 69, 0.15); color: var(--bs-danger); border: 1px solid rgba(220, 53, 69, 0.3); }
+    .duration-btn {
+        min-width: 80px;
+        transition: all 0.2s ease;
+    }
+    .duration-btn.selected {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 3px var(--bs-primary);
+    }
+    #accessResultToast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+    }
+    .session-stats-card {
+        background: rgba(var(--bs-secondary-rgb), 0.05);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+    }
+    .approved-app-tile {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1.2rem;
+        border-radius: 12px;
+        border: 2px solid rgba(13, 202, 240, 0.3);
+        background: rgba(13, 202, 240, 0.08);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+    .approved-app-tile:hover {
+        border-color: rgba(13, 202, 240, 0.7);
+        background: rgba(13, 202, 240, 0.15);
+        transform: translateY(-2px);
+    }
+    .approved-app-tile.in-use {
+        border-color: #198754;
+        background: rgba(25, 135, 84, 0.15);
+        color: var(--bs-success);
+        box-shadow: 0 0 12px rgba(25, 135, 84, 0.3);
+    }
+    .approved-app-tile .fa-solid {
+        font-size: 1.2rem;
+    }
+    .approved-app-tile .in-use-badge {
+        font-size: 0.65rem;
+        padding: 0.15rem 0.4rem;
+    }
+
+</style>
+
+<div class="row mt-4">
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="fw-bold"><i class="fa-solid fa-brain text-primary me-2"></i>Study & Focus Mode</h2>
+            <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+        </div>
+        <hr>
+    </div>
+</div>
+
+
+
+<div id="accessResultToast" class="toast" role="alert">
+    <div class="toast-header">
+        <strong class="me-auto" id="toastTitle">Notice</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body" id="toastMessage"></div>
+</div>
+
+<div class="row">
+    <!-- Timer & Controls Column -->
+    <div class="col-lg-7 mb-4">
+        <div class="card shadow border-0 rounded-4 h-100">
+            <div class="card-body p-4 text-center">
+                {% if active_session %}
+                <div class="mb-2">
+                    <span class="badge bg-success fs-6"><i class="fa-solid fa-circle me-1"></i> Session Active</span>
+                </div>
+                {% endif %}
+
+                <div class="focus-timer mb-2" id="timerDisplay">00:00</div>
+                <p class="text-muted mb-3" id="timerLabel">Ready to focus?</p>
+
+                <!-- Duration Selector -->
+                <div id="durationSelector" class="mb-4">
+                    <label class="fw-semibold mb-2">Choose Study Duration</label>
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        <button class="btn btn-outline-primary duration-btn selected" data-minutes="25" onclick="selectDuration(this, 25)">25 min</button>
+                        <button class="btn btn-outline-primary duration-btn" data-minutes="50" onclick="selectDuration(this, 50)">50 min</button>
+                        <div class="input-group" style="max-width: 170px;">
+                            <input type="number" class="form-control" id="customDuration" placeholder="Custom min" min="1" max="480">
+                            <button class="btn btn-outline-primary" onclick="selectCustomDuration()">Set</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Control Buttons -->
+                <div class="row justify-content-center mb-4 g-2">
+                    <div class="col-4">
+                        <button id="startBtn" class="btn btn-success btn-lg rounded-pill px-4 w-100" {% if active_session %}disabled{% endif %}>
+                            <i class="fa-solid fa-play me-2"></i>Start
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button id="endBtn" class="btn btn-danger btn-lg rounded-pill px-4 w-100" {% if not active_session %}disabled{% endif %}>
+                            <i class="fa-solid fa-stop me-2"></i>End
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Session Stats -->
+                <div class="row g-2 mt-3">
+                    <div class="col-3">
+                        <div class="session-stats-card">
+                            <h6 class="text-muted small mb-1">Focus Time</h6>
+                            <h4 class="fw-bold mb-0" id="focusDisplay">0s</h4>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="session-stats-card">
+                            <h6 class="text-muted small mb-1">Distracted</h6>
+                            <h4 class="fw-bold mb-0 text-danger" id="distractionDisplay">0s</h4>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="session-stats-card">
+                            <h6 class="text-muted small mb-1">Progress</h6>
+                            <h4 class="fw-bold mb-0" id="progressDisplay">0%</h4>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="session-stats-card">
+                            <h6 class="text-muted small mb-1">Remaining</h6>
+                            <h4 class="fw-bold mb-0" id="remainingDisplay">--</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="progress mt-3" style="height: 10px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Apps Column -->
+    <div class="col-lg-5 mb-4">
+        <div class="card shadow border-0 rounded-4 mb-3">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-check-circle text-success me-2"></i>Allowed Apps</h5>
+                <div id="whitelistContainer">
+                    {% for item in whitelist %}
+                    <span class="app-badge whitelist"><i class="fa-solid fa-check me-1"></i>{{ item.name }}</span>
+                    {% empty %}
+                    <p class="text-muted small">No whitelist items configured.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow border-0 rounded-4 mb-3">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-ban text-danger me-2"></i>Restricted Apps</h5>
+                <div id="blacklistContainer">
+                    {% for item in blacklist %}
+                    <span class="app-badge blacklist" data-id="{{ item.id }}" data-name="{{ item.name }}">
+                        <i class="fa-solid fa-ban me-1"></i>{{ item.name }}
+                    </span>
+                    {% empty %}
+                    <p class="text-muted small">No blacklist items configured.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Access Request Panel -->
+        <div class="card shadow border-0 rounded-4" id="accessPanel" {% if not active_session %}style="opacity:0.5;pointer-events:none;"{% endif %}>
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-paper-plane text-warning me-2"></i>Request Access</h5>
+                <p class="small text-muted">Need a restricted app? Send a request to your parent.</p>
+                <div class="input-group mb-2">
+                    <select class="form-select" id="accessAppSelect">
+                        <option value="">-- Select app --</option>
+                        {% for item in blacklist %}
+                        <option value="{{ item.id }}">{{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-warning" id="requestAccessBtn" {% if not active_session %}disabled{% endif %}>
+                        <i class="fa-solid fa-paper-plane me-1"></i> Request
+                    </button>
+                </div>
+                <div id="accessRequestStatus" class="small mt-2"></div>
+            </div>
+        </div>
+
+        <!-- Parent Approved Apps Panel -->
+        <div class="card shadow border-0 rounded-4" id="approvedAppsPanel" style="display:none;">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-thumbs-up text-info me-2"></i>Parent Approved Apps</h5>
+                <p class="small text-muted">Approved by your parent. Click to use — no distraction penalty.</p>
+                <div id="approvedAppsContainer" class="d-flex flex-wrap gap-2"></div>
+                <div id="approvedAppStatus" class="small mt-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session History -->
+<div class="card shadow border-0 rounded-4 mt-2">
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Session History</h5>
+            <button class="btn btn-sm btn-outline-info" onclick="loadHistory()"><i class="fa-solid fa-rotate me-1"></i> Refresh</button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Planned</th>
+                        <th>Focused</th>
+                        <th>Distracted</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    <tr><td colspan="5" class="text-muted text-center small">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentSessionId = null;
+    let plannedDuration = 0;
+    let selectedDuration = 25;
+    let focusSeconds = 0;
+    let distractionSeconds = 0;
+    let isRunning = false;
+
+    // Mutually exclusive timers
+    let isTabHidden = false;
+    let focusInterval = null;
+    let distractionInterval = null;
+
+    {% if active_session %}
+    currentSessionId = {{ active_session.id }};
+    plannedDuration = {{ active_session.planned_duration }};
+    isRunning = true;
+    {% endif %}
+
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerLabel = document.getElementById('timerLabel');
+    const focusDisplay = document.getElementById('focusDisplay');
+    const distractionDisplay = document.getElementById('distractionDisplay');
+    const progressDisplay = document.getElementById('progressDisplay');
+    const remainingDisplay = document.getElementById('remainingDisplay');
+    const progressBar = document.getElementById('progressBar');
+    const startBtn = document.getElementById('startBtn');
+    const endBtn = document.getElementById('endBtn');
+    const durationSelector = document.getElementById('durationSelector');
+    const accessPanel = document.getElementById('accessPanel');
+    const requestAccessBtn = document.getElementById('requestAccessBtn');
+    const accessAppSelect = document.getElementById('accessAppSelect');
+    const accessRequestStatus = document.getElementById('accessRequestStatus');
+
+
+    function formatTime(sec) {
+        const m = String(Math.floor(sec / 60)).padStart(2, '0');
+        const s = String(sec % 60).padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
+    function updateTimerDisplay() {
+        timerDisplay.textContent = formatTime(focusSeconds);
+        const planned = plannedDuration * 60;
+        const pct = planned > 0 ? Math.min(100, Math.round((focusSeconds / planned) * 100)) : 0;
+        focusDisplay.textContent = `${focusSeconds}s`;
+        distractionDisplay.textContent = `${distractionSeconds}s`;
+        progressDisplay.textContent = `${pct}%`;
+        progressBar.style.width = `${pct}%`;
+        progressBar.setAttribute('aria-valuenow', pct);
+
+        if (isRunning) {
+            const remaining = Math.max(0, planned - focusSeconds);
+            remainingDisplay.textContent = formatTime(remaining);
+            if (remaining <= 0) {
+                timerDisplay.className = 'focus-timer completed';
+            }
+        }
+    }
+
+    function selectDuration(btn, minutes) {
+        document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedDuration = minutes;
+        document.getElementById('customDuration').value = '';
+    }
+
+    function selectCustomDuration() {
+        const val = parseInt(document.getElementById('customDuration').value);
+        if (val && val > 0) {
+            document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
+            selectedDuration = val;
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            document.cookie.split(';').forEach(c => {
+                const trimmed = c.trim();
+                if (trimmed.startsWith(name + '=')) {
+                    cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+                }
+            });
+        }
+        return cookieValue;
+    }
+
+    function showToast(title, message, type) {
+        const el = document.getElementById('accessResultToast');
+        const toast = bootstrap.Toast.getOrCreateInstance(el);
+        document.getElementById('toastTitle').textContent = title;
+        document.getElementById('toastMessage').textContent = message;
+        el.className = `toast text-bg-${type} border-0`;
+        toast.show();
+    }
+
+    // ─── Tab-switch detection — timers are mutually exclusive ───
+
+    function pauseFocusTimer() {
+        if (focusInterval) {
+            clearInterval(focusInterval);
+            focusInterval = null;
+        }
+    }
+
+    function resumeFocusTimer() {
+        if (focusInterval) return;
+        focusInterval = setInterval(() => {
+            if (!isRunning) return;
+            focusSeconds++;
+            updateTimerDisplay();
+            if (focusSeconds >= plannedDuration * 60) {
+                endSession();
+            }
+        }, 1000);
+    }
+
+    function startDistractionTimer() {
+        if (distractionInterval) return;
+        distractionInterval = setInterval(() => {
+            if (!isRunning) return;
+            distractionSeconds++;
+            updateTimerDisplay();
+        }, 1000);
+    }
+
+    function stopDistractionTimer() {
+        if (distractionInterval) {
+            clearInterval(distractionInterval);
+            distractionInterval = null;
+        }
+    }
+
+    function onTabHidden() {
+        if (!isRunning) return;
+        isTabHidden = true;
+        pauseFocusTimer();
+        startDistractionTimer();
+        timerLabel.textContent = 'You moved away — distraction tracking active';
+        timerLabel.className = 'text-danger mb-3';
+        showToast('Focus Paused', 'You left the tab. Focus timer paused, distraction tracking started.', 'warning');
+    }
+
+    function onTabVisible() {
+        if (!isRunning) return;
+        isTabHidden = false;
+        stopDistractionTimer();
+        resumeFocusTimer();
+        timerLabel.textContent = 'You\'re back — keep focusing!';
+        timerLabel.className = 'text-success mb-3';
+        setTimeout(() => { timerLabel.textContent = 'Stay focused!'; timerLabel.className = 'text-muted mb-3'; }, 3000);
+        showToast('Focus Resumed', 'Welcome back! Focus timer resumed.', 'success');
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            onTabHidden();
+        } else {
+            onTabVisible();
+        }
+    });
+
+    // ─── Session lifecycle ───
+
+    function setSessionActive(sessionId, duration) {
+        currentSessionId = sessionId;
+        plannedDuration = duration;
+        isRunning = true;
+        focusSeconds = 0;
+        distractionSeconds = 0;
+        isTabHidden = false;
+        startBtn.disabled = true;
+        endBtn.disabled = false;
+        durationSelector.style.display = 'none';
+        accessPanel.style.opacity = '1';
+        accessPanel.style.pointerEvents = 'auto';
+        requestAccessBtn.disabled = false;
+        timerLabel.textContent = 'Stay focused!';
+        timerLabel.className = 'text-muted mb-3';
+        timerDisplay.className = 'focus-timer active';
+        updateTimerDisplay();
+
+        resumeFocusTimer();
+    }
+
+    function setSessionInactive() {
+        isRunning = false;
+        currentSessionId = null;
+        plannedDuration = 0;
+        isTabHidden = false;
+        pauseFocusTimer();
+        stopDistractionTimer();
+        startBtn.disabled = false;
+        endBtn.disabled = true;
+        durationSelector.style.display = 'block';
+        accessPanel.style.opacity = '0.5';
+        accessPanel.style.pointerEvents = 'none';
+        requestAccessBtn.disabled = true;
+        timerLabel.textContent = 'Ready to focus?';
+        timerLabel.className = 'text-muted mb-3';
+        timerDisplay.className = 'focus-timer';
+        loadHistory();
+    }
+
+    function endSession() {
+        if (!currentSessionId) return;
+        pauseFocusTimer();
+        stopDistractionTimer();
+        isTabHidden = false;
+
+        fetch('/focus/api/end-session/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                session_id: currentSessionId,
+                focus_seconds: focusSeconds,
+                distraction_seconds: distractionSeconds
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const completed = data.session_status === 'COMPLETED';
+                const msg = completed
+                    ? `Session complete! Focused: ${focusSeconds}s, Distracted: ${distractionSeconds}s`
+                    : `Session ended early. Focused: ${focusSeconds}s, Distracted: ${distractionSeconds}s`;
+                showToast('Session Saved', msg, completed ? 'success' : 'warning');
+                timerDisplay.className = `focus-timer ${completed ? 'completed' : 'interrupted'}`;
+                timerLabel.textContent = completed ? 'Session Complete!' : 'Session Ended Early';
+            } else {
+                showToast('Error', data.error || 'Could not save session.', 'danger');
+            }
+        })
+        .catch(() => showToast('Error', 'Network error.', 'danger'))
+        .finally(() => setSessionInactive());
+    }
+
+    // Start
+    startBtn.addEventListener('click', () => {
+        fetch('/focus/api/start-session/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ duration: selectedDuration })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                setSessionActive(data.session_id, data.planned_duration);
+                showToast('Session Started', `Focus session started for ${data.planned_duration} minutes.`, 'success');
+            } else {
+                showToast('Error', data.error || 'Could not start session.', 'danger');
+            }
+        })
+        .catch(() => showToast('Error', 'Network error.', 'danger'));
+    });
+
+    // End
+    endBtn.addEventListener('click', () => {
+        if (!currentSessionId) return;
+        if (!confirm('End your focus session?')) return;
+        endSession();
+    });
+
+    // Request Access
+    requestAccessBtn.addEventListener('click', () => {
+        const blacklistItemId = accessAppSelect.value;
+        if (!blacklistItemId) {
+            accessRequestStatus.innerHTML = '<span class="text-danger">Please select an app.</span>';
+            return;
+        }
+        if (!currentSessionId) {
+            accessRequestStatus.innerHTML = '<span class="text-danger">No active session.</span>';
+            return;
+        }
+        const appName = accessAppSelect.options[accessAppSelect.selectedIndex].text;
+        fetch('/focus/api/request-access/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                blacklist_item_id: parseInt(blacklistItemId),
+                session_id: currentSessionId
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                accessRequestStatus.innerHTML = `<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>${data.message}</span>`;
+                showToast('Request Sent', `Access request for "${appName}" sent to parent.`, 'warning');
+            } else {
+                accessRequestStatus.innerHTML = `<span class="text-danger"><i class="fa-solid fa-exclamation-circle me-1"></i>${data.error}</span>`;
+            }
+        })
+        .catch(() => { accessRequestStatus.innerHTML = '<span class="text-danger">Network error.</span>'; });
+    });
+
+    // ─── Approved Apps: show clickable tiles, pause distraction when in use ───
+
+    let activeApprovedAppId = null;
+
+    function loadApprovedApps() {
+        if (!isRunning || !currentSessionId) return;
+        fetch('/focus/api/approved-apps/')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('approvedAppsContainer');
+                const panel = document.getElementById('approvedAppsPanel');
+                const status = document.getElementById('approvedAppStatus');
+                if (!data.approved_apps || data.approved_apps.length === 0) {
+                    panel.style.display = 'none';
+                    return;
+                }
+                panel.style.display = 'block';
+
+                const existing = new Set();
+                container.querySelectorAll('.approved-app-tile').forEach(el => existing.add(el.dataset.reqId));
+
+                data.approved_apps.forEach(app => {
+                    if (existing.has(String(app.id))) return;
+                    const tile = document.createElement('div');
+                    tile.className = 'approved-app-tile';
+                    tile.dataset.reqId = app.id;
+                    tile.dataset.appName = app.app_name;
+                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name}`;
+                    tile.addEventListener('click', () => toggleApprovedApp(tile, app.id, app.app_name));
+                    container.appendChild(tile);
+                });
+
+                // Show rejections as toasts (poll for rejected requests too)
+                if (data.approved_apps.length > 0 && !status.dataset.notified) {
+                    status.dataset.notified = '1';
+                }
+            });
+    }
+
+    function getAppIcon(name) {
+        const iconMap = {
+            'instagram': 'instagram', 'facebook': 'facebook', 'youtube': 'youtube',
+            'whatsapp': 'whatsapp', 'discord': 'discord', 'telegram': 'telegram',
+            'netflix': 'netflix', 'steam': 'steam', 'chrome': 'chrome',
+            'spotify': 'spotify', 'twitter': 'twitter', 'x': 'x-twitter',
+            'linkedin': 'linkedin', 'github': 'github', 'reddit': 'reddit',
+            'tiktok': 'tiktok', 'snapchat': 'snapchat', 'pinterest': 'pinterest',
+        };
+        for (const [key, icon] of Object.entries(iconMap)) {
+            if (name.toLowerCase().includes(key)) return icon;
+        }
+        return 'window-restore';
+    }
+
+    function toggleApprovedApp(tile, reqId, appName) {
+        if (activeApprovedAppId === reqId) {
+            // Deactivate
+            activeApprovedAppId = null;
+            tile.classList.remove('in-use');
+            tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(appName)}"></i> ${appName}`;
+            document.getElementById('approvedAppStatus').innerHTML = '';
+            showToast('App Closed', `Stopped using "${appName}". Distraction tracking active.`, 'info');
+            // Resume normal distraction behavior
+            if (document.hidden) {
+                // If tab is hidden, restart distraction tracking
+                startDistractionTimer();
+            }
+        } else {
+            // Deactivate previous
+            document.querySelectorAll('.approved-app-tile.in-use').forEach(el => {
+                el.classList.remove('in-use');
+                const name = el.dataset.appName;
+                el.innerHTML = `<i class="fa-brands fa-${getAppIcon(name)}"></i> ${name}`;
+            });
+            // Activate this one
+            activeApprovedAppId = reqId;
+            tile.classList.add('in-use');
+            tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(appName)}"></i> ${appName} <span class="badge bg-success in-use-badge">In Use</span>`;
+            document.getElementById('approvedAppStatus').innerHTML = '<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Using approved app — distraction paused</span>';
+            // Stop distraction timer while using approved app
+            stopDistractionTimer();
+            showToast('App Active', `"${appName}" is now active. No distraction penalty while using it.`, 'success');
+        }
+    }
+
+    // Session History
+    function loadHistory() {
+        fetch('/focus/api/child-history/')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('historyBody');
+                if (data.sessions && data.sessions.length > 0) {
+                    tbody.innerHTML = data.sessions.map(s => {
+                        const date = new Date(s.start_time);
+                        const badge = s.status === 'COMPLETED' ? 'bg-success' : s.status === 'INTERRUPTED' ? 'bg-warning text-dark' : 'bg-primary';
+                        const label = s.status === 'COMPLETED' ? 'Completed' : s.status === 'INTERRUPTED' ? 'Interrupted' : 'Active';
+                        return `<tr>
+                            <td>${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
+                            <td>${s.planned_duration}m</td>
+                            <td>${Math.round(s.actual_focus_seconds / 60)}m ${s.actual_focus_seconds % 60}s</td>
+                            <td>${Math.round(s.distraction_seconds / 60)}m ${s.distraction_seconds % 60}s</td>
+                            <td><span class="badge ${badge}">${label}</span></td>
+                        </tr>`;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center small">No sessions yet.</td></tr>';
+                }
+            });
+    }
+
+    // Init
+    loadHistory();
+
+    if (currentSessionId) {
+        setSessionActive(currentSessionId, plannedDuration);
+    }
+
+    // Poll for approved apps every 8 seconds when session is active
+    let approvedAppsPollInterval = null;
+    function startApprovedAppsPolling() {
+        stopApprovedAppsPolling();
+        loadApprovedApps();
+        approvedAppsPollInterval = setInterval(loadApprovedApps, 8000);
+    }
+    function stopApprovedAppsPolling() {
+        if (approvedAppsPollInterval) {
+            clearInterval(approvedAppsPollInterval);
+            approvedAppsPollInterval = null;
+        }
+    }
+
+    // Patch setSessionActive/setSessionInactive to toggle polling
+    const _origSetActive = setSessionActive;
+    const _origSetInactive = setSessionInactive;
+    setSessionActive = function(sessionId, duration) {
+        _origSetActive(sessionId, duration);
+        startApprovedAppsPolling();
+    };
+    setSessionInactive = function() {
+        stopApprovedAppsPolling();
+        activeApprovedAppId = null;
+        document.getElementById('approvedAppsPanel').style.display = 'none';
+        document.getElementById('approvedAppsContainer').innerHTML = '';
+        _origSetInactive();
+    };
+</script>
+{% endblock %}

@@ -10,4 +10,5 @@ urlpatterns = [
     path('tasks/', include('tasks.urls')),
     path('notifications/', include('notifications.urls')),
     path('relationships/', include('relationships.urls')),
+    path('focus/', include('focus.urls')),
 ]

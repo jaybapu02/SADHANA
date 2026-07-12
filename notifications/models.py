@@ -15,6 +15,11 @@ class Notification(models.Model):
         STUDY_STREAK = 'STUDY_STREAK', 'Study Streak'
         DISTRACTION_ALERT = 'DISTRACTION_ALERT', 'Distraction Alert'
         TASK_REOPENED = 'TASK_REOPENED', 'Task Reopened'
+        ACCESS_REQUESTED = 'ACCESS_REQUESTED', 'Access Requested'
+        ACCESS_APPROVED = 'ACCESS_APPROVED', 'Access Approved'
+        ACCESS_REJECTED = 'ACCESS_REJECTED', 'Access Rejected'
+        FOCUS_COMPLETED = 'FOCUS_COMPLETED', 'Focus Session Completed'
+        FOCUS_INTERRUPTED = 'FOCUS_INTERRUPTED', 'Focus Session Interrupted'
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
