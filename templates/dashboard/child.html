@@ -163,6 +163,14 @@
             </div>
         </div>
 
+        <div class="card shadow border-0 rounded-4 mb-4" id="approvedAppsCard" style="display:none;">
+            <div class="card-body">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-thumbs-up text-info me-2"></i>Parent Approved Apps</h5>
+                <p class="small text-muted">Click a website to open it. Access expires automatically.</p>
+                <div id="approvedAppsContainer" class="d-flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+
         <div class="card shadow border-0 rounded-4">
             <div class="card-body">
                 <h5 class="fw-bold mb-4">Focus Trend (Today)</h5>
@@ -176,6 +184,7 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Focus Trend Chart
     var ctx = document.getElementById('childFocusChart').getContext('2d');
     var chartLabels = {{ chart_labels|safe }};
     var chartData = {{ chart_scores|safe }};
@@ -203,5 +212,133 @@
             }
         }
     });
+
+    // ─── Approved Apps ───
+    var approvedAppsInterval = null;
+    var appTimers = {};
+
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            document.cookie.split(';').forEach(function(c) {
+                var trimmed = c.trim();
+                if (trimmed.startsWith(name + '=')) {
+                    cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+                }
+            });
+        }
+        return cookieValue;
+    }
+
+    function markAppUsage(reqId, inUse) {
+        fetch('/focus/api/mark-app-usage/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ request_id: reqId, in_use: inUse })
+        }).catch(function() {});
+    }
+
+    function loadApprovedApps() {
+        fetch('/focus/api/approved-apps/')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var container = document.getElementById('approvedAppsContainer');
+                var card = document.getElementById('approvedAppsCard');
+                if (!data.approved_apps || data.approved_apps.length === 0) {
+                    card.style.display = 'none';
+                    return;
+                }
+                card.style.display = 'block';
+                container.innerHTML = '';
+                data.approved_apps.forEach(function(app) {
+                    var remaining = Math.max(0, Math.floor((new Date(app.granted_until) - new Date()) / 1000));
+                    var tile = document.createElement('a');
+                    tile.className = 'approved-app-tile' + (app.in_use ? ' in-use' : '');
+                    tile.style.cssText = 'display:inline-flex;align-items:center;gap:0.5rem;padding:0.6rem 1.2rem;border-radius:12px;border:2px solid ' + (app.in_use ? 'rgba(25,135,84,0.5)' : 'rgba(13,202,240,0.3)') + ';background:' + (app.in_use ? 'rgba(25,135,84,0.15)' : 'rgba(13,202,240,0.08)') + ';font-weight:500;font-size:0.9rem;text-decoration:none;color:inherit;transition:all 0.2s ease;cursor:pointer;';
+                    tile.dataset.reqId = app.id;
+                    tile.dataset.grantedUntil = app.granted_until;
+                    if (app.in_use) {
+                        tile.dataset.inUse = 'true';
+                    }
+
+                    var icon = document.createElement('i');
+                    icon.className = 'fa-solid ' + (app.app_category === 'WEBSITE' ? 'fa-globe' : 'fa-window-restore');
+                    icon.style.cssText = 'font-size:1.2rem;';
+                    tile.appendChild(icon);
+
+                    var nameSpan = document.createElement('span');
+                    nameSpan.textContent = app.app_name;
+                    tile.appendChild(nameSpan);
+
+                    if (app.in_use) {
+                        var useBadge = document.createElement('span');
+                        useBadge.className = 'badge bg-success ms-1';
+                        useBadge.textContent = 'In Use';
+                        tile.appendChild(useBadge);
+                    }
+
+                    var timeBadge = document.createElement('span');
+                    timeBadge.className = 'badge bg-info ms-1';
+                    timeBadge.id = 'timer-' + app.id;
+                    timeBadge.textContent = formatRemaining(remaining);
+                    tile.appendChild(timeBadge);
+
+                    if (app.url && !app.in_use) {
+                        tile.href = app.url;
+                        tile.target = '_blank';
+                        tile.rel = 'noopener noreferrer';
+                    }
+
+                    tile.addEventListener('click', function(e) {
+                        if (app.in_use) return;
+                        e.preventDefault();
+                        markAppUsage(app.id, true);
+                        if (app.url) {
+                            window.open(app.url, '_blank', 'noopener,noreferrer');
+                        }
+                        setTimeout(loadApprovedApps, 500);
+                    });
+
+                    container.appendChild(tile);
+                    appTimers[app.id] = app.granted_until;
+                });
+            })
+            .catch(function() {});
+    }
+
+    function formatRemaining(sec) {
+        if (sec <= 0) return 'Expired';
+        var m = Math.floor(sec / 60);
+        var s = sec % 60;
+        if (m > 0) return m + 'm ' + s + 's';
+        return s + 's';
+    }
+
+    function updateTimers() {
+        var now = new Date();
+        var expired = [];
+        document.querySelectorAll('.approved-app-tile').forEach(function(tile) {
+            var reqId = tile.dataset.reqId;
+            var until = new Date(tile.dataset.grantedUntil);
+            var remaining = Math.max(0, Math.floor((until - now) / 1000));
+            var badge = document.getElementById('timer-' + reqId);
+            if (badge) badge.textContent = formatRemaining(remaining);
+            if (remaining <= 0) {
+                tile.style.opacity = '0.3';
+                tile.style.pointerEvents = 'none';
+                expired.push(reqId);
+            }
+        });
+        if (expired.length > 0) {
+            setTimeout(function() {
+                loadApprovedApps();
+            }, 2000);
+        }
+    }
+
+    // Init
+    loadApprovedApps();
+    approvedAppsInterval = setInterval(loadApprovedApps, 10000);
+    setInterval(updateTimers, 1000);
 </script>
 {% endblock %}

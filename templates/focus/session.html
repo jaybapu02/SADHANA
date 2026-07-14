@@ -399,10 +399,16 @@
         if (!isRunning) return;
         isTabHidden = true;
         pauseFocusTimer();
-        startDistractionTimer();
-        timerLabel.textContent = 'You moved away — distraction tracking active';
-        timerLabel.className = 'text-danger mb-3';
-        showToast('Focus Paused', 'You left the tab. Focus timer paused, distraction tracking started.', 'warning');
+        // Don't start distraction if an approved app is in use
+        if (!lastInUseState) {
+            startDistractionTimer();
+            timerLabel.textContent = 'You moved away — distraction tracking active';
+            timerLabel.className = 'text-danger mb-3';
+            showToast('Focus Paused', 'You left the tab. Focus timer paused, distraction tracking started.', 'warning');
+        } else {
+            timerLabel.textContent = 'Using approved app — no penalty';
+            timerLabel.className = 'text-info mb-3';
+        }
     }
 
     function onTabVisible() {
@@ -569,6 +575,7 @@
     // ─── Approved Apps: show clickable tiles, pause distraction when in use ───
 
     let activeApprovedAppId = null;
+    let lastInUseState = false;
 
     function loadApprovedApps() {
         if (!isRunning || !currentSessionId) return;
@@ -580,6 +587,11 @@
                 const status = document.getElementById('approvedAppStatus');
                 if (!data.approved_apps || data.approved_apps.length === 0) {
                     panel.style.display = 'none';
+                    if (activeApprovedAppId) {
+                        activeApprovedAppId = null;
+                        lastInUseState = false;
+                        resumeDistractionIfNeeded();
+                    }
                     return;
                 }
                 panel.style.display = 'block';
@@ -587,22 +599,61 @@
                 const existing = new Set();
                 container.querySelectorAll('.approved-app-tile').forEach(el => existing.add(el.dataset.reqId));
 
+                let anyInUse = false;
+
                 data.approved_apps.forEach(app => {
-                    if (existing.has(String(app.id))) return;
+                    if (app.in_use) anyInUse = true;
+
+                    if (existing.has(String(app.id))) {
+                        // Update existing tile in_use state
+                        const tile = container.querySelector(`[data-req-id="${app.id}"]`);
+                        if (tile) {
+                            const wasInUse = tile.dataset.inUse === 'true';
+                            if (wasInUse !== app.in_use) {
+                                tile.dataset.inUse = app.in_use ? 'true' : 'false';
+                                if (app.in_use) {
+                                    tile.classList.add('in-use');
+                                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name} <span class="badge bg-success in-use-badge">In Use</span>`;
+                                } else {
+                                    tile.classList.remove('in-use');
+                                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name}`;
+                                }
+                            }
+                        }
+                        return;
+                    }
+
                     const tile = document.createElement('div');
-                    tile.className = 'approved-app-tile';
+                    tile.className = 'approved-app-tile' + (app.in_use ? ' in-use' : '');
                     tile.dataset.reqId = app.id;
                     tile.dataset.appName = app.app_name;
-                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name}`;
+                    tile.dataset.inUse = app.in_use ? 'true' : 'false';
+                    tile.innerHTML = app.in_use
+                        ? `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name} <span class="badge bg-success in-use-badge">In Use</span>`
+                        : `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name}`;
                     tile.addEventListener('click', () => toggleApprovedApp(tile, app.id, app.app_name));
                     container.appendChild(tile);
                 });
 
-                // Show rejections as toasts (poll for rejected requests too)
-                if (data.approved_apps.length > 0 && !status.dataset.notified) {
-                    status.dataset.notified = '1';
+                // Auto-sync distraction timer with in_use state
+                if (anyInUse && !lastInUseState) {
+                    lastInUseState = true;
+                    stopDistractionTimer();
+                    document.getElementById('approvedAppStatus').innerHTML = '<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Using approved app — distraction paused</span>';
+                } else if (!anyInUse && lastInUseState) {
+                    lastInUseState = false;
+                    activeApprovedAppId = null;
+                    document.getElementById('approvedAppStatus').innerHTML = '';
+                    resumeDistractionIfNeeded();
                 }
             });
+    }
+
+    function resumeDistractionIfNeeded() {
+        // Only start distraction if tab is actually hidden
+        if (document.hidden) {
+            startDistractionTimer();
+        }
     }
 
     function getAppIcon(name) {
@@ -621,34 +672,34 @@
     }
 
     function toggleApprovedApp(tile, reqId, appName) {
-        if (activeApprovedAppId === reqId) {
-            // Deactivate
-            activeApprovedAppId = null;
-            tile.classList.remove('in-use');
-            tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(appName)}"></i> ${appName}`;
-            document.getElementById('approvedAppStatus').innerHTML = '';
-            showToast('App Closed', `Stopped using "${appName}". Distraction tracking active.`, 'info');
-            // Resume normal distraction behavior
-            if (document.hidden) {
-                // If tab is hidden, restart distraction tracking
-                startDistractionTimer();
+        const currentlyInUse = tile.dataset.inUse === 'true';
+        const newInUse = !currentlyInUse;
+
+        // Mark on server
+        fetch('/focus/api/mark-app-usage/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ request_id: reqId, in_use: newInUse })
+        }).then(r => r.json()).then(data => {
+            if (data.status === 'success') {
+                tile.dataset.inUse = newInUse ? 'true' : 'false';
+                if (newInUse) {
+                    tile.classList.add('in-use');
+                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(appName)}"></i> ${appName} <span class="badge bg-success in-use-badge">In Use</span>`;
+                    document.getElementById('approvedAppStatus').innerHTML = '<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Using approved app — distraction paused</span>';
+                    stopDistractionTimer();
+                    lastInUseState = true;
+                    showToast('App Active', `"${appName}" is now active. Distraction paused.`, 'success');
+                } else {
+                    tile.classList.remove('in-use');
+                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(appName)}"></i> ${appName}`;
+                    document.getElementById('approvedAppStatus').innerHTML = '';
+                    lastInUseState = false;
+                    if (document.hidden) startDistractionTimer();
+                    showToast('App Closed', `Stopped using "${appName}". Distraction tracking active.`, 'info');
+                }
             }
-        } else {
-            // Deactivate previous
-            document.querySelectorAll('.approved-app-tile.in-use').forEach(el => {
-                el.classList.remove('in-use');
-                const name = el.dataset.appName;
-                el.innerHTML = `<i class="fa-brands fa-${getAppIcon(name)}"></i> ${name}`;
-            });
-            // Activate this one
-            activeApprovedAppId = reqId;
-            tile.classList.add('in-use');
-            tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(appName)}"></i> ${appName} <span class="badge bg-success in-use-badge">In Use</span>`;
-            document.getElementById('approvedAppStatus').innerHTML = '<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Using approved app — distraction paused</span>';
-            // Stop distraction timer while using approved app
-            stopDistractionTimer();
-            showToast('App Active', `"${appName}" is now active. No distraction penalty while using it.`, 'success');
-        }
+        }).catch(() => showToast('Error', 'Could not update app status.', 'danger'));
     }
 
     // Session History

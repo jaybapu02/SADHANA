@@ -634,27 +634,29 @@ def api_child_focus_history(request):
 def api_get_approved_apps(request):
     if request.user.role != 'CHILD':
         return JsonResponse({'error': 'Unauthorized.'}, status=403)
-    session = FocusSession.objects.filter(
-        child=request.user, status=FocusSession.Status.ACTIVE
-    ).first()
-    if not session:
-        return JsonResponse({'approved_apps': []})
 
     now = timezone.now()
     approved = AccessRequest.objects.filter(
         child=request.user,
-        session=session,
         status=AccessRequest.Status.APPROVED,
         granted_until__gte=now,
     ).select_related('blacklist_item')
 
     data = []
     for req in approved:
+        item = req.blacklist_item
+        url = ''
+        if item.category == 'WEBSITE' and item.url_pattern:
+            url = 'https://' + item.url_pattern
         data.append({
             'id': req.id,
-            'app_name': req.blacklist_item.name,
-            'app_category': req.blacklist_item.category,
+            'app_name': item.name,
+            'app_category': item.category,
+            'url_pattern': item.url_pattern,
+            'app_name_exe': item.app_name,
+            'url': url,
             'granted_until': req.granted_until.isoformat() if req.granted_until else None,
+            'in_use': req.in_use,
         })
     return JsonResponse({'approved_apps': data})
 
@@ -676,4 +678,6 @@ def api_mark_app_usage(request):
         AccessRequest, id=request_id, child=request.user,
         status=AccessRequest.Status.APPROVED
     )
-    return JsonResponse({'status': 'success', 'app_name': access_req.blacklist_item.name, 'in_use': in_use})
+    access_req.in_use = bool(in_use)
+    access_req.save(update_fields=['in_use'])
+    return JsonResponse({'status': 'success', 'app_name': access_req.blacklist_item.name, 'in_use': access_req.in_use})

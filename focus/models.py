@@ -112,6 +112,7 @@ class AccessRequest(models.Model):
     requested_at = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(null=True, blank=True)
     granted_until = models.DateTimeField(null=True, blank=True, help_text="If approved, access granted until this time")
+    in_use = models.BooleanField(default=False, help_text="Child is currently using this approved app")
 
     class Meta:
         ordering = ['-requested_at']

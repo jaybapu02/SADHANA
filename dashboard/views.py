@@ -8,7 +8,7 @@ from datetime import timedelta
 from relationships.models import ConnectionRequest
 from study.models import StudySession
 from tasks.models import Task
-from focus.models import FocusSession
+from focus.models import FocusSession, AccessRequest
 from notifications.models import Notification
 from notifications.services import NotificationService
 from django.contrib.auth import get_user_model
@@ -269,6 +269,13 @@ def child_dashboard(request):
 
     unread_notif = Notification.objects.filter(recipient=request.user, is_read=False).count()
 
+    now = timezone.now()
+    approved_access = AccessRequest.objects.filter(
+        child=request.user,
+        status=AccessRequest.Status.APPROVED,
+        granted_until__gte=now,
+    ).select_related('blacklist_item')
+
     context = {
         'pending_requests': pending_requests,
         'parents': parents,
@@ -283,6 +290,7 @@ def child_dashboard(request):
         'today_pending': today_pending,
         'today_pct': today_pct,
         'unread_notif': unread_notif,
+        'approved_apps': approved_access,
     }
 
     return render(request, 'dashboard/child.html', context)
