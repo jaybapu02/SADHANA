@@ -20,6 +20,8 @@ class Notification(models.Model):
         ACCESS_REJECTED = 'ACCESS_REJECTED', 'Access Rejected'
         FOCUS_COMPLETED = 'FOCUS_COMPLETED', 'Focus Session Completed'
         FOCUS_INTERRUPTED = 'FOCUS_INTERRUPTED', 'Focus Session Interrupted'
+        LEVEL_UP = 'LEVEL_UP', 'Level Up'
+        BADGE_EARNED = 'BADGE_EARNED', 'Badge Earned'
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,

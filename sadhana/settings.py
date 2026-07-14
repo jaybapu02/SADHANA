@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "relationships",
     "admin_panel",
     "focus",
+    "rewards",
 ]
 
 MIDDLEWARE = [

@@ -91,6 +91,40 @@
             </div>
         </div>
 
+        <div class="card bg-warning bg-opacity-10 border-0 rounded-4 mb-4 shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-star text-warning me-2"></i>My Rewards</h5>
+                    <a href="{% url 'reward_leaderboard' %}" class="btn btn-sm btn-outline-warning">Leaderboard <i class="fa-solid fa-trophy ms-1"></i></a>
+                </div>
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4 text-center">
+                        <span class="fs-1">Lv.{{ reward_profile.level }}</span>
+                        <div class="progress mt-1" style="height:6px;">
+                            <div class="progress-bar bg-warning" style="width:{{ reward_profile.level_progress }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ reward_profile.xp_in_current_level }} / {{ reward_profile.xp_for_next_level }} XP</small>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <span class="fs-3 fw-bold">{{ reward_profile.xp }}</span>
+                        <span class="text-muted small d-block">⚡ XP</span>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <span class="fs-3 fw-bold text-warning">{{ reward_profile.coins }}</span>
+                        <span class="text-muted small d-block">🪙 Coins</span>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-1 mt-3 justify-content-center">
+                    {% for b in reward_badges|slice:":8" %}
+                        <span title="{{ b.badge.name }}{% if not b.earned %} (locked){% endif %}">{% if b.earned %}{{ b.badge.icon }}{% else %}🔒{% endif %}</span>
+                    {% endfor %}
+                    {% if reward_badges|length > 8 %}
+                        <span class="small text-muted">+{{ reward_badges|length|add:"-8" }} more</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
         <div class="row g-3 mb-4">
             <div class="col-md-4">
                 <div class="card shadow-sm border-0 rounded-4 h-100 bg-secondary bg-opacity-10">

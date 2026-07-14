@@ -13,6 +13,7 @@ from .models import FocusSession, WhitelistItem, BlacklistItem, AccessRequest, F
 from notifications.models import Notification
 from notifications.services import NotificationService
 from relationships.models import ConnectionRequest
+from rewards.services import on_focus_session_completed
 
 
 # ─── Seeding default whitelist/blacklist ───
@@ -158,6 +159,9 @@ def api_end_session(request):
             NotificationService.focus_completed(parent, request.user, duration_minutes)
         else:
             NotificationService.focus_interrupted(parent, request.user, duration_minutes)
+
+    if session.status == FocusSession.Status.COMPLETED:
+        on_focus_session_completed(request.user)
 
     return JsonResponse({
         'status': 'success',

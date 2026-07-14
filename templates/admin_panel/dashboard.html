@@ -96,6 +96,37 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3">
+        <div class="card border-info h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-info"><i class="fa-solid fa-star"></i> Rewards</h5>
+                <p class="display-6 fw-bold">{{ total_reward_profiles }}</p>
+                <small class="text-muted">{{ total_badges }} badges · {{ total_badge_awards }} awards</small>
+                <div class="mt-2"><a href="/admin/rewards/" class="btn btn-sm btn-outline-info">Manage</a></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-warning"><i class="fa-solid fa-bolt"></i> XP Economy</h6>
+                <p class="display-6 fw-bold text-warning">{{ total_xp_awarded }}</p>
+                <small class="text-muted">Total XP awarded</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6 class="text-warning"><i class="fa-solid fa-coins"></i> Coin Economy</h6>
+                <p class="display-6 fw-bold text-warning">{{ total_coins_awarded }}</p>
+                <small class="text-muted">Total coins awarded</small>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if recent_sessions %}

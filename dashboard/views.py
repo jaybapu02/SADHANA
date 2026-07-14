@@ -11,6 +11,7 @@ from focus.models import FocusSession, AccessRequest
 from notifications.models import Notification
 from notifications.services import NotificationService
 from django.contrib.auth import get_user_model
+from rewards.services import get_reward_context, get_leaderboard
 User = get_user_model()
 
 
@@ -279,6 +280,8 @@ def child_dashboard(request):
         granted_until__gte=now,
     ).select_related('blacklist_item')
 
+    reward_ctx = get_reward_context(request.user)
+
     context = {
         'pending_requests': pending_requests,
         'parents': parents,
@@ -294,6 +297,8 @@ def child_dashboard(request):
         'today_pct': today_pct,
         'unread_notif': unread_notif,
         'approved_apps': approved_access,
+        'reward_profile': reward_ctx['profile'],
+        'reward_badges': reward_ctx['badges'],
     }
 
     return render(request, 'dashboard/child.html', context)

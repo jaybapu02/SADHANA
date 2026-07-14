@@ -7,6 +7,7 @@ from datetime import timedelta, datetime, date
 from .models import Task
 from notifications.services import NotificationService
 from relationships.models import ConnectionRequest
+from rewards.services import on_task_completed, on_all_tasks_done, on_task_uncompleted, update_streak, check_monthly_discipline
 
 
 @login_required
@@ -130,6 +131,8 @@ def toggle_task(request, task_id):
         task.save()
 
         if task.status:
+            on_task_completed(request.user)
+
             NotificationService.notify_all_parents(
                 request.user,
                 NotificationService.task_completed,
@@ -137,17 +140,20 @@ def toggle_task(request, task_id):
             )
             all_today = Task.objects.filter(child=request.user, date=timezone.now().date())
             if all_today.count() > 0 and all_today.filter(status=False).count() == 0:
+                on_all_tasks_done(request.user)
                 NotificationService.notify_all_parents(
                     request.user,
                     NotificationService.all_tasks_done
                 )
                 NotificationService.all_tasks_done_child(request.user)
         else:
+            on_task_uncompleted(request.user)
             NotificationService.notify_all_parents(
                 request.user,
                 NotificationService.task_reopened,
                 task=task
             )
+
     return redirect('todo_dashboard')
 
 

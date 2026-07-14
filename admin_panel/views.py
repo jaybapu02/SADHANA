@@ -11,6 +11,7 @@ from tasks.models import Task
 from notifications.models import Notification
 from relationships.models import ConnectionRequest
 from focus.models import FocusSession, WhitelistItem, BlacklistItem, AccessRequest, FocusAnalytics
+from rewards.models import RewardProfile, Badge, BadgeAward, Transaction
 
 
 def is_admin(user):
@@ -36,6 +37,12 @@ def dashboard(request):
     total_access_requests = AccessRequest.objects.count()
     pending_access_requests = AccessRequest.objects.filter(status=AccessRequest.Status.PENDING).count()
 
+    total_reward_profiles = RewardProfile.objects.count()
+    total_badges = Badge.objects.count()
+    total_badge_awards = BadgeAward.objects.count()
+    total_xp_awarded = Transaction.objects.aggregate(t=Sum('xp_amount'))['t'] or 0
+    total_coins_awarded = Transaction.objects.aggregate(t=Sum('coin_amount'))['t'] or 0
+
     recent_sessions = FocusSession.objects.select_related('child').order_by('-start_time')[:10]
 
     context = {
@@ -53,6 +60,11 @@ def dashboard(request):
         'total_blacklist': total_blacklist,
         'total_access_requests': total_access_requests,
         'pending_access_requests': pending_access_requests,
+        'total_reward_profiles': total_reward_profiles,
+        'total_badges': total_badges,
+        'total_badge_awards': total_badge_awards,
+        'total_xp_awarded': total_xp_awarded,
+        'total_coins_awarded': total_coins_awarded,
         'recent_sessions': recent_sessions,
     }
     return render(request, 'admin_panel/dashboard.html', context)

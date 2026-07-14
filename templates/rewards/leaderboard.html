@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold"><i class="fa-solid fa-trophy text-warning me-2"></i>Leaderboard</h2>
+    <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+</div>
+
+<div class="card shadow border-0 rounded-4">
+    <div class="card-body p-0">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Student</th>
+                    <th>Level</th>
+                    <th>XP</th>
+                    <th>Coins</th>
+                    <th>Streak</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in leaderboard %}
+                <tr>
+                    <td>
+                        {% if forloop.counter == 1 %}
+                            <span class="fs-5">🥇</span>
+                        {% elif forloop.counter == 2 %}
+                            <span class="fs-5">🥈</span>
+                        {% elif forloop.counter == 3 %}
+                            <span class="fs-5">🥉</span>
+                        {% else %}
+                            {{ forloop.counter }}
+                        {% endif %}
+                    </td>
+                    <td>{{ p.user.username }}</td>
+                    <td><span class="badge bg-primary">Lv.{{ p.level }}</span></td>
+                    <td><strong>{{ p.xp }}</strong> <span class="text-muted small">XP</span></td>
+                    <td><span class="text-warning">{{ p.coins }}</span> <span class="text-muted small">🪙</span></td>
+                    <td>{% if p.current_streak > 0 %}{{ p.current_streak }} days 🔥{% else %}—{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted">No students yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
