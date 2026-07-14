@@ -77,6 +77,7 @@
     let breakSeconds = 0;
     let distractionSeconds = 0;
     let isRunning = false;
+    let isPaused = false;
     let isBreak = false;
     let isDistracted = false;
 
@@ -103,27 +104,71 @@
         distractionDisplay.textContent = formatTime(distractionSeconds);
     }
 
+    function updateStartButton() {
+        if (seconds > 0) {
+            startBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Resume';
+        } else {
+            startBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Start';
+        }
+    }
+
     startBtn.addEventListener('click', () => {
         if (!isRunning) {
             isRunning = true;
-            timerInterval = setInterval(() => {
-                seconds++;
-                updateDisplays();
-            }, 1000);
+            isPaused = false;
+            resumeMainTimer();
             startBtn.disabled = true;
             pauseBtn.disabled = false;
+            pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
             endBtn.disabled = false;
             breakBtn.disabled = false;
             distractionBtn.disabled = false;
         }
     });
 
+    function pauseAllIntervals() {
+        clearInterval(timerInterval);
+        if (breakInterval) {
+            clearInterval(breakInterval);
+            breakInterval = null;
+        }
+        if (distractionInterval) {
+            clearInterval(distractionInterval);
+            distractionInterval = null;
+        }
+    }
+
+    function resumeMainTimer() {
+        timerInterval = setInterval(() => {
+            seconds++;
+            updateDisplays();
+        }, 1000);
+        if (isBreak) {
+            breakInterval = setInterval(() => { if (isBreak) breakSeconds++; }, 1000);
+        }
+        if (isDistracted) {
+            distractionInterval = setInterval(() => { if (isDistracted) distractionSeconds++; }, 1000);
+        }
+    }
+
     pauseBtn.addEventListener('click', () => {
-        if (isRunning) {
-            clearInterval(timerInterval);
+        if (isRunning && !isPaused) {
+            pauseAllIntervals();
             isRunning = false;
-            startBtn.disabled = false;
-            pauseBtn.disabled = true;
+            isPaused = true;
+            pauseBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Resume';
+            pauseBtn.disabled = false;
+            startBtn.disabled = true;
+            breakBtn.disabled = true;
+            distractionBtn.disabled = true;
+            updateStartButton();
+        } else if (isPaused) {
+            isRunning = true;
+            isPaused = false;
+            resumeMainTimer();
+            pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
+            breakBtn.disabled = false;
+            distractionBtn.disabled = false;
         }
     });
 
@@ -180,10 +225,9 @@
 
     endBtn.addEventListener('click', () => {
         if (!isRunning && seconds === 0) return;
-        clearInterval(timerInterval);
-        if (breakInterval) clearInterval(breakInterval);
-        if (distractionInterval) clearInterval(distractionInterval);
+        pauseAllIntervals();
         isRunning = false;
+        isPaused = false;
 
         const durationMinutes = Math.round(seconds / 60);
         const breakMinutes = Math.round(breakSeconds / 60);
@@ -212,7 +256,9 @@
         .catch(err => alert('Error saving session.'))
         .finally(() => {
             startBtn.disabled = true;
+            startBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Start';
             pauseBtn.disabled = true;
+            pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
             endBtn.disabled = true;
             breakBtn.disabled = true;
             distractionBtn.disabled = true;

@@ -130,6 +130,11 @@
                         </button>
                     </div>
                     <div class="col-4">
+                        <button id="pauseBtn" class="btn btn-warning btn-lg rounded-pill px-4 w-100" {% if not active_session %}disabled{% endif %}>
+                            <i class="fa-solid fa-pause me-2"></i>Pause
+                        </button>
+                    </div>
+                    <div class="col-4">
                         <button id="endBtn" class="btn btn-danger btn-lg rounded-pill px-4 w-100" {% if not active_session %}disabled{% endif %}>
                             <i class="fa-solid fa-stop me-2"></i>End
                         </button>
@@ -268,6 +273,7 @@
     let focusSeconds = 0;
     let distractionSeconds = 0;
     let isRunning = false;
+    let isPaused = false;
 
     // Mutually exclusive timers
     let isTabHidden = false;
@@ -288,6 +294,7 @@
     const remainingDisplay = document.getElementById('remainingDisplay');
     const progressBar = document.getElementById('progressBar');
     const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
     const endBtn = document.getElementById('endBtn');
     const durationSelector = document.getElementById('durationSelector');
     const accessPanel = document.getElementById('accessPanel');
@@ -396,7 +403,7 @@
     }
 
     function onTabHidden() {
-        if (!isRunning) return;
+        if (!isRunning || isPaused) return;
         isTabHidden = true;
         pauseFocusTimer();
         // Don't start distraction if an approved app is in use
@@ -412,7 +419,7 @@
     }
 
     function onTabVisible() {
-        if (!isRunning) return;
+        if (!isRunning || isPaused) return;
         isTabHidden = false;
         stopDistractionTimer();
         resumeFocusTimer();
@@ -440,6 +447,8 @@
         distractionSeconds = 0;
         isTabHidden = false;
         startBtn.disabled = true;
+        pauseBtn.disabled = false;
+        pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
         endBtn.disabled = false;
         durationSelector.style.display = 'none';
         accessPanel.style.opacity = '1';
@@ -460,7 +469,10 @@
         isTabHidden = false;
         pauseFocusTimer();
         stopDistractionTimer();
+        isPaused = false;
         startBtn.disabled = false;
+        pauseBtn.disabled = true;
+        pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
         endBtn.disabled = true;
         durationSelector.style.display = 'block';
         accessPanel.style.opacity = '0.5';
@@ -528,6 +540,45 @@
             }
         })
         .catch(() => showToast('Error', 'Network error.', 'danger'));
+    });
+
+    // Pause / Resume
+    pauseBtn.addEventListener('click', () => {
+        if (!currentSessionId || !isRunning) return;
+        if (!isPaused) {
+            isPaused = true;
+            pauseFocusTimer();
+            stopDistractionTimer();
+            pauseBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Resume';
+            timerLabel.textContent = 'Session paused';
+            timerLabel.className = 'text-warning mb-3';
+            timerDisplay.className = 'focus-timer';
+            showToast('Session Paused', 'Focus timer paused. Click Resume to continue.', 'warning');
+        } else {
+            isPaused = false;
+            // Only resume focus if tab is visible and not using approved app
+            if (!document.hidden && !lastInUseState) {
+                resumeFocusTimer();
+                timerLabel.textContent = 'Stay focused!';
+                timerLabel.className = 'text-muted mb-3';
+                timerDisplay.className = 'focus-timer active';
+            } else if (document.hidden) {
+                isTabHidden = true;
+                startDistractionTimer();
+                timerLabel.textContent = 'You moved away — distraction tracking active';
+                timerLabel.className = 'text-danger mb-3';
+            } else if (lastInUseState) {
+                timerLabel.textContent = 'Using approved app — no penalty';
+                timerLabel.className = 'text-info mb-3';
+            } else {
+                resumeFocusTimer();
+                timerLabel.textContent = 'Stay focused!';
+                timerLabel.className = 'text-muted mb-3';
+                timerDisplay.className = 'focus-timer active';
+            }
+            pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
+            showToast('Session Resumed', 'Focus timer resumed.', 'success');
+        }
     });
 
     // End
