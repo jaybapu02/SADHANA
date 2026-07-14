@@ -8,6 +8,7 @@ from datetime import timedelta
 from relationships.models import ConnectionRequest
 from study.models import StudySession
 from tasks.models import Task
+from focus.models import FocusSession
 from notifications.models import Notification
 from notifications.services import NotificationService
 from django.contrib.auth import get_user_model
@@ -95,26 +96,82 @@ def parent_child_stats(request, child_id):
         return redirect('parent_dashboard')
 
     child = req.child
-    sessions = StudySession.objects.filter(child=child).order_by('start_time')
-
     today = timezone.now().date()
-    today_sessions = sessions.filter(start_time__date=today)
 
-    today_duration = today_sessions.aggregate(Sum('duration'))['duration__sum'] or 0
-    today_distraction = today_sessions.aggregate(Sum('distraction_time'))['distraction_time__sum'] or 0
-    avg_focus = today_sessions.aggregate(Avg('focus_score'))['focus_score__avg'] or 0
+    # ─── StudySession data ───
+    study_sessions = StudySession.objects.filter(child=child)
+    today_study = study_sessions.filter(start_time__date=today)
+    study_duration = today_study.aggregate(Sum('duration'))['duration__sum'] or 0
+    study_distraction = today_study.aggregate(Sum('distraction_time'))['distraction_time__sum'] or 0
+    study_avg_focus = today_study.aggregate(Avg('focus_score'))['focus_score__avg'] or 0
 
-    labels = [s.start_time.strftime('%H:%M') for s in today_sessions]
-    scores = [s.focus_score for s in today_sessions]
+    # ─── FocusSession data (ended + active) ───
+    now = timezone.now()
+    focus_sessions = FocusSession.objects.filter(child=child)
+    focus_seconds = 0
+    focus_distraction = 0
+    for fs in focus_sessions:
+        if fs.status == FocusSession.Status.ACTIVE:
+            elapsed = int((now - fs.start_time).total_seconds())
+            foc_sec = max(0, elapsed)
+            dist_sec = 0
+        else:
+            foc_sec = fs.actual_focus_seconds
+            dist_sec = fs.distraction_seconds
+
+        if fs.start_time.date() == today:
+            focus_seconds += foc_sec
+            focus_distraction += dist_sec
+
+    # Combined today stats (all in minutes for display, seconds for calculation)
+    today_duration = study_duration + round(focus_seconds / 60)
+
+    today_distraction_seconds = study_distraction + focus_distraction
+    today_total_seconds = (study_duration * 60) + focus_seconds
+    if today_total_seconds > 0:
+        avg_focus = (today_total_seconds / (today_total_seconds + today_distraction_seconds)) * 100
+    else:
+        avg_focus = study_avg_focus
+
+    # ─── Build combined session list for chart & display ───
+    combined = []
+    for s in study_sessions:
+        combined.append({
+            'start_time': s.start_time,
+            'duration': s.duration,
+            'focus_score': s.focus_score,
+        })
+    for fs in focus_sessions:
+        if fs.status == FocusSession.Status.ACTIVE:
+            elapsed = int((now - fs.start_time).total_seconds())
+            foc_sec = max(0, elapsed)
+            dist_sec = 0
+        else:
+            foc_sec = fs.actual_focus_seconds
+            dist_sec = fs.distraction_seconds
+        foc_min = round(foc_sec / 60)
+        total_sec = foc_sec + dist_sec
+        score = round((foc_sec / total_sec * 100), 2) if total_sec > 0 else 0
+        combined.append({
+            'start_time': fs.start_time,
+            'duration': foc_min,
+            'focus_score': score,
+        })
+
+    combined.sort(key=lambda x: x['start_time'], reverse=True)
+    today_combined = [s for s in combined if s['start_time'].date() == today]
+
+    labels = [s['start_time'].strftime('%H:%M') for s in reversed(today_combined)]
+    durations = [s['duration'] for s in reversed(today_combined)]
 
     context = {
         'child': child,
-        'sessions': sessions.order_by('-start_time')[:10],
+        'sessions': combined[:10],
         'today_duration': today_duration,
-        'today_distraction': today_distraction,
+        'today_distraction': round(today_distraction_seconds),
         'avg_focus': round(avg_focus, 2),
         'chart_labels': labels,
-        'chart_scores': scores
+        'chart_data': durations,
     }
     return render(request, 'dashboard/child_stats.html', context)
 

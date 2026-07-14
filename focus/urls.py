@@ -23,6 +23,7 @@ urlpatterns = [
     path('parent/api/reject/<int:request_id>/', views.api_reject_request, name='api_reject_request'),
     path('parent/api/auto-expire/', views.api_auto_expire_requests, name='api_auto_expire_requests'),
     path('parent/api/analytics/<int:child_id>/', views.api_focus_analytics, name='api_focus_analytics'),
+    path('parent/api/sessions/<int:child_id>/', views.api_parent_child_sessions, name='api_parent_child_sessions'),
 
     # Parent: Whitelist / Blacklist management
     path('parent/api/whitelist/', views.api_list_whitelist, name='api_list_whitelist'),

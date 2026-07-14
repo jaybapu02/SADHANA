@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.db.models import Sum, Count, Q
+from django.db.models import Q
 
 from .models import FocusSession, WhitelistItem, BlacklistItem, AccessRequest, FocusAnalytics
 from notifications.models import Notification
@@ -472,31 +472,51 @@ def api_focus_analytics(request, child_id):
         return JsonResponse({'error': 'Not connected to this child.'}, status=403)
 
     today = timezone.now().date()
+    now = timezone.now()
     week_start = today - timedelta(days=today.weekday())
     month_start = today.replace(day=1)
 
     sessions = FocusSession.objects.filter(child_id=child_id)
 
+    def get_focus_distraction(fs):
+        if fs.status == FocusSession.Status.ACTIVE:
+            elapsed = int((now - fs.start_time).total_seconds())
+            return max(0, elapsed), 0
+        return fs.actual_focus_seconds, fs.distraction_seconds
+
     # Daily
-    daily_sessions = sessions.filter(start_time__date=today)
-    daily_focus = daily_sessions.aggregate(Sum('actual_focus_seconds'))['actual_focus_seconds__sum'] or 0
-    daily_distraction = daily_sessions.aggregate(Sum('distraction_seconds'))['distraction_seconds__sum'] or 0
-    daily_completed = daily_sessions.filter(status=FocusSession.Status.COMPLETED).count()
-    daily_interrupted = daily_sessions.filter(status=FocusSession.Status.INTERRUPTED).count()
+    daily_sessions = list(sessions.filter(start_time__date=today))
+    daily_focus = sum(get_focus_distraction(fs)[0] for fs in daily_sessions)
+    daily_distraction = sum(get_focus_distraction(fs)[1] for fs in daily_sessions)
+    daily_completed = sum(1 for fs in daily_sessions if fs.status == FocusSession.Status.COMPLETED)
+    daily_interrupted = sum(1 for fs in daily_sessions if fs.status == FocusSession.Status.INTERRUPTED)
 
     # Weekly
-    weekly_sessions = sessions.filter(start_time__date__gte=week_start)
-    weekly_focus = weekly_sessions.aggregate(Sum('actual_focus_seconds'))['actual_focus_seconds__sum'] or 0
-    weekly_distraction = weekly_sessions.aggregate(Sum('distraction_seconds'))['distraction_seconds__sum'] or 0
-    weekly_completed = weekly_sessions.filter(status=FocusSession.Status.COMPLETED).count()
-    weekly_interrupted = weekly_sessions.filter(status=FocusSession.Status.INTERRUPTED).count()
+    weekly_sessions = list(sessions.filter(start_time__date__gte=week_start))
+    weekly_focus = sum(get_focus_distraction(fs)[0] for fs in weekly_sessions)
+    weekly_distraction = sum(get_focus_distraction(fs)[1] for fs in weekly_sessions)
+    weekly_completed = sum(1 for fs in weekly_sessions if fs.status == FocusSession.Status.COMPLETED)
+    weekly_interrupted = sum(1 for fs in weekly_sessions if fs.status == FocusSession.Status.INTERRUPTED)
 
     # Monthly
-    monthly_sessions = sessions.filter(start_time__date__gte=month_start)
-    monthly_focus = monthly_sessions.aggregate(Sum('actual_focus_seconds'))['actual_focus_seconds__sum'] or 0
-    monthly_distraction = monthly_sessions.aggregate(Sum('distraction_seconds'))['distraction_seconds__sum'] or 0
-    monthly_completed = monthly_sessions.filter(status=FocusSession.Status.COMPLETED).count()
-    monthly_interrupted = monthly_sessions.filter(status=FocusSession.Status.INTERRUPTED).count()
+    monthly_sessions = list(sessions.filter(start_time__date__gte=month_start))
+    monthly_focus = sum(get_focus_distraction(fs)[0] for fs in monthly_sessions)
+    monthly_distraction = sum(get_focus_distraction(fs)[1] for fs in monthly_sessions)
+    monthly_completed = sum(1 for fs in monthly_sessions if fs.status == FocusSession.Status.COMPLETED)
+    monthly_interrupted = sum(1 for fs in monthly_sessions if fs.status == FocusSession.Status.INTERRUPTED)
+
+    # Daily trend data (last 7 days)
+    trend_dates = []
+    trend_focus_minutes = []
+    trend_distraction_minutes = []
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        day_sessions = list(sessions.filter(start_time__date=day))
+        day_focus = sum(get_focus_distraction(fs)[0] for fs in day_sessions)
+        day_distraction = sum(get_focus_distraction(fs)[1] for fs in day_sessions)
+        trend_dates.append(day.strftime('%a'))
+        trend_focus_minutes.append(round(day_focus / 60))
+        trend_distraction_minutes.append(round(day_distraction / 60))
 
     # Access request stats
     access_requests = AccessRequest.objects.filter(
@@ -528,12 +548,42 @@ def api_focus_analytics(request, child_id):
             'completed': monthly_completed,
             'interrupted': monthly_interrupted,
         },
+        'trend': {
+            'dates': trend_dates,
+            'focus_minutes': trend_focus_minutes,
+            'distraction_minutes': trend_distraction_minutes,
+        },
         'access_requests': {
             'total': total_requests,
             'approved': approved_requests,
             'rejected': rejected_requests,
         }
     })
+
+
+@login_required
+def api_parent_child_sessions(request, child_id):
+    if request.user.role != 'PARENT':
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+    conn = ConnectionRequest.objects.filter(
+        parent=request.user, child_id=child_id, status='ACCEPTED'
+    ).first()
+    if not conn:
+        return JsonResponse({'error': 'Not connected to this child.'}, status=403)
+
+    sessions = FocusSession.objects.filter(child_id=child_id).order_by('-start_time')[:50]
+    data = []
+    for s in sessions:
+        data.append({
+            'id': s.id,
+            'planned_duration': s.planned_duration,
+            'actual_focus_seconds': s.actual_focus_seconds,
+            'distraction_seconds': s.distraction_seconds,
+            'status': s.status,
+            'start_time': s.start_time.isoformat(),
+            'end_time': s.end_time.isoformat() if s.end_time else None,
+        })
+    return JsonResponse({'sessions': data})
 
 
 # ─── CSRF exempt helpers for fetch API calls ───

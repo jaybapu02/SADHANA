@@ -45,8 +45,13 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
+        <button class="nav-link" id="sessions-tab" data-bs-toggle="pill" data-bs-target="#sessions" type="button">
+            <i class="fa-solid fa-clock-rotate-left me-1"></i> Sessions
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link" id="history-tab" data-bs-toggle="pill" data-bs-target="#history" type="button">
-            <i class="fa-solid fa-clock-rotate-left me-1"></i> History
+            <i class="fa-solid fa-clock-rotate-left me-1"></i> Access History
         </button>
     </li>
 </ul>
@@ -123,6 +128,36 @@
                     <div class="text-center py-5 text-muted">
                         <i class="fa-solid fa-arrow-up fa-3x mb-3"></i>
                         <p>Select a child to view focus analytics.</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="fa-solid fa-chain-broken fa-3x mb-3"></i>
+                    <p>No children connected yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sessions Tab -->
+    <div class="tab-pane fade" id="sessions" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-clock-rotate-left text-secondary me-2"></i>Child Session History</h5>
+                {% if children %}
+                <div class="mb-3">
+                    <select class="form-select" id="sessionChildSelect" onchange="loadChildSessions()" style="max-width:300px;">
+                        <option value="">-- Select a child --</option>
+                        {% for child in children %}
+                        <option value="{{ child.id }}">{{ child.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="sessionsDisplay">
+                    <div class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-arrow-up fa-3x mb-3"></i>
+                        <p>Select a child to view session history.</p>
                     </div>
                 </div>
                 {% else %}
@@ -316,6 +351,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     function getCookie(name) {
         let cookieValue = null;
@@ -389,6 +425,8 @@
     }
 
     // Load analytics
+    let focusChartInstance = null;
+
     function loadAnalytics() {
         const childId = document.getElementById('childSelect').value;
         if (!childId) return;
@@ -399,8 +437,9 @@
                 const w = data.weekly;
                 const m = data.monthly;
                 const ar = data.access_requests;
-                    document.getElementById('analyticsDisplay').innerHTML = `
-                    <div class="row g-3">
+                const t = data.trend;
+                document.getElementById('analyticsDisplay').innerHTML = `
+                    <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <div class="card bg-primary bg-opacity-10 border-0 stat-card">
                                 <h6 class="text-muted small">Daily Focus</h6>
@@ -433,8 +472,53 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card border-0 bg-body-tertiary rounded-4 p-3">
+                                <h6 class="fw-bold mb-3"><i class="fa-solid fa-chart-line text-primary me-2"></i>7-Day Focus Trend</h6>
+                                <canvas id="focusTrendChart" height="80"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 `;
+                renderFocusChart(t.dates, t.focus_minutes, t.distraction_minutes);
             });
+    }
+
+    function renderFocusChart(dates, focusMinutes, distractionMinutes) {
+        if (focusChartInstance) focusChartInstance.destroy();
+        const ctx = document.getElementById('focusTrendChart').getContext('2d');
+        const hasData = focusMinutes.some(v => v > 0) || distractionMinutes.some(v => v > 0);
+        focusChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: hasData ? dates : ['No Data'],
+                datasets: [
+                    {
+                        label: 'Focus (min)',
+                        data: hasData ? focusMinutes : [0],
+                        backgroundColor: 'rgba(13, 110, 253, 0.7)',
+                        borderRadius: 4,
+                    },
+                    {
+                        label: 'Distraction (min)',
+                        data: hasData ? distractionMinutes : [0],
+                        backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                        borderRadius: 4,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Minutes' } },
+                    x: { title: { display: true, text: 'Day' } }
+                }
+            }
+        });
     }
 
     // Whitelist CRUD
@@ -551,6 +635,64 @@
         })
         .then(r => r.json())
         .then(d => { if (d.status === 'success') loadBlacklist(); else alert(d.error); });
+    }
+
+    // Load child sessions
+    function loadChildSessions() {
+        const childId = document.getElementById('sessionChildSelect').value;
+        if (!childId) {
+            document.getElementById('sessionsDisplay').innerHTML = `<div class="text-center py-5 text-muted">
+                <i class="fa-solid fa-arrow-up fa-3x mb-3"></i>
+                <p>Select a child to view session history.</p>
+            </div>`;
+            return;
+        }
+        fetch(`/focus/parent/api/sessions/${childId}/`)
+            .then(r => r.json())
+            .then(data => {
+                const sessions = data.sessions;
+                if (!sessions || sessions.length === 0) {
+                    document.getElementById('sessionsDisplay').innerHTML = `<div class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-inbox fa-3x mb-3"></i>
+                        <p>No sessions recorded yet.</p>
+                    </div>`;
+                    return;
+                }
+                let html = `<div class="table-responsive"><table class="table table-sm table-hover">
+                    <thead><tr>
+                        <th>Date</th>
+                        <th>Duration</th>
+                        <th>Focus</th>
+                        <th>Distraction</th>
+                        <th>Status</th>
+                    </tr></thead><tbody>`;
+                sessions.forEach(s => {
+                    const focusMin = Math.round(s.actual_focus_seconds / 60);
+                    const distractMin = Math.round(s.distraction_seconds / 60);
+                    const planned = s.planned_duration;
+                    const statusBadge = s.status === 'COMPLETED'
+                        ? '<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Completed</span>'
+                        : '<span class="badge bg-danger"><i class="fa-solid fa-xmark me-1"></i>Interrupted</span>';
+                    const start = new Date(s.start_time);
+                    const dateStr = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                    const timeStr = start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                    html += `<tr>
+                        <td>${dateStr} ${timeStr}</td>
+                        <td>${planned} min</td>
+                        <td>${focusMin} min</td>
+                        <td>${distractMin} min</td>
+                        <td>${statusBadge}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                document.getElementById('sessionsDisplay').innerHTML = html;
+            })
+            .catch(() => {
+                document.getElementById('sessionsDisplay').innerHTML = `<div class="text-center py-5 text-muted">
+                    <i class="fa-solid fa-exclamation-triangle fa-3x mb-3"></i>
+                    <p>Error loading sessions.</p>
+                </div>`;
+            });
     }
 
     // Poll for new requests every 15 seconds
