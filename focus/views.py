@@ -108,7 +108,8 @@ def api_start_session(request):
     session = FocusSession.objects.create(
         child=request.user,
         planned_duration=duration,
-        status=FocusSession.Status.ACTIVE
+        status=FocusSession.Status.ACTIVE,
+        session_type=FocusSession.Type.FOCUS,
     )
     return JsonResponse({
         'status': 'success',
@@ -128,6 +129,7 @@ def api_end_session(request):
         data = json.loads(request.body)
         focus_seconds = int(data.get('focus_seconds', 0))
         distraction_seconds = int(data.get('distraction_seconds', 0))
+        break_seconds = int(data.get('break_seconds', 0))
         session_id = data.get('session_id')
     except (ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'error': 'Invalid data.'}, status=400)
@@ -139,6 +141,7 @@ def api_end_session(request):
     planned_seconds = session.planned_duration * 60
     session.actual_focus_seconds = focus_seconds
     session.distraction_seconds = distraction_seconds
+    session.break_seconds = break_seconds
     session.end_time = timezone.now()
 
     if focus_seconds >= planned_seconds:
@@ -161,6 +164,32 @@ def api_end_session(request):
         'session_status': session.status,
         'actual_focus_seconds': session.actual_focus_seconds,
         'distraction_seconds': session.distraction_seconds,
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_start_study_session(request):
+    if request.user.role != 'CHILD':
+        return JsonResponse({'error': 'Only children can start sessions.'}, status=403)
+
+    existing = FocusSession.objects.filter(
+        child=request.user, status=FocusSession.Status.ACTIVE
+    ).first()
+    if existing:
+        return JsonResponse({'error': 'You already have an active session.'}, status=400)
+
+    session = FocusSession.objects.create(
+        child=request.user,
+        planned_duration=0,
+        status=FocusSession.Status.ACTIVE,
+        session_type=FocusSession.Type.STUDY,
+    )
+    return JsonResponse({
+        'status': 'success',
+        'session_id': session.id,
+        'start_time': session.start_time.isoformat(),
     })
 
 

@@ -5,6 +5,17 @@
     <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">Back</a>
 </div>
 
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Types</option>
+            {% for key, label in types %}
+            <option value="{{ key }}" {% if type_filter == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
 <div class="table-responsive">
     <table class="table table-dark table-hover">
         <thead>
@@ -44,13 +55,13 @@
 <nav>
     <ul class="pagination pagination-sm justify-content-center">
         {% if notifications.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page={{ notifications.previous_page_number }}">Previous</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ notifications.previous_page_number }}{% if type_filter %}&type={{ type_filter }}{% endif %}">Previous</a></li>
         {% endif %}
         {% for i in notifications.paginator.page_range %}
-        <li class="page-item {% if notifications.number == i %}active{% endif %}"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+        <li class="page-item {% if notifications.number == i %}active{% endif %}"><a class="page-link" href="?page={{ i }}{% if type_filter %}&type={{ type_filter }}{% endif %}">{{ i }}</a></li>
         {% endfor %}
         {% if notifications.has_next %}
-        <li class="page-item"><a class="page-link" href="?page={{ notifications.next_page_number }}">Next</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ notifications.next_page_number }}{% if type_filter %}&type={{ type_filter }}{% endif %}">Next</a></li>
         {% endif %}
     </ul>
 </nav>

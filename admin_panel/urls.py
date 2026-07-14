@@ -9,10 +9,6 @@ urlpatterns = [
     path('users/<int:user_id>/edit/', views.edit_user, name='admin_edit_user'),
     path('users/<int:user_id>/delete/', views.delete_user, name='admin_delete_user'),
 
-    # Study Sessions
-    path('sessions/', views.list_sessions, name='admin_list_sessions'),
-    path('sessions/<int:session_id>/delete/', views.delete_session, name='admin_delete_session'),
-
     # Goals
     path('goals/', views.list_goals, name='admin_list_goals'),
     path('goals/<int:goal_id>/edit/', views.edit_goal, name='admin_edit_goal'),
@@ -31,4 +27,23 @@ urlpatterns = [
     path('connections/', views.list_connections, name='admin_list_connections'),
     path('connections/<int:conn_id>/edit/', views.edit_connection, name='admin_edit_connection'),
     path('connections/<int:conn_id>/delete/', views.delete_connection, name='admin_delete_connection'),
+
+    # Sessions
+    path('sessions/', views.list_focus_sessions, name='admin_list_sessions'),
+    path('sessions/<int:session_id>/delete/', views.delete_focus_session, name='admin_delete_session'),
+
+    # Whitelist Items
+    path('whitelist/', views.list_whitelist, name='admin_list_whitelist'),
+    path('whitelist/<int:item_id>/edit/', views.edit_whitelist, name='admin_edit_whitelist'),
+    path('whitelist/<int:item_id>/delete/', views.delete_whitelist, name='admin_delete_whitelist'),
+
+    # Blacklist Items
+    path('blacklist/', views.list_blacklist, name='admin_list_blacklist'),
+    path('blacklist/<int:item_id>/edit/', views.edit_blacklist, name='admin_edit_blacklist'),
+    path('blacklist/<int:item_id>/delete/', views.delete_blacklist, name='admin_delete_blacklist'),
+
+    # Access Requests
+    path('access-requests/', views.list_access_requests, name='admin_list_access_requests'),
+    path('access-requests/<int:req_id>/edit/', views.edit_access_request, name='admin_edit_access_request'),
+    path('access-requests/<int:req_id>/delete/', views.delete_access_request, name='admin_delete_access_request'),
 ]

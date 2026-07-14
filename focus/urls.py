@@ -7,6 +7,7 @@ urlpatterns = [
 
     # Child: API endpoints
     path('api/start-session/', views.api_start_session, name='api_start_session'),
+    path('api/start-study-session/', views.api_start_study_session, name='api_start_study_session'),
     path('api/end-session/', views.api_end_session, name='api_end_session'),
     path('api/active-session/', views.api_active_session, name='api_active_session'),
     path('api/request-access/', views.api_request_access, name='api_request_access'),

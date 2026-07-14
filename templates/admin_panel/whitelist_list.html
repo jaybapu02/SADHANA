@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4><i class="fa-solid fa-check-circle text-success"></i> Whitelist Items</h4>
+    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Categories</option>
+            <option value="APP" {% if category_filter == 'APP' %}selected{% endif %}>Application</option>
+            <option value="WEBSITE" {% if category_filter == 'WEBSITE' %}selected{% endif %}>Website</option>
+        </select>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-dark table-hover">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>App/URL Pattern</th>
+                <th>Default</th>
+                <th>Created By</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.name }}</td>
+                <td><span class="badge bg-info">{{ item.get_category_display }}</span></td>
+                <td><code>{{ item.url_pattern|default:item.app_name|default:"—" }}</code></td>
+                <td>{% if item.is_default %}<i class="fa-solid fa-check text-success"></i>{% else %}<i class="fa-solid fa-xmark text-danger"></i>{% endif %}</td>
+                <td>{{ item.created_by.username|default:"—" }}</td>
+                <td>{{ item.created_at|date:"M d, Y" }}</td>
+                <td>
+                    <a href="{% url 'admin_edit_whitelist' item.id %}" class="btn btn-sm btn-outline-info" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                    <a href="{% url 'admin_delete_whitelist' item.id %}" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center text-muted">No whitelist items found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

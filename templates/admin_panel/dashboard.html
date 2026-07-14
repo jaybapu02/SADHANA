@@ -21,18 +21,8 @@
             <div class="card-body text-center">
                 <h5 class="card-title text-success"><i class="fa-solid fa-clock"></i> Sessions</h5>
                 <p class="display-6 fw-bold">{{ total_sessions }}</p>
-                <small class="text-muted">Study sessions recorded</small>
+                <small class="text-muted">{{ active_sessions }} active now</small>
                 <div class="mt-2"><a href="{% url 'admin_list_sessions' %}" class="btn btn-sm btn-outline-success">Manage</a></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-info h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-info"><i class="fa-solid fa-list-check"></i> Tasks</h5>
-                <p class="display-6 fw-bold">{{ total_tasks }}</p>
-                <small class="text-muted">To-do items</small>
-                <div class="mt-2"><a href="{% url 'admin_list_tasks' %}" class="btn btn-sm btn-outline-info">Manage</a></div>
             </div>
         </div>
     </div>
@@ -41,7 +31,7 @@
             <div class="card-body text-center">
                 <h5 class="card-title text-warning"><i class="fa-solid fa-bell"></i> Notifications</h5>
                 <p class="display-6 fw-bold">{{ total_notifications }}</p>
-                <small class="text-muted">Distraction alerts</small>
+                <small class="text-muted">System notifications</small>
                 <div class="mt-2"><a href="{% url 'admin_list_notifications' %}" class="btn btn-sm btn-outline-warning">Manage</a></div>
             </div>
         </div>
@@ -49,10 +39,20 @@
     <div class="col-md-3">
         <div class="card border-secondary h-100">
             <div class="card-body text-center">
-                <h5 class="card-title text-secondary"><i class="fa-solid fa-handshake"></i> Connections</h5>
+                <h5 class="card-title text-secondary"><i class="fa-solid fa-list-check"></i> Tasks</h5>
+                <p class="display-6 fw-bold">{{ total_tasks }}</p>
+                <small class="text-muted">To-do items</small>
+                <div class="mt-2"><a href="{% url 'admin_list_tasks' %}" class="btn btn-sm btn-outline-secondary">Manage</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-light h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title"><i class="fa-solid fa-handshake"></i> Connections</h5>
                 <p class="display-6 fw-bold">{{ total_connections }}</p>
                 <small class="text-muted">{{ pending_connections }} pending</small>
-                <div class="mt-2"><a href="{% url 'admin_list_connections' %}" class="btn btn-sm btn-outline-secondary">Manage</a></div>
+                <div class="mt-2"><a href="{% url 'admin_list_connections' %}" class="btn btn-sm btn-outline-light">Manage</a></div>
             </div>
         </div>
     </div>
@@ -66,30 +66,71 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3">
+        <div class="card border-light h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-success"><i class="fa-solid fa-check-circle"></i> Whitelist</h5>
+                <p class="display-6 fw-bold">{{ total_whitelist }}</p>
+                <small class="text-muted">Allowed apps</small>
+                <div class="mt-2"><a href="{% url 'admin_list_whitelist' %}" class="btn btn-sm btn-outline-success">Manage</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-danger"><i class="fa-solid fa-ban"></i> Blacklist</h5>
+                <p class="display-6 fw-bold">{{ total_blacklist }}</p>
+                <small class="text-muted">Restricted apps</small>
+                <div class="mt-2"><a href="{% url 'admin_list_blacklist' %}" class="btn btn-sm btn-outline-danger">Manage</a></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning h-100">
+            <div class="card-body text-center">
+                <h5 class="card-title text-warning"><i class="fa-solid fa-paper-plane"></i> Access Requests</h5>
+                <p class="display-6 fw-bold">{{ total_access_requests }}</p>
+                <small class="text-muted">{{ pending_access_requests }} pending</small>
+                <div class="mt-2"><a href="{% url 'admin_list_access_requests' %}" class="btn btn-sm btn-outline-warning">Manage</a></div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if recent_sessions %}
 <div class="card">
-    <div class="card-header"><i class="fa-solid fa-clock-rotate-left"></i> Recent Study Sessions</div>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fa-solid fa-clock-rotate-left"></i> Recent Sessions</span>
+        <a href="{% url 'admin_list_sessions' %}" class="btn btn-sm btn-outline-success">View All</a>
+    </div>
     <div class="card-body p-0">
         <table class="table table-dark table-striped mb-0">
             <thead>
                 <tr>
+                    <th>Type</th>
                     <th>Child</th>
-                    <th>Start</th>
                     <th>Duration</th>
-                    <th>Distraction</th>
                     <th>Focus</th>
+                    <th>Distracted</th>
+                    <th>Status</th>
+                    <th>Start</th>
                 </tr>
             </thead>
             <tbody>
                 {% for s in recent_sessions %}
                 <tr>
+                    <td><span class="badge bg-{% if s.session_type == 'FOCUS' %}info{% else %}secondary{% endif %}">{{ s.get_session_type_display }}</span></td>
                     <td>{{ s.child.username }}</td>
+                    <td>{{ s.planned_duration }} min</td>
+                    <td>{{ s.actual_focus_seconds }}s ({{ s.focus_score }}%)</td>
+                    <td>{{ s.distraction_seconds }}s</td>
+                    <td>
+                        <span class="badge bg-{% if s.status == 'COMPLETED' %}success{% elif s.status == 'ACTIVE' %}primary{% elif s.status == 'INTERRUPTED' %}warning text-dark{% else %}secondary{% endif %}">
+                            {{ s.status }}
+                        </span>
+                    </td>
                     <td>{{ s.start_time|date:"M d, H:i" }}</td>
-                    <td>{{ s.duration }} min</td>
-                    <td>{{ s.distraction_time }} sec</td>
-                    <td>{{ s.focus_score }}%</td>
                 </tr>
                 {% endfor %}
             </tbody>

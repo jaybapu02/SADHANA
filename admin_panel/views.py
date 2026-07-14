@@ -3,47 +3,62 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.db.models import Count, Sum, Q
 from django.core.paginator import Paginator
-from django.urls import reverse
+from django.utils import timezone
 
 from users.models import User
-from study.models import StudySession, Goal
+from study.models import Goal
 from tasks.models import Task
 from notifications.models import Notification
 from relationships.models import ConnectionRequest
+from focus.models import FocusSession, WhitelistItem, BlacklistItem, AccessRequest, FocusAnalytics
 
 
 def is_admin(user):
     return user.is_authenticated and (user.is_staff or user.role == 'ADMIN')
 
 
+# ─── Dashboard ───
+
 @user_passes_test(is_admin, login_url='login')
 def dashboard(request):
     total_users = User.objects.count()
     total_children = User.objects.filter(role='CHILD').count()
     total_parents = User.objects.filter(role='PARENT').count()
-    total_sessions = StudySession.objects.count()
+    total_sessions = FocusSession.objects.count()
+    active_sessions = FocusSession.objects.filter(status=FocusSession.Status.ACTIVE).count()
     total_tasks = Task.objects.count()
     total_notifications = Notification.objects.count()
     total_connections = ConnectionRequest.objects.count()
     pending_connections = ConnectionRequest.objects.filter(status='PENDING').count()
     total_goals = Goal.objects.count()
+    total_whitelist = WhitelistItem.objects.count()
+    total_blacklist = BlacklistItem.objects.count()
+    total_access_requests = AccessRequest.objects.count()
+    pending_access_requests = AccessRequest.objects.filter(status=AccessRequest.Status.PENDING).count()
 
-    recent_sessions = StudySession.objects.select_related('child').order_by('-start_time')[:10]
+    recent_sessions = FocusSession.objects.select_related('child').order_by('-start_time')[:10]
 
     context = {
         'total_users': total_users,
         'total_children': total_children,
         'total_parents': total_parents,
         'total_sessions': total_sessions,
+        'active_sessions': active_sessions,
         'total_tasks': total_tasks,
         'total_notifications': total_notifications,
         'total_connections': total_connections,
         'pending_connections': pending_connections,
         'total_goals': total_goals,
+        'total_whitelist': total_whitelist,
+        'total_blacklist': total_blacklist,
+        'total_access_requests': total_access_requests,
+        'pending_access_requests': pending_access_requests,
         'recent_sessions': recent_sessions,
     }
     return render(request, 'admin_panel/dashboard.html', context)
 
+
+# ─── Users ───
 
 @user_passes_test(is_admin, login_url='login')
 def list_users(request):
@@ -90,23 +105,7 @@ def delete_user(request, user_id):
     return render(request, 'admin_panel/confirm_delete.html', {'obj': user_obj, 'label': 'User'})
 
 
-@user_passes_test(is_admin, login_url='login')
-def list_sessions(request):
-    sessions = StudySession.objects.select_related('child').all().order_by('-start_time')
-    paginator = Paginator(sessions, 20)
-    page = paginator.get_page(request.GET.get('page'))
-    return render(request, 'admin_panel/session_list.html', {'sessions': page})
-
-
-@user_passes_test(is_admin, login_url='login')
-def delete_session(request, session_id):
-    session = get_object_or_404(StudySession, id=session_id)
-    if request.method == 'POST':
-        session.delete()
-        messages.success(request, 'Study session deleted.')
-        return redirect('admin_list_sessions')
-    return render(request, 'admin_panel/confirm_delete.html', {'obj': session, 'label': 'Study Session'})
-
+# ─── Goals ───
 
 @user_passes_test(is_admin, login_url='login')
 def list_goals(request):
@@ -140,6 +139,8 @@ def delete_goal(request, goal_id):
         return redirect('admin_list_goals')
     return render(request, 'admin_panel/confirm_delete.html', {'obj': goal, 'label': 'Goal'})
 
+
+# ─── Tasks ───
 
 @user_passes_test(is_admin, login_url='login')
 def list_tasks(request):
@@ -190,12 +191,22 @@ def delete_task(request, task_id):
     return render(request, 'admin_panel/confirm_delete.html', {'obj': task, 'label': 'Task'})
 
 
+# ─── Notifications ───
+
 @user_passes_test(is_admin, login_url='login')
 def list_notifications(request):
+    type_filter = request.GET.get('type', '')
     notifications = Notification.objects.select_related('recipient', 'sender').all().order_by('-timestamp')
+    if type_filter:
+        notifications = notifications.filter(notification_type=type_filter)
     paginator = Paginator(notifications, 20)
     page = paginator.get_page(request.GET.get('page'))
-    return render(request, 'admin_panel/notification_list.html', {'notifications': page})
+    types = Notification.NotificationType.choices
+    return render(request, 'admin_panel/notification_list.html', {
+        'notifications': page,
+        'type_filter': type_filter,
+        'types': types,
+    })
 
 
 @user_passes_test(is_admin, login_url='login')
@@ -207,6 +218,8 @@ def delete_notification(request, notif_id):
         return redirect('admin_list_notifications')
     return render(request, 'admin_panel/confirm_delete.html', {'obj': notif, 'label': 'Notification'})
 
+
+# ─── Connection Requests ───
 
 @user_passes_test(is_admin, login_url='login')
 def list_connections(request):
@@ -242,3 +255,160 @@ def delete_connection(request, conn_id):
         messages.success(request, 'Connection request deleted.')
         return redirect('admin_list_connections')
     return render(request, 'admin_panel/confirm_delete.html', {'obj': conn, 'label': 'Connection Request'})
+
+
+# ─── Focus Sessions ───
+
+@user_passes_test(is_admin, login_url='login')
+def list_focus_sessions(request):
+    status_filter = request.GET.get('status', '')
+    child_search = request.GET.get('child', '')
+    sessions = FocusSession.objects.select_related('child').all().order_by('-start_time')
+    if status_filter:
+        sessions = sessions.filter(status=status_filter)
+    if child_search:
+        sessions = sessions.filter(child__username__icontains=child_search)
+    paginator = Paginator(sessions, 20)
+    page = paginator.get_page(request.GET.get('page'))
+    return render(request, 'admin_panel/session_list.html', {
+        'sessions': page,
+        'status_filter': status_filter,
+        'child_search': child_search,
+    })
+
+
+@user_passes_test(is_admin, login_url='login')
+def delete_focus_session(request, session_id):
+    session = get_object_or_404(FocusSession, id=session_id)
+    if request.method == 'POST':
+        session.delete()
+        messages.success(request, 'Focus session deleted.')
+        return redirect('admin_list_focus_sessions')
+    return render(request, 'admin_panel/confirm_delete.html', {'obj': session, 'label': 'Focus Session'})
+
+
+# ─── Whitelist Items ───
+
+@user_passes_test(is_admin, login_url='login')
+def list_whitelist(request):
+    category_filter = request.GET.get('category', '')
+    items = WhitelistItem.objects.all().order_by('name')
+    if category_filter:
+        items = items.filter(category=category_filter)
+    return render(request, 'admin_panel/whitelist_list.html', {'items': items, 'category_filter': category_filter})
+
+
+@user_passes_test(is_admin, login_url='login')
+def edit_whitelist(request, item_id):
+    item = get_object_or_404(WhitelistItem, id=item_id)
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        category = request.POST.get('category', 'APP')
+        url_pattern = request.POST.get('url_pattern', '')
+        app_name = request.POST.get('app_name', '')
+        if name:
+            item.name = name
+            item.category = category
+            item.url_pattern = url_pattern
+            item.app_name = app_name
+            item.save()
+            messages.success(request, f'Whitelist item "{name}" updated.')
+            return redirect('admin_list_whitelist')
+        else:
+            messages.error(request, 'Name is required.')
+    return render(request, 'admin_panel/whitelist_form.html', {'item': item})
+
+
+@user_passes_test(is_admin, login_url='login')
+def delete_whitelist(request, item_id):
+    item = get_object_or_404(WhitelistItem, id=item_id)
+    if request.method == 'POST':
+        item.delete()
+        messages.success(request, 'Whitelist item deleted.')
+        return redirect('admin_list_whitelist')
+    return render(request, 'admin_panel/confirm_delete.html', {'obj': item, 'label': 'Whitelist Item'})
+
+
+# ─── Blacklist Items ───
+
+@user_passes_test(is_admin, login_url='login')
+def list_blacklist(request):
+    category_filter = request.GET.get('category', '')
+    items = BlacklistItem.objects.all().order_by('name')
+    if category_filter:
+        items = items.filter(category=category_filter)
+    return render(request, 'admin_panel/blacklist_list.html', {'items': items, 'category_filter': category_filter})
+
+
+@user_passes_test(is_admin, login_url='login')
+def edit_blacklist(request, item_id):
+    item = get_object_or_404(BlacklistItem, id=item_id)
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        category = request.POST.get('category', 'APP')
+        url_pattern = request.POST.get('url_pattern', '')
+        app_name = request.POST.get('app_name', '')
+        if name:
+            item.name = name
+            item.category = category
+            item.url_pattern = url_pattern
+            item.app_name = app_name
+            item.save()
+            messages.success(request, f'Blacklist item "{name}" updated.')
+            return redirect('admin_list_blacklist')
+        else:
+            messages.error(request, 'Name is required.')
+    return render(request, 'admin_panel/blacklist_form.html', {'item': item})
+
+
+@user_passes_test(is_admin, login_url='login')
+def delete_blacklist(request, item_id):
+    item = get_object_or_404(BlacklistItem, id=item_id)
+    if request.method == 'POST':
+        item.delete()
+        messages.success(request, 'Blacklist item deleted.')
+        return redirect('admin_list_blacklist')
+    return render(request, 'admin_panel/confirm_delete.html', {'obj': item, 'label': 'Blacklist Item'})
+
+
+# ─── Access Requests ───
+
+@user_passes_test(is_admin, login_url='login')
+def list_access_requests(request):
+    status_filter = request.GET.get('status', '')
+    requests_qs = AccessRequest.objects.select_related('child', 'parent', 'session', 'blacklist_item').all().order_by('-requested_at')
+    if status_filter:
+        requests_qs = requests_qs.filter(status=status_filter)
+    paginator = Paginator(requests_qs, 20)
+    page = paginator.get_page(request.GET.get('page'))
+    return render(request, 'admin_panel/access_request_list.html', {
+        'requests': page,
+        'status_filter': status_filter,
+    })
+
+
+@user_passes_test(is_admin, login_url='login')
+def edit_access_request(request, req_id):
+    req = get_object_or_404(AccessRequest, id=req_id)
+    if request.method == 'POST':
+        status = request.POST.get('status')
+        if status in dict(AccessRequest.Status.choices):
+            req.status = status
+            if status != AccessRequest.Status.PENDING:
+                req.responded_at = timezone.now()
+            req.save()
+            messages.success(request, 'Access request updated.')
+            return redirect('admin_list_access_requests')
+        else:
+            messages.error(request, 'Invalid status.')
+    return render(request, 'admin_panel/access_request_form.html', {'req': req})
+
+
+@user_passes_test(is_admin, login_url='login')
+def delete_access_request(request, req_id):
+    req = get_object_or_404(AccessRequest, id=req_id)
+    if request.method == 'POST':
+        req.delete()
+        messages.success(request, 'Access request deleted.')
+        return redirect('admin_list_access_requests')
+    return render(request, 'admin_panel/confirm_delete.html', {'obj': req, 'label': 'Access Request'})

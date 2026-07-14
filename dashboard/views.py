@@ -6,7 +6,6 @@ from django.db.models import Sum, Avg
 from datetime import timedelta
 
 from relationships.models import ConnectionRequest
-from study.models import StudySession
 from tasks.models import Task
 from focus.models import FocusSession, AccessRequest
 from notifications.models import Notification
@@ -97,51 +96,17 @@ def parent_child_stats(request, child_id):
 
     child = req.child
     today = timezone.now().date()
-
-    # ─── StudySession data ───
-    study_sessions = StudySession.objects.filter(child=child)
-    today_study = study_sessions.filter(start_time__date=today)
-    study_duration = today_study.aggregate(Sum('duration'))['duration__sum'] or 0
-    study_distraction = today_study.aggregate(Sum('distraction_time'))['distraction_time__sum'] or 0
-    study_avg_focus = today_study.aggregate(Avg('focus_score'))['focus_score__avg'] or 0
-
-    # ─── FocusSession data (ended + active) ───
     now = timezone.now()
-    focus_sessions = FocusSession.objects.filter(child=child)
-    focus_seconds = 0
-    focus_distraction = 0
-    for fs in focus_sessions:
-        if fs.status == FocusSession.Status.ACTIVE:
-            elapsed = int((now - fs.start_time).total_seconds())
-            foc_sec = max(0, elapsed)
-            dist_sec = 0
-        else:
-            foc_sec = fs.actual_focus_seconds
-            dist_sec = fs.distraction_seconds
 
-        if fs.start_time.date() == today:
-            focus_seconds += foc_sec
-            focus_distraction += dist_sec
+    sessions = FocusSession.objects.filter(child=child)
+    today_sessions = [s for s in sessions if s.start_time.date() == today]
 
-    # Combined today stats (all in minutes for display, seconds for calculation)
-    today_duration = study_duration + round(focus_seconds / 60)
-
-    today_distraction_seconds = study_distraction + focus_distraction
-    today_total_seconds = (study_duration * 60) + focus_seconds
-    if today_total_seconds > 0:
-        avg_focus = (today_total_seconds / (today_total_seconds + today_distraction_seconds)) * 100
-    else:
-        avg_focus = study_avg_focus
-
-    # ─── Build combined session list for chart & display ───
+    today_duration = 0
+    today_distraction_seconds = 0
+    total_focus_sec = 0
     combined = []
-    for s in study_sessions:
-        combined.append({
-            'start_time': s.start_time,
-            'duration': s.duration,
-            'focus_score': s.focus_score,
-        })
-    for fs in focus_sessions:
+
+    for fs in sessions:
         if fs.status == FocusSession.Status.ACTIVE:
             elapsed = int((now - fs.start_time).total_seconds())
             foc_sec = max(0, elapsed)
@@ -149,18 +114,27 @@ def parent_child_stats(request, child_id):
         else:
             foc_sec = fs.actual_focus_seconds
             dist_sec = fs.distraction_seconds
-        foc_min = round(foc_sec / 60)
+
         total_sec = foc_sec + dist_sec
-        score = round((foc_sec / total_sec * 100), 2) if total_sec > 0 else 0
+        score = fs.focus_score if fs.focus_score > 0 else (round((foc_sec / total_sec * 100), 2) if total_sec > 0 else 0)
         combined.append({
             'start_time': fs.start_time,
-            'duration': foc_min,
+            'duration': round(foc_sec / 60),
             'focus_score': score,
         })
 
+        if fs.start_time.date() == today:
+            today_duration += round(foc_sec / 60)
+            today_distraction_seconds += dist_sec
+            total_focus_sec += foc_sec
+
+    if total_focus_sec + today_distraction_seconds > 0:
+        avg_focus = (total_focus_sec / (total_focus_sec + today_distraction_seconds)) * 100
+    else:
+        avg_focus = 0
+
     combined.sort(key=lambda x: x['start_time'], reverse=True)
     today_combined = [s for s in combined if s['start_time'].date() == today]
-
     labels = [s['start_time'].strftime('%H:%M') for s in reversed(today_combined)]
     durations = [s['duration'] for s in reversed(today_combined)]
 
@@ -248,64 +222,44 @@ def child_dashboard(request):
     parents = [req.parent for req in accepted_requests]
 
     today = timezone.now().date()
+    now = timezone.now()
 
-    study_sessions = StudySession.objects.filter(
+    sessions = FocusSession.objects.filter(
         child=request.user,
         start_time__date=today
     )
 
-    today_study_time = study_sessions.aggregate(Sum('duration'))['duration__sum'] or 0
-    today_distraction = study_sessions.aggregate(Sum('distraction_time'))['distraction_time__sum'] or 0
-    study_avg_focus = study_sessions.aggregate(Avg('focus_score'))['focus_score__avg'] or 0
-
-    focus_sessions = FocusSession.objects.filter(
-        child=request.user,
-        start_time__date=today
-    )
-    for fs in focus_sessions:
-        if fs.status == FocusSession.Status.ACTIVE:
-            elapsed = int((timezone.now() - fs.start_time).total_seconds())
-            foc_sec = max(0, elapsed)
-            dist_sec = 0
-        else:
-            foc_sec = fs.actual_focus_seconds
-            dist_sec = fs.distraction_seconds
-        today_study_time += round(foc_sec / 60)
-        today_distraction += dist_sec
-
+    today_study_time = 0
+    today_distraction = 0
+    total_focus_sec = 0
     combined = []
-    for s in study_sessions:
-        combined.append({
-            'start_time': s.start_time,
-            'focus_score': s.focus_score,
-        })
-    for fs in focus_sessions:
+
+    for fs in sessions:
         if fs.status == FocusSession.Status.ACTIVE:
-            elapsed = int((timezone.now() - fs.start_time).total_seconds())
+            elapsed = int((now - fs.start_time).total_seconds())
             foc_sec = max(0, elapsed)
             dist_sec = 0
         else:
             foc_sec = fs.actual_focus_seconds
             dist_sec = fs.distraction_seconds
+
         total_sec = foc_sec + dist_sec
-        score = round((foc_sec / total_sec * 100), 2) if total_sec > 0 else 0
+        score = fs.focus_score if fs.focus_score > 0 else (round((foc_sec / total_sec * 100), 2) if total_sec > 0 else 0)
         combined.append({
             'start_time': fs.start_time,
             'focus_score': score,
         })
 
+        today_study_time += round(foc_sec / 60)
+        today_distraction += dist_sec
+        total_focus_sec += foc_sec
+
     combined.sort(key=lambda x: x['start_time'])
 
-    total_focus_sec = sum(
-        (s.duration * 60) for s in study_sessions
-    ) + sum(
-        (fs.actual_focus_seconds if fs.status != FocusSession.Status.ACTIVE else max(0, int((timezone.now() - fs.start_time).total_seconds())))
-        for fs in focus_sessions
-    )
     if total_focus_sec + today_distraction > 0:
         avg_focus = (total_focus_sec / (total_focus_sec + today_distraction)) * 100
     else:
-        avg_focus = study_avg_focus
+        avg_focus = 0
 
     chart_labels = [s['start_time'].strftime('%H:%M') for s in combined]
     chart_scores = [s['focus_score'] for s in combined]

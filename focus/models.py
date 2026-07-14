@@ -3,6 +3,10 @@ from django.conf import settings
 
 
 class FocusSession(models.Model):
+    class Type(models.TextChoices):
+        FOCUS = 'FOCUS', 'Focus'
+        STUDY = 'STUDY', 'Study'
+
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
         COMPLETED = 'COMPLETED', 'Completed'
@@ -13,9 +17,12 @@ class FocusSession(models.Model):
         on_delete=models.CASCADE,
         related_name='focus_sessions'
     )
+    session_type = models.CharField(max_length=10, choices=Type.choices, default=Type.FOCUS, help_text="FOCUS = Pomodoro with app blocking, STUDY = free-form timer")
     planned_duration = models.IntegerField(help_text="Planned duration in minutes (25, 50, or custom)")
     actual_focus_seconds = models.IntegerField(default=0, help_text="Actual focused time in seconds")
     distraction_seconds = models.IntegerField(default=0, help_text="Total distracted time in seconds")
+    break_seconds = models.IntegerField(default=0, help_text="Total break time in seconds")
+    focus_score = models.FloatField(default=0.0, help_text="Calculated focus percentage")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
@@ -23,8 +30,14 @@ class FocusSession(models.Model):
     class Meta:
         ordering = ['-start_time']
 
+    def save(self, *args, **kwargs):
+        total = self.actual_focus_seconds + self.distraction_seconds
+        if total > 0:
+            self.focus_score = round((self.actual_focus_seconds / total) * 100, 2)
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.child.username} - {self.planned_duration}min ({self.status})"
+        return f"{self.child.username} - {self.get_session_type_display()} ({self.status})"
 
 
 class WhitelistItem(models.Model):

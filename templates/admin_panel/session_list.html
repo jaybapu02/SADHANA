@@ -1,22 +1,37 @@
 {% extends 'base.html' %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4><i class="fa-solid fa-clock"></i> Study Sessions</h4>
+    <h4><i class="fa-solid fa-clock"></i> Sessions</h4>
     <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">Back</a>
 </div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">All Statuses</option>
+            <option value="ACTIVE" {% if status_filter == 'ACTIVE' %}selected{% endif %}>Active</option>
+            <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Completed</option>
+            <option value="INTERRUPTED" {% if status_filter == 'INTERRUPTED' %}selected{% endif %}>Interrupted</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <input type="text" name="child" class="form-control form-control-sm" placeholder="Search child..." value="{{ child_search }}" onchange="this.form.submit()">
+    </div>
+</form>
 
 <div class="table-responsive">
     <table class="table table-dark table-hover">
         <thead>
             <tr>
                 <th>ID</th>
+                <th>Type</th>
                 <th>Child</th>
+                <th>Planned</th>
+                <th>Focus</th>
+                <th>Distracted</th>
+                <th>Status</th>
                 <th>Start</th>
                 <th>End</th>
-                <th>Duration</th>
-                <th>Break</th>
-                <th>Distraction</th>
-                <th>Focus</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -24,23 +39,24 @@
             {% for s in sessions %}
             <tr>
                 <td>{{ s.id }}</td>
+                <td><span class="badge bg-{% if s.session_type == 'FOCUS' %}info{% else %}secondary{% endif %}">{{ s.get_session_type_display }}</span></td>
                 <td>{{ s.child.username }}</td>
+                <td>{{ s.planned_duration }} min</td>
+                <td>{{ s.actual_focus_seconds }}s ({{ s.focus_score }}%)</td>
+                <td>{{ s.distraction_seconds }}s</td>
+                <td>
+                    <span class="badge bg-{% if s.status == 'COMPLETED' %}success{% elif s.status == 'ACTIVE' %}primary{% elif s.status == 'INTERRUPTED' %}warning text-dark{% else %}secondary{% endif %}">
+                        {{ s.status }}
+                    </span>
+                </td>
                 <td>{{ s.start_time|date:"M d, H:i" }}</td>
                 <td>{{ s.end_time|date:"M d, H:i"|default:"—" }}</td>
-                <td>{{ s.duration }} min</td>
-                <td>{{ s.break_time }} min</td>
-                <td>{{ s.distraction_time }} sec</td>
-                <td>
-                    <div class="progress" style="height:20px;">
-                        <div class="progress-bar bg-{% if s.focus_score >= 80 %}success{% elif s.focus_score >= 50 %}warning{% else %}danger{% endif %}" style="width:{{ s.focus_score }}%">{{ s.focus_score }}%</div>
-                    </div>
-                </td>
                 <td>
                     <a href="{% url 'admin_delete_session' s.id %}" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="9" class="text-center text-muted">No sessions found.</td></tr>
+            <tr><td colspan="10" class="text-center text-muted">No sessions found.</td></tr>
             {% endfor %}
         </tbody>
     </table>
@@ -50,13 +66,13 @@
 <nav>
     <ul class="pagination pagination-sm justify-content-center">
         {% if sessions.has_previous %}
-        <li class="page-item"><a class="page-link" href="?page={{ sessions.previous_page_number }}">Previous</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ sessions.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if child_search %}&child={{ child_search }}{% endif %}">Previous</a></li>
         {% endif %}
         {% for i in sessions.paginator.page_range %}
-        <li class="page-item {% if sessions.number == i %}active{% endif %}"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+        <li class="page-item {% if sessions.number == i %}active{% endif %}"><a class="page-link" href="?page={{ i }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if child_search %}&child={{ child_search }}{% endif %}">{{ i }}</a></li>
         {% endfor %}
         {% if sessions.has_next %}
-        <li class="page-item"><a class="page-link" href="?page={{ sessions.next_page_number }}">Next</a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ sessions.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if child_search %}&child={{ child_search }}{% endif %}">Next</a></li>
         {% endif %}
     </ul>
 </nav>
