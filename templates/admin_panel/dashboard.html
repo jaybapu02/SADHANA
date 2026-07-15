@@ -47,27 +47,27 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card border-light h-100">
+        <div class="card border-info h-100">
             <div class="card-body text-center">
-                <h5 class="card-title"><i class="fa-solid fa-handshake"></i> Connections</h5>
+                <h5 class="card-title text-info"><i class="fa-solid fa-handshake"></i> Connections</h5>
                 <p class="display-6 fw-bold">{{ total_connections }}</p>
                 <small class="text-muted">{{ pending_connections }} pending</small>
-                <div class="mt-2"><a href="{% url 'admin_list_connections' %}" class="btn btn-sm btn-outline-light">Manage</a></div>
+                <div class="mt-2"><a href="{% url 'admin_list_connections' %}" class="btn btn-sm btn-outline-info">Manage</a></div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card border-light h-100">
+        <div class="card border-warning h-100">
             <div class="card-body text-center">
-                <h5 class="card-title"><i class="fa-solid fa-bullseye"></i> Goals</h5>
+                <h5 class="card-title text-warning"><i class="fa-solid fa-bullseye"></i> Goals</h5>
                 <p class="display-6 fw-bold">{{ total_goals|default:"0" }}</p>
                 <small class="text-muted">Study targets</small>
-                <div class="mt-2"><a href="{% url 'admin_list_goals' %}" class="btn btn-sm btn-outline-light">Manage</a></div>
+                <div class="mt-2"><a href="{% url 'admin_list_goals' %}" class="btn btn-sm btn-outline-warning">Manage</a></div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card border-light h-100">
+        <div class="card border-success h-100">
             <div class="card-body text-center">
                 <h5 class="card-title text-success"><i class="fa-solid fa-check-circle"></i> Whitelist</h5>
                 <p class="display-6 fw-bold">{{ total_whitelist }}</p>
