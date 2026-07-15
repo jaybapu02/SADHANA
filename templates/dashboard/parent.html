@@ -80,6 +80,7 @@
                                         <div class="d-grid gap-1 mt-2">
                                             <a href="{% url 'parent_child_stats' child.id %}" class="btn btn-sm btn-outline-primary">Study Stats</a>
                                             <a href="{% url 'parent_child_todo' child.id %}" class="btn btn-sm btn-outline-success">To-Do Progress</a>
+                                            <a href="{% url 'studydna_parent' child.id %}" class="btn btn-sm btn-outline-info"><i class="fa-solid fa-dna"></i> Study DNA</a>
                                         </div>
 
                                         {% for ct in children_todo %}

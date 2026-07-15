@@ -8,6 +8,7 @@ from .models import Task
 from notifications.services import NotificationService
 from relationships.models import ConnectionRequest
 from rewards.services import on_task_completed, on_all_tasks_done, on_task_uncompleted, update_streak, check_monthly_discipline
+from studydna.services import analyze_child as studydna_analyze
 
 
 @login_required
@@ -75,6 +76,7 @@ def add_task(request):
     if request.method == 'POST' and request.user.role == 'CHILD':
         task_name = request.POST.get('task_name', '').strip()
         priority = request.POST.get('priority', 'MEDIUM')
+        subject = request.POST.get('subject', '') or None
         due_date_str = request.POST.get('due_date', '')
         due_date = None
         if due_date_str:
@@ -87,6 +89,7 @@ def add_task(request):
                 child=request.user,
                 task_name=task_name,
                 priority=priority,
+                subject=subject,
                 due_date=due_date,
                 date=timezone.now().date()
             )
@@ -102,6 +105,7 @@ def edit_task(request, task_id):
     if request.method == 'POST':
         task_name = request.POST.get('task_name', '').strip()
         priority = request.POST.get('priority', task.priority)
+        subject = request.POST.get('subject', '') or None
         due_date_str = request.POST.get('due_date', '')
         due_date = None
         if due_date_str:
@@ -112,6 +116,7 @@ def edit_task(request, task_id):
         if task_name:
             task.task_name = task_name
             task.priority = priority
+            task.subject = subject
             task.due_date = due_date
             task.save()
             messages.success(request, 'Task updated!')
@@ -132,6 +137,7 @@ def toggle_task(request, task_id):
 
         if task.status:
             on_task_completed(request.user)
+            studydna_analyze(request.user)
 
             NotificationService.notify_all_parents(
                 request.user,
@@ -148,6 +154,7 @@ def toggle_task(request, task_id):
                 NotificationService.all_tasks_done_child(request.user)
         else:
             on_task_uncompleted(request.user)
+            studydna_analyze(request.user)
             NotificationService.notify_all_parents(
                 request.user,
                 NotificationService.task_reopened,

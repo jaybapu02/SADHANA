@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "admin_panel",
     "focus",
     "rewards",
+    "studydna",
 ]
 
 MIDDLEWARE = [

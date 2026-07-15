@@ -14,6 +14,7 @@ from notifications.models import Notification
 from notifications.services import NotificationService
 from relationships.models import ConnectionRequest
 from rewards.services import on_focus_session_completed
+from studydna.services import analyze_child as studydna_analyze
 
 
 # ─── Seeding default whitelist/blacklist ───
@@ -162,6 +163,8 @@ def api_end_session(request):
 
     if session.status == FocusSession.Status.COMPLETED:
         on_focus_session_completed(request.user)
+
+    studydna_analyze(request.user)
 
     return JsonResponse({
         'status': 'success',

@@ -35,6 +35,20 @@
                             <input type="date" class="form-control" name="due_date">
                         </div>
                     </div>
+                    <div class="mb-2">
+                        <select class="form-select" name="subject">
+                            <option value="">Select subject (optional)</option>
+                            <option value="MATH">Mathematics</option>
+                            <option value="SCIENCE">Science</option>
+                            <option value="PROGRAMMING">Programming</option>
+                            <option value="ENGLISH">English</option>
+                            <option value="HISTORY">History</option>
+                            <option value="PHYSICS">Physics</option>
+                            <option value="CHEMISTRY">Chemistry</option>
+                            <option value="BIOLOGY">Biology</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn btn-primary w-100">Add Task</button>
                 </form>
             </div>
@@ -164,7 +178,7 @@
                                                     <input type="text" class="form-control" name="task_name" value="{{ task.task_name }}" required>
                                                 </div>
                                                 <div class="row g-3">
-                                                    <div class="col-6">
+                                                    <div class="col-4">
                                                         <label class="form-label">Priority</label>
                                                         <select class="form-select" name="priority">
                                                             <option value="HIGH" {% if task.priority == 'HIGH' %}selected{% endif %}>High</option>
@@ -172,7 +186,22 @@
                                                             <option value="LOW" {% if task.priority == 'LOW' %}selected{% endif %}>Low</option>
                                                         </select>
                                                     </div>
-                                                    <div class="col-6">
+                                                    <div class="col-4">
+                                                        <label class="form-label">Subject</label>
+                                                        <select class="form-select" name="subject">
+                                                            <option value="">None</option>
+                                                            <option value="MATH" {% if task.subject == 'MATH' %}selected{% endif %}>Mathematics</option>
+                                                            <option value="SCIENCE" {% if task.subject == 'SCIENCE' %}selected{% endif %}>Science</option>
+                                                            <option value="PROGRAMMING" {% if task.subject == 'PROGRAMMING' %}selected{% endif %}>Programming</option>
+                                                            <option value="ENGLISH" {% if task.subject == 'ENGLISH' %}selected{% endif %}>English</option>
+                                                            <option value="HISTORY" {% if task.subject == 'HISTORY' %}selected{% endif %}>History</option>
+                                                            <option value="PHYSICS" {% if task.subject == 'PHYSICS' %}selected{% endif %}>Physics</option>
+                                                            <option value="CHEMISTRY" {% if task.subject == 'CHEMISTRY' %}selected{% endif %}>Chemistry</option>
+                                                            <option value="BIOLOGY" {% if task.subject == 'BIOLOGY' %}selected{% endif %}>Biology</option>
+                                                            <option value="OTHER" {% if task.subject == 'OTHER' %}selected{% endif %}>Other</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-4">
                                                         <label class="form-label">Due Date</label>
                                                         <input type="date" class="form-control" name="due_date" value="{{ task.due_date|date:'Y-m-d' }}">
                                                     </div>

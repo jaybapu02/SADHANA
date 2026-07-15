@@ -47,6 +47,9 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'todo_dashboard' %}"><i class="fa-solid fa-list-check"></i> To-Do</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'studydna_dashboard' %}"><i class="fa-solid fa-dna"></i> Study DNA</a>
+                        </li>
                         {% endif %}
                     {% if user.role == 'PARENT' %}
                         <li class="nav-item">
