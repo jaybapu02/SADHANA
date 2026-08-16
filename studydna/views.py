@@ -87,6 +87,7 @@ def _build_child_context(profile):
     parent_tasks = _safe_parse_json(profile.parent_tasks_json, {})
     reward_insights = _safe_parse_json(profile.reward_insights_json, {})
     goal_progress = _safe_parse_json(profile.goal_progress_json, {})
+    focus_stats = _safe_parse_json(profile.focus_stats_json, {})
 
     return {
         'profile': profile,
@@ -112,6 +113,7 @@ def _build_child_context(profile):
         'parent_tasks': parent_tasks,
         'reward_insights': reward_insights,
         'goal_progress': goal_progress,
+        'focus_stats': focus_stats,
     }
 
 

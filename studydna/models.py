@@ -34,6 +34,7 @@ class StudyDNAProfile(models.Model):
     parent_tasks_json = models.TextField(default='{}')
     reward_insights_json = models.TextField(default='{}')
     goal_progress_json = models.TextField(default='{}')
+    focus_stats_json = models.TextField(default='{}')
 
     last_analyzed = models.DateTimeField(auto_now=True)
     data_points = models.IntegerField(default=0)

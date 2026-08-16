@@ -149,11 +149,14 @@ class NotificationService:
         )
 
     @staticmethod
-    def access_requested(parent, child, app_name, session):
+    def access_requested(parent, child, app_name, session, task_name=None):
+        message = f'Your child "{child.username}" requested access to "{app_name}" during a focus session.'
+        if task_name:
+            message += f' Current task: "{task_name}".'
         return NotificationService._notify_parent(
             parent=parent, child=child,
             notification_type=Notification.NotificationType.ACCESS_REQUESTED,
-            message=f"Your child \"{child.username}\" requested access to \"{app_name}\" during a focus session."
+            message=message
         )
 
     @staticmethod
@@ -170,6 +173,45 @@ class NotificationService:
             child=child, parent=parent,
             notification_type=Notification.NotificationType.ACCESS_REJECTED,
             message=f"Your parent denied access to \"{app_name}\". Please continue your study session."
+        )
+
+    @staticmethod
+    def access_approved_with_duration(child, parent, app_name, minutes):
+        return NotificationService._notify_child(
+            child=child, parent=parent,
+            notification_type=Notification.NotificationType.ACCESS_APPROVED,
+            message=f"Your parent approved access to \"{app_name}\" for {minutes} minutes. It will be restricted again after that."
+        )
+
+    @staticmethod
+    def blocked_attempt(parent, child, app_name, task_name=None):
+        message = f'Your child "{child.username}" tried to open the restricted "{app_name}".'
+        if task_name:
+            message += f' Current focus task: "{task_name}".'
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.DISTRACTION_ALERT,
+            message=message
+        )
+
+    @staticmethod
+    def focus_completed_child(child, duration_minutes):
+        return NotificationService._create(
+            recipient=child,
+            sender=None,
+            sender_name="System",
+            notification_type=Notification.NotificationType.FOCUS_COMPLETED,
+            message=f"Focus Session Completed! You focused for {duration_minutes} minutes and completed your study session."
+        )
+
+    @staticmethod
+    def focus_interrupted_child(child, duration_minutes):
+        return NotificationService._create(
+            recipient=child,
+            sender=None,
+            sender_name="System",
+            notification_type=Notification.NotificationType.FOCUS_INTERRUPTED,
+            message=f"You ended your focus session early after {duration_minutes} minutes. No worries — every session counts."
         )
 
     @staticmethod

@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.db.models import Q
 
 from .models import FocusSession, WhitelistItem, BlacklistItem, AccessRequest, FocusAnalytics
+from tasks.models import Task
 from notifications.models import Notification
 from notifications.services import NotificationService
 from relationships.models import ConnectionRequest
@@ -20,6 +21,7 @@ from studydna.services import analyze_child as studydna_analyze
 # ─── Seeding default whitelist/blacklist ───
 
 DEFAULT_WHITELIST = [
+    {'name': 'Sadhana', 'category': 'WEBSITE', 'url_pattern': 'sadhana'},
     {'name': 'VS Code', 'category': 'APP', 'app_name': 'code.exe'},
     {'name': 'PyCharm', 'category': 'APP', 'app_name': 'pycharm64.exe'},
     {'name': 'Google Docs', 'category': 'WEBSITE', 'url_pattern': 'docs.google.com'},
@@ -27,6 +29,14 @@ DEFAULT_WHITELIST = [
     {'name': 'PDF Reader', 'category': 'APP', 'app_name': 'Acrobat.exe'},
     {'name': 'Calculator', 'category': 'APP', 'app_name': 'calc.exe'},
     {'name': 'Notepad', 'category': 'APP', 'app_name': 'notepad.exe'},
+    {'name': 'Khan Academy', 'category': 'WEBSITE', 'url_pattern': 'khanacademy.org'},
+    {'name': 'Wikipedia', 'category': 'WEBSITE', 'url_pattern': 'wikipedia.org'},
+    {'name': 'Stack Overflow', 'category': 'WEBSITE', 'url_pattern': 'stackoverflow.com'},
+    {'name': 'GeeksforGeeks', 'category': 'WEBSITE', 'url_pattern': 'geeksforgeeks.org'},
+    {'name': 'Coursera', 'category': 'WEBSITE', 'url_pattern': 'coursera.org'},
+    {'name': 'udemy', 'category': 'WEBSITE', 'url_pattern': 'udemy.com'},
+    {'name': 'LeetCode', 'category': 'WEBSITE', 'url_pattern': 'leetcode.com'},
+    {'name': 'GitHub', 'category': 'WEBSITE', 'url_pattern': 'github.com'},
 ]
 
 DEFAULT_BLACKLIST = [
@@ -46,15 +56,11 @@ DEFAULT_BLACKLIST = [
 
 def seed_default_lists():
     for item in DEFAULT_WHITELIST:
-        WhitelistItem.objects.get_or_create(
-            name=item['name'],
-            defaults={**item, 'is_default': True}
-        )
+        if not WhitelistItem.objects.filter(name=item['name']).exists():
+            WhitelistItem.objects.create(**item, is_default=True)
     for item in DEFAULT_BLACKLIST:
-        BlacklistItem.objects.get_or_create(
-            name=item['name'],
-            defaults={**item, 'is_default': True}
-        )
+        if not BlacklistItem.objects.filter(name=item['name']).exists():
+            BlacklistItem.objects.create(**item, is_default=True)
 
 
 # ─── Helper ───
@@ -78,10 +84,13 @@ def focus_session_view(request):
     active_session = FocusSession.objects.filter(
         child=request.user, status=FocusSession.Status.ACTIVE
     ).first()
+    today = timezone.now().date()
+    today_tasks = Task.objects.filter(child=request.user, date=today).order_by('-priority', 'due_date')
     context = {
         'whitelist': whitelist,
         'blacklist': blacklist,
         'active_session': active_session,
+        'today_tasks': today_tasks,
     }
     return render(request, 'focus/session.html', context)
 
@@ -95,11 +104,12 @@ def api_start_session(request):
     try:
         data = json.loads(request.body)
         duration = int(data.get('duration', 25))
+        task_id = data.get('task_id')
     except (ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'error': 'Invalid duration.'}, status=400)
 
-    if duration not in (25, 50) and duration < 1:
-        return JsonResponse({'error': 'Duration must be 25, 50, or a positive custom value.'}, status=400)
+    if duration not in (25, 50, 90) and duration < 1:
+        return JsonResponse({'error': 'Duration must be 25, 50, 90, or a positive custom value.'}, status=400)
 
     existing = FocusSession.objects.filter(
         child=request.user, status=FocusSession.Status.ACTIVE
@@ -107,17 +117,23 @@ def api_start_session(request):
     if existing:
         return JsonResponse({'error': 'You already have an active focus session.'}, status=400)
 
+    task = None
+    if task_id:
+        task = get_object_or_404(Task, id=task_id, child=request.user)
+
     session = FocusSession.objects.create(
         child=request.user,
         planned_duration=duration,
         status=FocusSession.Status.ACTIVE,
         session_type=FocusSession.Type.FOCUS,
+        task=task,
     )
     return JsonResponse({
         'status': 'success',
         'session_id': session.id,
         'planned_duration': session.planned_duration,
         'start_time': session.start_time.isoformat(),
+        'task_name': task.task_name if task else None,
     })
 
 
@@ -148,8 +164,10 @@ def api_end_session(request):
 
     if focus_seconds >= planned_seconds:
         session.status = FocusSession.Status.COMPLETED
+        session.early_exit = False
     else:
         session.status = FocusSession.Status.INTERRUPTED
+        session.early_exit = True
 
     session.save()
 
@@ -163,6 +181,9 @@ def api_end_session(request):
 
     if session.status == FocusSession.Status.COMPLETED:
         on_focus_session_completed(request.user)
+        NotificationService.focus_completed_child(request.user, duration_minutes)
+    else:
+        NotificationService.focus_interrupted_child(request.user, duration_minutes)
 
     studydna_analyze(request.user)
 
@@ -252,7 +273,10 @@ def api_request_access(request):
             status=AccessRequest.Status.PENDING,
         )
         if created:
-            NotificationService.access_requested(parent, request.user, blacklist_item.name, session)
+            NotificationService.access_requested(
+                parent, request.user, blacklist_item.name, session,
+                task_name=session.task.task_name if session.task else None
+            )
         requests_created.append({'parent_id': parent.id, 'request_id': access_req.id, 'created': created})
 
     return JsonResponse({
@@ -343,15 +367,21 @@ def api_approve_request(request, request_id):
     duration_minutes = request.POST.get('grant_minutes')
     if duration_minutes:
         try:
-            access_req.granted_until = timezone.now() + timedelta(minutes=int(duration_minutes))
+            duration_minutes = int(duration_minutes)
         except ValueError:
-            pass
+            duration_minutes = None
     else:
+        duration_minutes = 60
+
+    if duration_minutes and duration_minutes > 0:
+        access_req.granted_until = timezone.now() + timedelta(minutes=duration_minutes)
+    else:
+        duration_minutes = 60
         access_req.granted_until = timezone.now() + timedelta(hours=1)
     access_req.save()
 
-    NotificationService.access_approved(
-        access_req.child, request.user, access_req.blacklist_item.name
+    NotificationService.access_approved_with_duration(
+        access_req.child, request.user, access_req.blacklist_item.name, duration_minutes
     )
 
     return JsonResponse({'status': 'success', 'message': f'Access approved for {access_req.blacklist_item.name}.'})
@@ -643,8 +673,43 @@ def api_get_access_requests(request):
             'requested_at': req.requested_at.isoformat(),
             'session_id': req.session.id,
             'session_duration': req.session.planned_duration,
+            'task_name': req.session.task.task_name if req.session.task else None,
         })
     return JsonResponse({'requests': data})
+
+
+@login_required
+def api_parent_active_sessions(request):
+    """Live view of each connected child's active focus session for the parent
+    Focus Control dashboard (current task + remaining focus time)."""
+    if request.user.role != 'PARENT':
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+
+    connections = ConnectionRequest.objects.filter(
+        parent=request.user, status='ACCEPTED'
+    ).select_related('child')
+    now = timezone.now()
+
+    data = []
+    for conn in connections:
+        session = FocusSession.objects.filter(
+            child=conn.child, status=FocusSession.Status.ACTIVE
+        ).select_related('task').first()
+        if not session:
+            continue
+        elapsed = max(0, int((now - session.start_time).total_seconds()))
+        remaining = max(0, session.planned_duration * 60 - elapsed)
+        data.append({
+            'child_id': conn.child.id,
+            'child_name': conn.child.username,
+            'session_id': session.id,
+            'task_name': session.task.task_name if session.task else None,
+            'planned_duration': session.planned_duration,
+            'focus_seconds': elapsed,
+            'remaining_seconds': remaining,
+            'start_time': session.start_time.isoformat(),
+        })
+    return JsonResponse({'sessions': data})
 
 
 @login_required
@@ -717,3 +782,78 @@ def api_mark_app_usage(request):
     access_req.in_use = bool(in_use)
     access_req.save(update_fields=['in_use'])
     return JsonResponse({'status': 'success', 'app_name': access_req.blacklist_item.name, 'in_use': access_req.in_use})
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_report_blocked(request):
+    """Called by the Desktop Focus Agent / Browser Extension when a restricted
+    app or website is blocked. Increments the active session's blocked counter."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+
+    session = FocusSession.objects.filter(
+        child=request.user, status=FocusSession.Status.ACTIVE
+    ).first()
+    if not session:
+        return JsonResponse({'error': 'No active focus session.'}, status=400)
+
+    session.blocked_attempts += 1
+    session.save(update_fields=['blocked_attempts'])
+
+    parents = get_connected_parents(request.user)
+    item_name = request.POST.get('app_name') or request.POST.get('item_name') or ''
+    for parent in parents:
+        NotificationService.blocked_attempt(
+            parent, request.user, item_name,
+            task_name=session.task.task_name if session.task else None
+        )
+
+    return JsonResponse({
+        'status': 'success',
+        'blocked_attempts': session.blocked_attempts,
+    })
+
+
+@login_required
+def api_focus_mode_status(request):
+    """GET block/allow rules + active session, used by the Browser Extension
+    to decide what to block while Focus Mode is active."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+
+    session = FocusSession.objects.filter(
+        child=request.user, status=FocusSession.Status.ACTIVE
+    ).first()
+
+    if not session:
+        return JsonResponse({'active': False})
+
+    now = timezone.now()
+    approved = AccessRequest.objects.filter(
+        child=request.user,
+        status=AccessRequest.Status.APPROVED,
+        granted_until__gte=now,
+    ).select_related('blacklist_item')
+
+    return JsonResponse({
+        'active': True,
+        'session_id': session.id,
+        'task_name': session.task.task_name if session.task else None,
+        'planned_duration': session.planned_duration,
+        'start_time': session.start_time.isoformat(),
+        'blocked_attempts': session.blocked_attempts,
+        'whitelist': [{
+            'name': w.name, 'category': w.category,
+            'url_pattern': w.url_pattern, 'app_name': w.app_name,
+        } for w in WhitelistItem.objects.all()],
+        'blacklist': [{
+            'name': b.name, 'category': b.category,
+            'url_pattern': b.url_pattern, 'app_name': b.app_name,
+        } for b in BlacklistItem.objects.all()],
+        'approved': [{
+            'name': r.blacklist_item.name,
+            'granted_until': r.granted_until.isoformat() if r.granted_until else None,
+        } for r in approved],
+    })

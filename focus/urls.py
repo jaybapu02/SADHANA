@@ -16,10 +16,13 @@ urlpatterns = [
     path('api/child-history/', views.api_child_focus_history, name='api_child_focus_history'),
     path('api/approved-apps/', views.api_get_approved_apps, name='api_get_approved_apps'),
     path('api/mark-app-usage/', views.api_mark_app_usage, name='api_mark_app_usage'),
+    path('api/report-blocked/', views.api_report_blocked, name='api_report_blocked'),
+    path('api/focus-mode-status/', views.api_focus_mode_status, name='api_focus_mode_status'),
 
     # Parent: Dashboard & management
     path('parent/', views.parent_focus_dashboard, name='parent_focus_dashboard'),
     path('parent/api/requests/', views.api_get_access_requests, name='api_get_access_requests'),
+    path('parent/api/active-sessions/', views.api_parent_active_sessions, name='api_parent_active_sessions'),
     path('parent/api/approve/<int:request_id>/', views.api_approve_request, name='api_approve_request'),
     path('parent/api/reject/<int:request_id>/', views.api_reject_request, name='api_reject_request'),
     path('parent/api/auto-expire/', views.api_auto_expire_requests, name='api_auto_expire_requests'),

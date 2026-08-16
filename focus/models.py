@@ -18,7 +18,7 @@ class FocusSession(models.Model):
         related_name='focus_sessions'
     )
     session_type = models.CharField(max_length=10, choices=Type.choices, default=Type.FOCUS, help_text="FOCUS = Pomodoro with app blocking, STUDY = free-form timer")
-    planned_duration = models.IntegerField(help_text="Planned duration in minutes (25, 50, or custom)")
+    planned_duration = models.IntegerField(help_text="Planned duration in minutes (25, 50, 90, or custom)")
     actual_focus_seconds = models.IntegerField(default=0, help_text="Actual focused time in seconds")
     distraction_seconds = models.IntegerField(default=0, help_text="Total distracted time in seconds")
     break_seconds = models.IntegerField(default=0, help_text="Total break time in seconds")
@@ -26,6 +26,15 @@ class FocusSession(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
+    task = models.ForeignKey(
+        'tasks.Task',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='focus_sessions',
+        help_text="To-Do task the child is working on during this session"
+    )
+    blocked_attempts = models.IntegerField(default=0, help_text="Number of blocked access attempts during this session")
+    early_exit = models.BooleanField(default=False, help_text="Child ended the session before the planned duration")
 
     class Meta:
         ordering = ['-start_time']

@@ -6,7 +6,7 @@ from collections import defaultdict
 from django.db.models import Sum
 from django.utils import timezone
 
-from focus.models import FocusSession
+from focus.models import FocusSession, AccessRequest
 from tasks.models import Task
 from rewards.models import RewardProfile, Badge, BadgeAward, Transaction
 from study.models import Goal
@@ -67,6 +67,7 @@ def analyze_child(child):
     goal_progress = _analyze_goal_progress(child)
 
     subject_data = _get_subject_data(tasks_90)
+    focus_stats = _get_focus_mode_stats(child, cutoff_90)
     recommendations = _generate_recommendations(
         child, best_study_time_label, avg_focus_minutes,
         favorite_subj, weakest_subj, most_prod_day,
@@ -98,6 +99,7 @@ def analyze_child(child):
     profile.parent_tasks_json = json.dumps(parent_task_data)
     profile.reward_insights_json = json.dumps(reward_insights)
     profile.goal_progress_json = json.dumps(goal_progress)
+    profile.focus_stats_json = json.dumps(focus_stats)
     profile.data_points = total_data
     profile.save()
 
@@ -516,6 +518,41 @@ def _get_subject_data(tasks_90):
             'pct': round((data['completed'] / max(data['total'], 1)) * 100)
         })
     return result
+
+
+def _get_focus_mode_stats(child, cutoff_90):
+    sessions = FocusSession.objects.filter(
+        child=child,
+        start_time__date__gte=cutoff_90,
+    ).exclude(status='ACTIVE')
+
+    completed = sessions.filter(status='COMPLETED')
+    interrupted = sessions.filter(status='INTERRUPTED')
+
+    access_reqs = AccessRequest.objects.filter(
+        child=child,
+        requested_at__date__gte=cutoff_90,
+    )
+
+    total_focus_seconds = sessions.aggregate(
+        Sum('actual_focus_seconds')
+    )['actual_focus_seconds__sum'] or 0
+
+    return {
+        'total_focus_minutes': round(total_focus_seconds / 60, 1),
+        'completed_sessions': completed.count(),
+        'interrupted_sessions': interrupted.count(),
+        'early_exits': interrupted.filter(early_exit=True).count(),
+        'total_blocked_attempts': sessions.aggregate(
+            Sum('blocked_attempts')
+        )['blocked_attempts__sum'] or 0,
+        'approved_requests': access_reqs.filter(
+            status='APPROVED'
+        ).count(),
+        'denied_requests': access_reqs.filter(
+            status='REJECTED'
+        ).count(),
+    }
 
 
 def _generate_recommendations(child, best_time, avg_focus, favorite, weakest,

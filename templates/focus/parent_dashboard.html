@@ -30,6 +30,11 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
+        <button class="nav-link" id="active-tab" data-bs-toggle="pill" data-bs-target="#active" type="button">
+            <i class="fa-solid fa-circle-play me-1"></i> Active Sessions
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link" id="children-tab" data-bs-toggle="pill" data-bs-target="#children" type="button">
             <i class="fa-solid fa-chart-line me-1"></i> Focus Analytics
         </button>
@@ -81,6 +86,9 @@
                                 </div>
                                 <p class="small text-muted mb-2">
                                     <i class="fa-solid fa-clock me-1"></i>During {{ req.session.planned_duration }}min focus session
+                                    {% if req.session.task %}
+                                    <span class="d-block mt-1"><i class="fa-solid fa-list-check me-1"></i>Task: <strong>{{ req.session.task.task_name }}</strong></span>
+                                    {% endif %}
                                 </p>
                                 <div class="d-flex gap-2">
                                     <form method="POST" action="{% url 'api_approve_request' req.id %}" class="d-inline" onsubmit="return handleApprove(event, this, {{ req.id }})">
@@ -106,6 +114,24 @@
                     <p class="text-muted mb-0">No pending requests. Your children are focused!</p>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Sessions Tab -->
+    <div class="tab-pane fade" id="active" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-circle-play text-success me-2"></i>Children Focus Sessions</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadActiveSessions()"><i class="fa-solid fa-rotate me-1"></i> Refresh</button>
+                </div>
+                <div id="activeSessionsDisplay">
+                    <div class="text-center py-4 text-muted">
+                        <i class="fa-solid fa-circle-plus fa-3x mb-3"></i>
+                        <p>Loading active sessions...</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -410,6 +436,58 @@
     function updatePendingCount() {
         const count = document.querySelectorAll('.request-card').length;
         document.getElementById('pendingCount').textContent = count;
+    }
+
+    // Active sessions monitoring
+    function loadActiveSessions() {
+        fetch('/focus/parent/api/active-sessions/')
+            .then(r => r.json())
+            .then(data => {
+                const display = document.getElementById('activeSessionsDisplay');
+                const sessions = data.sessions || [];
+                if (!sessions.length) {
+                    display.innerHTML = `<div class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-circle-check fa-3x mb-3"></i>
+                        <p>No child is currently in Focus Mode.</p>
+                    </div>`;
+                    return;
+                }
+                let html = '<div class="row g-3">';
+                sessions.forEach(s => {
+                    const pct = s.planned_duration > 0
+                        ? Math.min(100, Math.round((s.focus_seconds / (s.planned_duration * 60)) * 100))
+                        : 0;
+                    html += `
+                    <div class="col-md-6">
+                        <div class="card border-success border-opacity-25 h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-circle text-success me-1"></i>${s.child_name}</h6>
+                                    <span class="badge bg-success"><i class="fa-solid fa-fire me-1"></i>Focusing</span>
+                                </div>
+                                <p class="small text-muted mb-2">
+                                    <i class="fa-solid fa-list-check me-1"></i>Task: <strong>${s.task_name || 'Free focus'}</strong>
+                                </p>
+                                <div class="d-flex justify-content-between small text-muted mb-1">
+                                    <span><i class="fa-solid fa-hourglass-half me-1"></i>Planned: ${s.planned_duration} min</span>
+                                    <span><i class="fa-solid fa-clock me-1"></i>Remaining: ${Math.ceil(s.remaining_seconds / 60)} min</span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: ${pct}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                html += '</div>';
+                display.innerHTML = html;
+            })
+            .catch(() => {
+                document.getElementById('activeSessionsDisplay').innerHTML = `<div class="text-center py-5 text-muted">
+                    <i class="fa-solid fa-exclamation-triangle fa-3x mb-3"></i>
+                    <p>Error loading active sessions.</p>
+                </div>`;
+            });
     }
 
     function autoExpire() {
@@ -723,6 +801,7 @@
                                     </div>
                                     <p class="small text-muted mb-2">
                                         <i class="fa-solid fa-clock me-1"></i>During ${req.session_duration}min focus session
+                                        ${req.task_name ? `<span class="d-block mt-1"><i class="fa-solid fa-list-check me-1"></i>Task: <strong>${req.task_name}</strong></span>` : ''}
                                     </p>
                                     <div class="d-flex gap-2">
                                         <form method="POST" action="/focus/parent/api/approve/${req.id}/" class="d-inline" onsubmit="return handleApprove(event, this, ${req.id})">
@@ -751,6 +830,8 @@
     // Init
     loadWhitelist();
     loadBlacklist();
+    loadActiveSessions();
     setInterval(pollRequests, 15000);
+    setInterval(loadActiveSessions, 15000);
 </script>
 {% endblock %}
