@@ -241,6 +241,7 @@
                                 <th>Requested</th>
                                 <th>Status</th>
                                 <th>Responded</th>
+                                <th>Allowed By</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -261,6 +262,7 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ req.responded_at|timesince }} ago</td>
+                                <td>{{ req.parent.username }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

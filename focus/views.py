@@ -318,7 +318,7 @@ def parent_focus_dashboard(request):
         parent=request.user
     ).exclude(
         status=AccessRequest.Status.PENDING
-    ).select_related('child', 'session', 'blacklist_item').order_by('-responded_at')[:50]
+    ).select_related('child', 'parent', 'session', 'blacklist_item').order_by('-responded_at')[:50]
 
     context = {
         'children': children,
