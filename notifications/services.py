@@ -194,6 +194,62 @@ class NotificationService:
             message=message
         )
 
+    # Super Power Saving Mode notifications
+
+    @staticmethod
+    def lock_activated(parent, child, task_name=None):
+        message = f'Your child "{child.username}" started Super Power Saving Mode and locked their device.'
+        if task_name:
+            message += f' Current focus task: "{task_name}".'
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.LOCK_ACTIVATED,
+            message=message
+        )
+
+    @staticmethod
+    def lock_deactivated(parent, child, reason=''):
+        message = f'Your child "{child.username}" left Super Power Saving Mode.'
+        if reason:
+            message += f' {reason}'
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.LOCK_DEACTIVATED,
+            message=message
+        )
+
+    @staticmethod
+    def lock_violation(parent, child, event_type, detail='', task_name=None):
+        labels = {
+            'TAB_SWITCH': 'switched tabs',
+            'TAB_HIDE': 'moved away from the focus window',
+            'MINIMIZE': 'minimized the focus window',
+            'WINDOW_CLOSE': 'tried to close the focus window',
+            'LEAVE_ATTEMPT': 'tried to leave Focus Mode',
+            'APP_BLOCKED': 'tried to open a restricted app',
+            'WEBSITE_BLOCKED': 'tried to open a restricted website',
+        }
+        verb = labels.get(event_type, event_type.replace('_', ' ').lower())
+        message = f'⚠ Your child "{child.username}" {verb}.'
+        if detail:
+            message += f' ({detail})'
+        if task_name:
+            message += f' Current focus task: "{task_name}".'
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.LOCK_VIOLATION,
+            message=message
+        )
+
+    @staticmethod
+    def device_offline(parent, child, device_name):
+        message = f'Your child "{child.username}"\'s enforcement device "{device_name}" went offline. Super Power Saving Mode may not be enforced.'
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.DEVICE_OFFLINE,
+            message=message
+        )
+
     @staticmethod
     def focus_completed_child(child, duration_minutes):
         return NotificationService._create(

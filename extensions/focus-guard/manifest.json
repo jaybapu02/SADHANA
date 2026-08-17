@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Sadhana Focus Guard",
+  "version": "1.0.0",
+  "description": "Super Power Saving Mode enforcement for Sadhana Focus Sessions. Blocks restricted websites, prevents tab switching and window minimize, and reports every violation to your parents.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "windows",
+    "webNavigation",
+    "declarativeNetRequest",
+    "alarms"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Sadhana Focus Guard",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

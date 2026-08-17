@@ -143,6 +143,22 @@
                     </select>
                 </div>
 
+                <!-- Super Power Saving Mode Toggle -->
+                <div id="superPowerPanel" class="mb-4">
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                        <label class="fw-semibold mb-0">Super Power Saving Mode</label>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="superPowerToggle" {% if active_session and active_session.lock_enabled %}checked disabled{% endif %}>
+                        </div>
+                    </div>
+                    <p class="small text-muted mb-2 mx-auto" style="max-width: 460px;">
+                        Locks the study environment: blocks restricted apps & websites, prevents tab switching,
+                        and reports every interruption to your parent immediately. Requires the Focus Guard browser
+                        extension and/or Desktop Agent.
+                    </p>
+                    <div id="superPowerDeviceStatus" class="small"></div>
+                </div>
+
                 <!-- Control Buttons -->
                 <div class="row justify-content-center mb-4 g-2">
                     <div class="col-4">
@@ -262,6 +278,61 @@
                 <div id="approvedAppStatus" class="small mt-2"></div>
             </div>
         </div>
+
+        <!-- Super Power Lock & Devices Panel -->
+        <div class="card shadow border-0 rounded-4" id="lockDevicesPanel">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-shield-halved text-success me-2"></i>Super Power Lock & Devices</h5>
+                <p class="small text-muted">
+                    Super Power Saving Mode is enforced by the <strong>Focus Guard browser extension</strong>
+                    and the <strong>Desktop Agent</strong>. Register a device below, then connect it.
+                </p>
+
+                <div id="lockStatusBanner" class="d-none alert alert-success d-flex align-items-center mb-3">
+                    <i class="fa-solid fa-lock me-2"></i>
+                    <div><strong>Lock active.</strong> Your environment is locked for this session.</div>
+                </div>
+
+                <div class="d-flex flex-column gap-3">
+                    <div>
+                        <h6 class="fw-semibold"><i class="fa-solid fa-plug me-1"></i>Register a device</h6>
+                        <div class="input-group input-group-sm mb-2">
+                            <select class="form-select" id="newDeviceType" style="max-width:170px;">
+                                <option value="EXTENSION">Browser Extension</option>
+                                <option value="AGENT">Desktop Agent</option>
+                            </select>
+                            <input type="text" class="form-control" id="newDeviceName" placeholder="e.g. Chrome on Study PC">
+                            <button class="btn btn-primary" id="registerDeviceBtn"><i class="fa-solid fa-plus me-1"></i>Register</button>
+                        </div>
+                        <div id="deviceTokenDisplay" class="d-none">
+                            <label class="small fw-semibold">Your device token (copy into the extension/agent):</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="deviceTokenValue" readonly>
+                                <button class="btn btn-outline-info" onclick="copyDeviceToken()"><i class="fa-solid fa-copy"></i></button>
+                            </div>
+                            <p class="small text-muted mt-1 mb-0">Keep this secret. The token authorizes enforcement on your account.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h6 class="fw-semibold"><i class="fa-solid fa-laptop me-1"></i>Connected devices</h6>
+                        <div id="deviceList" class="small">
+                            <span class="text-muted">Loading...</span>
+                        </div>
+                    </div>
+
+                    <div class="small bg-body-tertiary rounded-3 p-3">
+                        <div class="fw-semibold mb-1"><i class="fa-solid fa-circle-info me-1"></i>How to enforce</div>
+                        <ol class="mb-0 ps-3">
+                            <li>Install the Focus Guard extension (see <code>extensions/focus-guard</code>).</li>
+                            <li>Or run the Desktop Agent (see <code>desktop_agent</code>).</li>
+                            <li>Paste your device token and your server URL into the device.</li>
+                            <li>Toggle <strong>Super Power Saving Mode</strong> and press <strong>Start</strong>.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -301,6 +372,7 @@
     let distractionSeconds = 0;
     let isRunning = false;
     let isPaused = false;
+    let lockEnabled = false;
 
     // Mutually exclusive timers
     let isTabHidden = false;
@@ -439,10 +511,26 @@
             timerLabel.textContent = 'You moved away — distraction tracking active';
             timerLabel.className = 'text-danger mb-3';
             showToast('Focus Paused', 'You left the tab. Focus timer paused, distraction tracking started.', 'warning');
+            reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
         } else {
             timerLabel.textContent = 'Using approved app — no penalty';
             timerLabel.className = 'text-info mb-3';
         }
+    }
+
+    function reportLockEvent(eventType, detail) {
+        if (!isRunning || !currentSessionId || !lockEnabled) return;
+        const payload = { event_type: eventType, detail: detail };
+        if (window.registeredDeviceToken) payload.device_token = window.registeredDeviceToken;
+        fetch('/focus/api/report-lock-event/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(payload)
+        }).then(r => r.json()).then(d => {
+            if (d.status === 'success') {
+                document.getElementById('blockedDisplay').textContent = d.lock_violations || document.getElementById('blockedDisplay').textContent;
+            }
+        }).catch(() => {});
     }
 
     function onTabVisible() {
@@ -466,10 +554,11 @@
 
     // ─── Session lifecycle ───
 
-    function setSessionActive(sessionId, duration, taskName) {
+    function setSessionActive(sessionId, duration, taskName, sessionLockEnabled) {
         currentSessionId = sessionId;
         plannedDuration = duration;
         isRunning = true;
+        lockEnabled = !!sessionLockEnabled;
         focusSeconds = 0;
         distractionSeconds = 0;
         isTabHidden = false;
@@ -479,6 +568,7 @@
         endBtn.disabled = false;
         durationSelector.style.display = 'none';
         document.getElementById('taskSelector').style.display = 'none';
+        document.getElementById('superPowerPanel').style.display = 'none';
         document.getElementById('currentTaskDisplay').style.display = 'block';
         document.getElementById('currentTaskName').textContent = taskName || 'Free focus';
         accessPanel.style.opacity = '1';
@@ -489,6 +579,12 @@
         timerDisplay.className = 'focus-timer active';
         updateTimerDisplay();
 
+        if (lockEnabled) {
+            document.getElementById('lockStatusBanner').classList.remove('d-none');
+        } else {
+            document.getElementById('lockStatusBanner').classList.add('d-none');
+        }
+
         resumeFocusTimer();
     }
 
@@ -496,6 +592,7 @@
         isRunning = false;
         currentSessionId = null;
         plannedDuration = 0;
+        lockEnabled = false;
         isTabHidden = false;
         pauseFocusTimer();
         stopDistractionTimer();
@@ -506,7 +603,9 @@
         endBtn.disabled = true;
         durationSelector.style.display = 'block';
         document.getElementById('taskSelector').style.display = 'block';
+        document.getElementById('superPowerPanel').style.display = 'block';
         document.getElementById('currentTaskDisplay').style.display = 'none';
+        document.getElementById('lockStatusBanner').classList.add('d-none');
         accessPanel.style.opacity = '0.5';
         accessPanel.style.pointerEvents = 'none';
         requestAccessBtn.disabled = true;
@@ -556,19 +655,21 @@
     startBtn.addEventListener('click', () => {
         const taskSelect = document.getElementById('taskSelect');
         const taskId = taskSelect && taskSelect.value ? parseInt(taskSelect.value) : null;
+        const payload = { duration: selectedDuration, task_id: taskId, lock_enabled: lockEnabled };
+        if (lockEnabled && window.registeredDeviceToken) payload.device_token = window.registeredDeviceToken;
         fetch('/focus/api/start-session/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken')
             },
-            body: JSON.stringify({ duration: selectedDuration, task_id: taskId })
+            body: JSON.stringify(payload)
         })
         .then(r => r.json())
         .then(data => {
             if (data.status === 'success') {
                 setSessionActive(data.session_id, data.planned_duration, data.task_name);
-                showToast('Session Started', `Focus session started for ${data.planned_duration} minutes.`, 'success');
+                showToast('Session Started', `Focus session started for ${data.planned_duration} minutes${data.lock_enabled ? ' — Super Power Lock ON' : ''}.`, 'success');
             } else {
                 showToast('Error', data.error || 'Could not start session.', 'danger');
             }
@@ -814,10 +915,103 @@
 
     // Init
     loadHistory();
+    loadDevices();
+    window.registeredDeviceToken = null;
+
+    const superPowerToggle = document.getElementById('superPowerToggle');
+    if (superPowerToggle) {
+        superPowerToggle.addEventListener('change', () => {
+            lockEnabled = superPowerToggle.checked;
+            const statusEl = document.getElementById('superPowerDeviceStatus');
+            if (lockEnabled) {
+                statusEl.innerHTML = '<span class="text-warning"><i class="fa-solid fa-triangle-exclamation me-1"></i>Super Power Saving Mode will be enabled when you press Start. Register a device to enforce it.</span>';
+            } else {
+                statusEl.innerHTML = '';
+            }
+        });
+    }
 
     if (currentSessionId) {
         const taskEl = document.getElementById('currentTaskName');
-        setSessionActive(currentSessionId, plannedDuration, taskEl ? taskEl.textContent : null);
+        setSessionActive(currentSessionId, plannedDuration, taskEl ? taskEl.textContent : null, {{ active_session.lock_enabled|yesno:"true,false" }});
+    }
+
+    // Super Power: device management
+    async function loadDevices() {
+        try {
+            const r = await fetch('/focus/api/devices/');
+            const data = await r.json();
+            const container = document.getElementById('deviceList');
+            const statusEl = document.getElementById('superPowerDeviceStatus');
+            const devices = data.devices || [];
+            if (!devices.length) {
+                container.innerHTML = '<span class="text-muted">No devices registered yet.</span>';
+                if (statusEl) statusEl.innerHTML = '<span class="text-danger"><i class="fa-solid fa-circle-exclamation me-1"></i>No enforcement device connected. Super Power Saving Mode will not be enforced.</span>';
+                return;
+            }
+            container.innerHTML = '';
+            if (!window.registeredDeviceToken && devices[0]) {
+                window.registeredDeviceToken = devices[0].token;
+            }
+            devices.forEach(d => {
+                const online = d.online ? '<span class="badge bg-success">Online</span>' : '<span class="badge bg-secondary">Offline</span>';
+                const el = document.createElement('div');
+                el.className = 'd-flex justify-content-between align-items-center border-bottom py-1';
+                el.innerHTML = `<span><i class="fa-solid fa-${d.device_type === 'EXTENSION' ? 'plug' : 'laptop'} me-1 text-info"></i>${escapeHtml(d.name)} ${online}</span>
+                    <button class="btn btn-outline-danger btn-xs" onclick="revokeDevice(${d.id})" style="font-size:0.7rem;"><i class="fa-solid fa-trash"></i></button>`;
+                container.appendChild(el);
+            });
+            if (statusEl && !lockEnabled) statusEl.innerHTML = '<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Enforcement device ready.</span>';
+        } catch (e) {
+            document.getElementById('deviceList').innerHTML = '<span class="text-muted">Could not load devices.</span>';
+        }
+    }
+
+    document.getElementById('registerDeviceBtn').addEventListener('click', () => {
+        const deviceType = document.getElementById('newDeviceType').value;
+        const name = document.getElementById('newDeviceName').value.trim();
+        fetch('/focus/api/devices/register/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ device_type: deviceType, name: name })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.registeredDeviceToken = data.token;
+                document.getElementById('deviceTokenValue').value = data.token;
+                document.getElementById('deviceTokenDisplay').classList.remove('d-none');
+                showToast('Device Registered', `"${data.name}" registered. Copy the token into the ${data.device_type === 'EXTENSION' ? 'extension' : 'agent'}.`, 'success');
+                loadDevices();
+            } else {
+                showToast('Error', data.error || 'Could not register device.', 'danger');
+            }
+        })
+        .catch(() => showToast('Error', 'Network error.', 'danger'));
+    });
+
+    window.revokeDevice = function(deviceId) {
+        if (!confirm('Revoke this device? Its token will stop working.')) return;
+        fetch(`/focus/api/devices/revoke/${deviceId}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(r => r.json())
+        .then(d => { if (d.status === 'success') { showToast('Device Revoked', d.revoked, 'info'); loadDevices(); } })
+        .catch(() => showToast('Error', 'Network error.', 'danger'));
+    };
+
+    window.copyDeviceToken = function() {
+        const input = document.getElementById('deviceTokenValue');
+        input.select();
+        document.execCommand('copy');
+        showToast('Copied', 'Device token copied to clipboard.', 'success');
+    };
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     // Poll for approved apps every 8 seconds when session is active
@@ -837,8 +1031,8 @@
     // Patch setSessionActive/setSessionInactive to toggle polling
     const _origSetActive = setSessionActive;
     const _origSetInactive = setSessionInactive;
-    setSessionActive = function(sessionId, duration, taskName) {
-        _origSetActive(sessionId, duration, taskName);
+    setSessionActive = function(sessionId, duration, taskName, sessionLockEnabled) {
+        _origSetActive(sessionId, duration, taskName, sessionLockEnabled);
         startApprovedAppsPolling();
         startBlockedPolling();
     };

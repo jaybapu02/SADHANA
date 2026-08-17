@@ -1,0 +1,9 @@
+{
+  "server_url": "http://127.0.0.1:8000",
+  "device_token": "PASTE_YOUR_DEVICE_TOKEN_HERE",
+  "poll_interval_seconds": 5,
+  "process_check_interval_seconds": 3,
+  "mode": "blacklist",
+  "allow_system_processes": true,
+  "restore_focus_window": true
+}

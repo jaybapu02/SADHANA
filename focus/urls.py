@@ -18,6 +18,16 @@ urlpatterns = [
     path('api/mark-app-usage/', views.api_mark_app_usage, name='api_mark_app_usage'),
     path('api/report-blocked/', views.api_report_blocked, name='api_report_blocked'),
     path('api/focus-mode-status/', views.api_focus_mode_status, name='api_focus_mode_status'),
+    path('api/report-lock-event/', views.api_report_lock_event, name='api_report_lock_event'),
+
+    # Child: Super Power Saving Mode devices
+    path('api/devices/', views.api_list_devices, name='api_list_devices'),
+    path('api/devices/register/', views.api_register_device, name='api_register_device'),
+    path('api/devices/revoke/<int:device_id>/', views.api_unregister_device, name='api_unregister_device'),
+
+    # Device-facing (token auth for browser extension / desktop agent)
+    path('api/device-status/', views.api_device_status, name='api_device_status'),
+    path('api/device-heartbeat/', views.api_device_heartbeat, name='api_device_heartbeat'),
 
     # Parent: Dashboard & management
     path('parent/', views.parent_focus_dashboard, name='parent_focus_dashboard'),
@@ -28,6 +38,9 @@ urlpatterns = [
     path('parent/api/auto-expire/', views.api_auto_expire_requests, name='api_auto_expire_requests'),
     path('parent/api/analytics/<int:child_id>/', views.api_focus_analytics, name='api_focus_analytics'),
     path('parent/api/sessions/<int:child_id>/', views.api_parent_child_sessions, name='api_parent_child_sessions'),
+    path('parent/api/lock-events/', views.api_parent_all_lock_events, name='api_parent_all_lock_events'),
+    path('parent/api/lock-events/<int:child_id>/', views.api_parent_lock_events, name='api_parent_lock_events'),
+    path('parent/api/devices/', views.api_parent_devices, name='api_parent_devices'),
 
     # Parent: Whitelist / Blacklist management
     path('parent/api/whitelist/', views.api_list_whitelist, name='api_list_whitelist'),

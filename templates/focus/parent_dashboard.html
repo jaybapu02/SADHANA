@@ -59,6 +59,17 @@
             <i class="fa-solid fa-clock-rotate-left me-1"></i> Access History
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="lockevents-tab" data-bs-toggle="pill" data-bs-target="#lockevents" type="button">
+            <i class="fa-solid fa-shield-halved me-1"></i> Lock Events
+            <span class="badge bg-danger ms-1" id="lockEventsBadge" style="display:none;">0</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="devices-tab" data-bs-toggle="pill" data-bs-target="#devices" type="button">
+            <i class="fa-solid fa-laptop me-1"></i> Devices
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content">
@@ -303,6 +314,52 @@
             </div>
         </div>
     </div>
+
+    <!-- Lock Events Tab -->
+    <div class="tab-pane fade" id="lockevents" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-shield-halved text-danger me-2"></i>Super Power Lock Events</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <select class="form-select form-select-sm" id="lockEventChildSelect" style="max-width:220px;">
+                            <option value="">-- All children --</option>
+                            {% for child in children %}
+                            <option value="{{ child.id }}">{{ child.username }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadLockEvents()"><i class="fa-solid fa-rotate me-1"></i> Refresh</button>
+                    </div>
+                </div>
+                <p class="small text-muted">Every interruption, tab switch, minimize, blocked app/site, approval and denial recorded by Super Power Saving Mode.</p>
+                <div id="lockEventsDisplay">
+                    <div class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-shield fa-3x mb-3"></i>
+                        <p>Select a child to view lock events, or view all children.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Devices Tab -->
+    <div class="tab-pane fade" id="devices" role="tabpanel">
+        <div class="card shadow border-0 rounded-4">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-laptop text-success me-2"></i>Enforcement Devices</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadDevices()"><i class="fa-solid fa-rotate me-1"></i> Refresh</button>
+                </div>
+                <p class="small text-muted">Browser extensions and Desktop Agents that enforce Super Power Saving Mode for your children.</p>
+                <div id="devicesDisplay">
+                    <div class="text-center py-4 text-muted">
+                        <i class="fa-solid fa-laptop fa-3x mb-3"></i>
+                        <p>Loading devices...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Add Whitelist Modal -->
@@ -463,10 +520,14 @@
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <h6 class="fw-bold mb-0"><i class="fa-solid fa-circle text-success me-1"></i>${s.child_name}</h6>
-                                    <span class="badge bg-success"><i class="fa-solid fa-fire me-1"></i>Focusing</span>
+                                    <span>
+                                        ${s.lock_enabled ? '<span class="badge bg-danger me-1" title="Super Power Saving Mode active"><i class="fa-solid fa-lock me-1"></i>Locked</span>' : ''}
+                                        <span class="badge bg-success"><i class="fa-solid fa-fire me-1"></i>Focusing</span>
+                                    </span>
                                 </div>
                                 <p class="small text-muted mb-2">
                                     <i class="fa-solid fa-list-check me-1"></i>Task: <strong>${s.task_name || 'Free focus'}</strong>
+                                    ${s.lock_violations ? `<span class="d-block text-danger mt-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>${s.lock_violations} lock violation(s)</span>` : ''}
                                 </p>
                                 <div class="d-flex justify-content-between small text-muted mb-1">
                                     <span><i class="fa-solid fa-hourglass-half me-1"></i>Planned: ${s.planned_duration} min</span>
@@ -827,11 +888,110 @@
             .catch(() => {});
     }
 
+    // Lock events feed
+    function loadLockEvents() {
+        const childId = document.getElementById('lockEventChildSelect').value;
+        let url = '/focus/parent/api/lock-events/';
+        if (childId) url += `${childId}/`;
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                const display = document.getElementById('lockEventsDisplay');
+                const events = data.events || [];
+                if (!events.length) {
+                    display.innerHTML = `<div class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-shield fa-3x mb-3"></i>
+                        <p>No lock events recorded.</p>
+                    </div>`;
+                    return;
+                }
+                const critical = events.filter(e => e.severity === 'CRITICAL').length;
+                const badge = document.getElementById('lockEventsBadge');
+                badge.style.display = critical > 0 ? 'inline' : 'none';
+                badge.textContent = critical;
+
+                let html = '<div class="table-responsive"><table class="table table-sm table-hover">' +
+                    '<thead><tr><th>When</th><th>Child</th><th>Event</th><th>Detail</th><th>Source</th><th>Severity</th></tr></thead><tbody>';
+                events.forEach(e => {
+                    const date = new Date(e.created_at);
+                    const sevBadge = e.severity === 'CRITICAL'
+                        ? '<span class="badge bg-danger">Critical</span>'
+                        : e.severity === 'WARNING'
+                            ? '<span class="badge bg-warning text-dark">Warning</span>'
+                            : '<span class="badge bg-info">Info</span>';
+                    html += `<tr>
+                        <td>${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                        <td>${escapeHtml(e.child_name || '—')}</td>
+                        <td><code>${e.event_type.replace(/_/g, ' ')}</code></td>
+                        <td>${escapeHtml(e.detail || '—')}${e.task_name ? `<span class="d-block small text-muted">Task: ${escapeHtml(e.task_name)}</span>` : ''}</td>
+                        <td>${escapeHtml(e.source || 'Web')}</td>
+                        <td>${sevBadge}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                display.innerHTML = html;
+            })
+            .catch(() => {
+                document.getElementById('lockEventsDisplay').innerHTML = `<div class="text-center py-5 text-muted">
+                    <i class="fa-solid fa-exclamation-triangle fa-3x mb-3"></i>
+                    <p>Error loading lock events.</p>
+                </div>`;
+            });
+    }
+
+    // Devices feed
+    function loadDevices() {
+        fetch('/focus/parent/api/devices/')
+            .then(r => r.json())
+            .then(data => {
+                const display = document.getElementById('devicesDisplay');
+                const devices = data.devices || [];
+                if (!devices.length) {
+                    display.innerHTML = `<div class="text-center py-5 text-muted">
+                        <i class="fa-solid fa-laptop fa-3x mb-3"></i>
+                        <p>No enforcement devices connected.</p>
+                    </div>`;
+                    return;
+                }
+                let html = '<div class="table-responsive"><table class="table table-sm table-hover">' +
+                    '<thead><tr><th>Child</th><th>Device</th><th>Type</th><th>Last Seen</th><th>Status</th></tr></thead><tbody>';
+                devices.forEach(d => {
+                    const lastSeen = d.last_seen ? new Date(d.last_seen) : null;
+                    const lastStr = lastSeen ? `${lastSeen.toLocaleDateString()} ${lastSeen.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Never';
+                    html += `<tr>
+                        <td>${escapeHtml(d.child_name)}</td>
+                        <td>${escapeHtml(d.name)}</td>
+                        <td><span class="badge ${d.device_type === 'EXTENSION' ? 'bg-info' : 'bg-secondary'}">${d.device_type === 'EXTENSION' ? 'Browser Extension' : 'Desktop Agent'}</span></td>
+                        <td>${lastStr}</td>
+                        <td>${d.online ? '<span class="badge bg-success"><i class="fa-solid fa-circle me-1"></i>Online</span>' : '<span class="badge bg-secondary">Offline</span>'}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                display.innerHTML = html;
+            })
+            .catch(() => {
+                document.getElementById('devicesDisplay').innerHTML = `<div class="text-center py-5 text-muted">
+                    <i class="fa-solid fa-exclamation-triangle fa-3x mb-3"></i>
+                    <p>Error loading devices.</p>
+                </div>`;
+            });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     // Init
     loadWhitelist();
     loadBlacklist();
     loadActiveSessions();
+    loadLockEvents();
+    loadDevices();
     setInterval(pollRequests, 15000);
     setInterval(loadActiveSessions, 15000);
+    setInterval(loadLockEvents, 15000);
+    setInterval(loadDevices, 30000);
 </script>
 {% endblock %}
