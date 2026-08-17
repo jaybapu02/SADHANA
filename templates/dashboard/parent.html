@@ -78,6 +78,7 @@
                                         </div>
                                         <h5 class="fw-bold">{{ child.username }}</h5>
                                         <div class="d-grid gap-1 mt-2">
+                                            <a href="{% url 'chat:chat_page' %}?to={{ child.id }}" class="btn btn-sm btn-outline-warning"><i class="fa-solid fa-comments"></i> Chat</a>
                                             <a href="{% url 'parent_child_stats' child.id %}" class="btn btn-sm btn-outline-primary">Study Stats</a>
                                             <a href="{% url 'parent_child_todo' child.id %}" class="btn btn-sm btn-outline-success">To-Do Progress</a>
                                             <a href="{% url 'studydna_parent' child.id %}" class="btn btn-sm btn-outline-info"><i class="fa-solid fa-dna"></i> Study DNA</a>

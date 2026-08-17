@@ -13,4 +13,5 @@ urlpatterns = [
     path('focus/', include('focus.urls')),
     path('rewards/', include('rewards.urls')),
     path('studydna/', include('studydna.urls')),
+    path('chat/', include('chat.urls')),
 ]

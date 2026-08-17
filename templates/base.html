@@ -40,6 +40,14 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'dashboard_router' %}">Dashboard</a>
                         </li>
+                        {% if user.role == 'PARENT' or user.role == 'CHILD' %}
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="{% url 'chat:chat_page' %}">
+                                <i class="fa-solid fa-comments"></i> Chat
+                                <span id="navbarChatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="display:none; font-size:0.6rem;">0</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if user.role == 'CHILD' %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'focus_session' %}"><i class="fa-solid fa-bullseye"></i> Focus</a>
@@ -137,6 +145,27 @@
 
         updateNotificationBadge();
         setInterval(updateNotificationBadge, 10000);
+
+        function updateChatBadge() {
+            const badge = document.getElementById('navbarChatBadge');
+            if (!badge) return;
+            fetch('/chat/api/unread-count/')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.unread_count > 0) {
+                        badge.textContent = data.unread_count;
+                        badge.style.display = 'inline';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                })
+                .catch(() => {});
+        }
+
+        if (document.getElementById('navbarChatBadge')) {
+            updateChatBadge();
+            setInterval(updateChatBadge, 15000);
+        }
     </script>
     {% block extra_js %}{% endblock %}
 </body>

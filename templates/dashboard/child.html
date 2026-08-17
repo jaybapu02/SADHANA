@@ -43,6 +43,11 @@
                         <p class="mb-1 mt-2 fs-5">{{ p.username }}</p>
                     {% endfor %}
                     <p class="small text-muted">Your data is being shared with these parents.</p>
+                    {% if parents %}
+                    <a href="{% url 'chat:chat_page' %}?to={{ parents.0.id }}" class="btn btn-sm btn-outline-success rounded-pill">
+                        <i class="fa-solid fa-comments me-1"></i> Chat with {{ parents.0.username }}
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         {% endif %}

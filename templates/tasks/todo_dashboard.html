@@ -154,6 +154,11 @@
                                     </div>
                                 </div>
                                 <div class="d-flex gap-1">
+                                    {% if task.parent %}
+                                    <a href="{% url 'chat:chat_page' %}?to={{ task.parent.id }}&text={{ task.task_name|urlencode|slice:":50" }}" class="btn btn-sm btn-outline-primary" title="Discuss with {{ task.parent.username }}">
+                                        <i class="fa-solid fa-comments"></i>
+                                    </a>
+                                    {% endif %}
                                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal{{ task.id }}" title="Edit">
                                         <i class="fa-solid fa-pen"></i>
                                     </button>

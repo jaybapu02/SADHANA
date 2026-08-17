@@ -40,12 +40,14 @@ CACHES = {
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "channels",
     "users",
     "dashboard",
     "study",
@@ -56,6 +58,7 @@ INSTALLED_APPS = [
     "focus",
     "rewards",
     "studydna",
+    "chat",
 ]
 
 MIDDLEWARE = [
@@ -146,3 +149,14 @@ AUTH_USER_MODEL = 'users.User'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard_router'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Django Channels (real-time chat)
+ASGI_APPLICATION = "sadhana.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
+
+# WebSocket authentication is cookie/session based via AuthMiddlewareStack.

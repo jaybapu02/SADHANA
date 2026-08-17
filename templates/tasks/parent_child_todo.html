@@ -9,6 +9,7 @@
         <a href="{% url 'parent_dashboard' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
         <a href="{% url 'parent_assign_task' child.id %}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i> Assign Task</a>
         <a href="{% url 'parent_send_appreciation' child.id %}" class="btn btn-success btn-sm"><i class="fa-solid fa-heart me-1"></i> Appreciate</a>
+        <a href="{% url 'chat:chat_page' %}?to={{ child.id }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-comments me-1"></i> Chat</a>
     </div>
 </div>
 <hr>

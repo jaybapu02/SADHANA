@@ -184,11 +184,15 @@ def focus_session_view(request):
     ).first()
     today = timezone.now().date()
     today_tasks = Task.objects.filter(child=request.user, date=today).order_by('-priority', 'due_date')
+    conn = ConnectionRequest.objects.filter(
+        child=request.user, status='ACCEPTED'
+    ).select_related('parent').first()
     context = {
         'whitelist': whitelist,
         'blacklist': blacklist,
         'active_session': active_session,
         'today_tasks': today_tasks,
+        'connected_parent': conn.parent if conn else None,
     }
     return render(request, 'focus/session.html', context)
 

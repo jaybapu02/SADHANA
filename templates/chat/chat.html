@@ -1,0 +1,480 @@
+{% extends 'base.html' %}
+{% block title %}Chat - Sadhana{% endblock %}
+{% block content %}
+<style>
+    .chat-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 1rem;
+        overflow: hidden;
+        background: var(--bs-body-bg);
+    }
+    .chat-sidebar {
+        border-right: 1px solid var(--bs-border-color);
+        max-height: 70vh;
+        min-height: 60vh;
+        display: flex;
+        flex-direction: column;
+    }
+    .chat-main {
+        display: flex;
+        flex-direction: column;
+        max-height: 70vh;
+        min-height: 60vh;
+    }
+    .conv-list {
+        overflow-y: auto;
+        flex: 1;
+    }
+    .conv-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid var(--bs-border-color-translucent);
+        transition: background 0.15s ease;
+    }
+    .conv-item:hover { background: var(--bs-tertiary-bg); }
+    .conv-item.active { background: var(--bs-primary-bg-subtle); }
+    .avatar {
+        width: 42px; height: 42px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 600; color: #fff; flex-shrink: 0; font-size: 0.95rem;
+    }
+    .avatar.parent { background: linear-gradient(135deg, #0d6efd, #6610f2); }
+    .avatar.child { background: linear-gradient(135deg, #198754, #20c997); }
+    .status-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: #6c757d; border: 2px solid var(--bs-body-bg); position: absolute;
+        bottom: 0; right: 0;
+    }
+    .status-dot.online { background: #198754; }
+    .msg-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        background: var(--bs-tertiary-bg);
+    }
+    .bubble {
+        max-width: 70%;
+        padding: 0.55rem 0.9rem;
+        border-radius: 1rem;
+        word-wrap: break-word;
+        font-size: 0.95rem;
+    }
+    .bubble.mine {
+        align-self: flex-end;
+        background: var(--bs-primary);
+        color: #fff;
+        border-bottom-right-radius: 0.25rem;
+    }
+    .bubble.theirs {
+        align-self: flex-start;
+        background: var(--bs-secondary-bg);
+        border-bottom-left-radius: 0.25rem;
+    }
+    .msg-meta {
+        font-size: 0.65rem;
+        opacity: 0.75;
+        margin-top: 0.2rem;
+        display: flex;
+        gap: 0.35rem;
+        justify-content: flex-end;
+    }
+    .bubble.theirs .msg-meta { justify-content: flex-start; }
+    .typing-indicator {
+        font-size: 0.85rem;
+        color: var(--bs-secondary-color);
+        font-style: italic;
+        min-height: 1.2rem;
+        padding-left: 0.25rem;
+    }
+    .quick-chip {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 999px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        background: var(--bs-body-bg);
+        transition: all 0.15s ease;
+        white-space: nowrap;
+    }
+    .quick-chip:hover { border-color: var(--bs-primary); color: var(--bs-primary); }
+    .conv-empty {
+        display: flex; align-items: center; justify-content: center;
+        height: 100%; color: var(--bs-secondary-color); text-align: center;
+    }
+</style>
+
+<div class="row mb-3">
+    <div class="col">
+        <h4 class="mb-0"><i class="fa-solid fa-comments text-primary"></i> Chat</h4>
+        <small class="text-secondary">Private conversation with your
+            {% if user.role == 'PARENT' %}child{% else %}parent{% endif %} — real-time.</small>
+    </div>
+</div>
+
+<div class="row g-0 chat-card shadow-sm">
+    <div class="col-12 col-md-4 col-lg-3 chat-sidebar">
+        <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+            <strong>Conversations</strong>
+            <span id="totalUnread" class="badge text-bg-success" style="display:none;">0</span>
+        </div>
+        <div id="convList" class="conv-list">
+            <div class="conv-empty p-4">No conversations yet.<br>Once you're linked, say hi!</div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-8 col-lg-9 chat-main">
+        <div id="chatHeader" class="p-3 border-bottom d-flex align-items-center gap-2 d-none">
+            <div class="avatar parent" id="headerAvatar">?</div>
+            <div>
+                <strong id="headerName">—</strong>
+                <small class="text-secondary d-block" id="headerStatus">offline</small>
+            </div>
+            <div class="ms-auto text-secondary small" id="wsStatus"><i class="fa-solid fa-plug-circle-bolt"></i> connecting…</div>
+        </div>
+
+        <div id="chatPlaceholder" class="conv-empty p-4">
+            <div>
+                <i class="fa-regular fa-comment-dots fa-2x mb-2 d-block"></i>
+                Select a conversation to start chatting.
+            </div>
+        </div>
+
+        <div id="chatBody" class="msg-area d-none" style="display:none;">
+            <div id="msgList"></div>
+            <div class="typing-indicator" id="typingIndicator"></div>
+        </div>
+
+        <div id="chatComposer" class="p-3 border-top d-none">
+            <div class="d-flex gap-2 overflow-auto pb-2" id="quickChips">
+                <span class="quick-chip" data-text="💪 Keep going!">💪 Keep going!</span>
+                <span class="quick-chip" data-text="🎯 Focus on your goal!">🎯 Focus on your goal!</span>
+                <span class="quick-chip" data-text="⭐ Great job!">⭐ Great job!</span>
+                <span class="quick-chip" data-text="🔥 Keep your streak alive!">🔥 Keep your streak alive!</span>
+                <span class="quick-chip" data-text="❤️ Proud of you!">❤️ Proud of you!</span>
+            </div>
+            <div class="d-flex gap-2 mt-2">
+                <input type="text" id="msgInput" class="form-control" placeholder="Type a message…" maxlength="2000">
+                <button id="sendBtn" class="btn btn-primary flex-shrink-0">
+                    <i class="fa-solid fa-paper-plane"></i> Send
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+(() => {
+    const ME_ID = {{ user.id }};
+    const ME_ROLE = "{{ user.role }}";
+
+    const convListEl = document.getElementById('convList');
+    const chatHeader = document.getElementById('chatHeader');
+    const chatPlaceholder = document.getElementById('chatPlaceholder');
+    const chatBody = document.getElementById('chatBody');
+    const chatComposer = document.getElementById('chatComposer');
+    const msgList = document.getElementById('msgList');
+    const msgInput = document.getElementById('msgInput');
+    const typingEl = document.getElementById('typingIndicator');
+    const wsStatus = document.getElementById('wsStatus');
+    const totalUnreadEl = document.getElementById('totalUnread');
+    const headerName = document.getElementById('headerName');
+    const headerStatus = document.getElementById('headerStatus');
+    const headerAvatar = document.getElementById('headerAvatar');
+
+    let conversations = {};
+    let activeConvId = null;
+    let ws = null;
+    let wsRetry = 0;
+    let typingTimer = null;
+    let typingSentAt = 0;
+
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+    const fmtTime = iso => {
+        const d = new Date(iso);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+    const fmtDay = iso => {
+        const d = new Date(iso);
+        const today = new Date();
+        if (d.toDateString() === today.toDateString()) return fmtTime(iso);
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    };
+
+    // ── WebSocket ──────────────────────────────────────────────────────
+    function connectWS() {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${proto}://${location.host}/ws/chat/`);
+        ws.onopen = () => {
+            wsRetry = 0;
+            wsStatus.innerHTML = '<i class="fa-solid fa-circle text-success"></i> online';
+            wsStatus.className = 'ms-auto text-secondary small';
+        };
+        ws.onmessage = e => handleWS(JSON.parse(e.data));
+        ws.onclose = () => {
+            wsStatus.innerHTML = '<i class="fa-solid fa-plug-circle-xmark text-danger"></i> reconnecting…';
+            setTimeout(connectWS, Math.min(5000, 1000 * Math.pow(2, wsRetry++)));
+        };
+        ws.onerror = () => ws.close();
+    }
+
+    function handleWS(data) {
+        switch (data.type) {
+            case 'connected':
+                data.conversations.forEach(c => conversations[c.id] = { ...conversations[c.id], ...c });
+                renderConvList();
+                if (activeConvId && !conversations[activeConvId]) selectConversation(null);
+                break;
+            case 'chat_message':
+                appendMessage(data, true);
+                break;
+            case 'typing':
+                if (data.conversation_id === activeConvId && data.user_id !== ME_ID) {
+                    typingEl.textContent = `${data.user_name} is typing…`;
+                    clearTimeout(typingEl._t);
+                    typingEl._t = setTimeout(() => typingEl.textContent = '', 2500);
+                }
+                break;
+            case 'read':
+                if (data.conversation_id === activeConvId) markMyRead(data.reader_id);
+                break;
+            case 'presence':
+                const conv = Object.values(conversations).find(c => c.other_id === data.user_id);
+                if (conv) { conv.online = data.online; renderConvList(); updateHeader(); }
+                break;
+            case 'error':
+                console.warn('chat ws:', data.message);
+                break;
+        }
+    }
+
+    function wsSend(obj) {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+        else return false;
+        return true;
+    }
+
+    // ── Rendering ──────────────────────────────────────────────────────
+    function renderConvList() {
+        const list = Object.values(conversations).sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+        if (!list.length) {
+            convListEl.innerHTML = '<div class="conv-empty p-4">No conversations yet.<br>Once you\'re linked, say hi!</div>';
+            return;
+        }
+        convListEl.innerHTML = list.map(c => `
+            <div class="conv-item ${c.id === activeConvId ? 'active' : ''}" data-id="${c.id}">
+                <div class="position-relative">
+                    <div class="avatar ${c.other_role === 'PARENT' ? 'parent' : 'child'}">${esc((c.other_name[0] || '?').toUpperCase())}</div>
+                    <span class="status-dot ${c.online ? 'online' : ''}"></span>
+                </div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="d-flex justify-content-between align-items-baseline">
+                        <strong class="text-truncate">${esc(c.other_name)}</strong>
+                        <small class="text-secondary flex-shrink-0 ms-2">${c.last_message_at ? fmtDay(c.last_message_at) : ''}</small>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-secondary text-truncate">
+                            ${c.last_message ? esc(c.last_sender === '{{ user.username }}' ? 'You: ' : '') + esc(c.last_message) : '<em>Start chatting</em>'}
+                        </small>
+                        ${c.unread_count > 0 ? `<span class="badge text-bg-danger rounded-pill ms-2 flex-shrink-0">${c.unread_count}</span>` : ''}
+                    </div>
+                </div>
+            </div>`).join('');
+
+        convListEl.querySelectorAll('.conv-item').forEach(el => {
+            el.addEventListener('click', () => selectConversation(parseInt(el.dataset.id, 10)));
+        });
+    }
+
+    function updateHeader() {
+        const c = conversations[activeConvId];
+        if (!c) return;
+        headerName.textContent = `${c.other_name} (${c.other_role === 'PARENT' ? 'Parent' : 'Child'})`;
+        headerStatus.textContent = c.online ? 'online' : 'offline';
+        headerStatus.className = c.online ? 'text-success' : 'text-secondary';
+        headerAvatar.className = `avatar ${c.other_role === 'PARENT' ? 'parent' : 'child'}`;
+        headerAvatar.textContent = (c.other_name[0] || '?').toUpperCase();
+    }
+
+    function appendMessage(m, viaWS) {
+        if (m.conversation_id !== activeConvId) {
+            if (viaWS) {
+                const c = conversations[m.conversation_id];
+                if (c) {
+                    c.last_message = m.text;
+                    c.last_message_at = m.created_at;
+                    if (m.sender_id !== ME_ID) {
+                        c.unread_count = (c.unread_count || 0) + 1;
+                        refreshUnreadBadge();
+                    }
+                    renderConvList();
+                }
+            }
+            return;
+        }
+        const mine = m.sender_id === ME_ID;
+        const div = document.createElement('div');
+        div.className = `bubble ${mine ? 'mine' : 'theirs'}`;
+        div.innerHTML = `
+            <div>${esc(m.text)}</div>
+            <div class="msg-meta">
+                <span>${fmtTime(m.created_at)}</span>
+                ${mine ? `<span title="Read">${m.is_read ? '<i class="fa-solid fa-check-double text-success"></i>' : '<i class="fa-solid fa-check"></i>'}</span>` : ''}
+            </div>`;
+        msgList.appendChild(div);
+        msgList.scrollTop = msgList.scrollHeight;
+        if (!mine) {
+            wsSend({ action: 'mark_read', conversation_id: m.conversation_id });
+        }
+    }
+
+    function markMyRead(readerId) {
+        msgList.querySelectorAll('.bubble.mine').forEach(b => {
+            const check = b.querySelector('.msg-meta span[title="Read"]');
+            if (check) check.innerHTML = '<i class="fa-solid fa-check-double text-success"></i>';
+        });
+        void readerId;
+    }
+
+    async function loadMessages(convId) {
+        try {
+            const r = await fetch(`/chat/api/conversations/${convId}/messages/`);
+            if (!r.ok) return;
+            const data = await r.json();
+            msgList.innerHTML = '';
+            data.messages.forEach(m => appendMessage(m, false));
+            wsSend({ action: 'mark_read', conversation_id: convId });
+        } catch (e) { console.warn(e); }
+    }
+
+    function selectConversation(convId) {
+        activeConvId = convId;
+        const c = conversations[convId];
+        if (!c) {
+            chatHeader.classList.add('d-none');
+            chatPlaceholder.classList.remove('d-none');
+            chatBody.classList.add('d-none');
+            chatComposer.classList.add('d-none');
+            renderConvList();
+            return;
+        }
+        chatHeader.classList.remove('d-none');
+        chatPlaceholder.classList.add('d-none');
+        chatBody.classList.remove('d-none');
+        chatComposer.classList.remove('d-none');
+        chatBody.style.display = '';
+        updateHeader();
+        renderConvList();
+        loadMessages(convId);
+        msgInput.focus();
+    }
+
+    // ── Sending ────────────────────────────────────────────────────────
+    async function sendMessage() {
+        const text = msgInput.value.trim();
+        if (!text || !activeConvId) return;
+        msgInput.value = '';
+        if (!wsSend({ action: 'message', conversation_id: activeConvId, text })) {
+            try {
+                const r = await fetch(`/chat/api/conversations/${activeConvId}/send/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify({ text })
+                });
+                if (r.ok) {
+                    const d = await r.json();
+                    const mine = { id: d.id, conversation_id: activeConvId, sender_id: ME_ID, sender_name: 'You', text, is_read: false, created_at: d.created_at };
+                    const c = conversations[activeConvId];
+                    c.last_message = text; c.last_message_at = d.created_at;
+                    appendMessage(mine, false);
+                    renderConvList();
+                }
+            } catch (e) { console.warn(e); }
+        }
+    }
+
+    function getCookie(name) {
+        const m = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]*)'));
+        return m ? decodeURIComponent(m[2]) : '';
+    }
+
+    // ── Unread badges ──────────────────────────────────────────────────
+    async function refreshUnreadBadge() {
+        const total = Object.values(conversations).reduce((s, c) => s + (c.unread_count || 0), 0);
+        if (total > 0) {
+            totalUnreadEl.textContent = total;
+            totalUnreadEl.style.display = '';
+        } else {
+            totalUnreadEl.style.display = 'none';
+        }
+        try {
+            const r = await fetch('/chat/api/unread-count/');
+            const d = await r.json();
+            const nav = document.getElementById('navbarChatBadge');
+            if (nav) {
+                if (d.unread_count > 0) { nav.textContent = d.unread_count; nav.style.display = 'inline'; }
+                else nav.style.display = 'none';
+            }
+        } catch (e) {}
+    }
+
+    // ── Conversation refresh + quick-open from other pages ────────────
+    async function loadConversations() {
+        try {
+            const r = await fetch('/chat/api/conversations/');
+            const d = await r.json();
+            d.conversations.forEach(c => conversations[c.id] = { ...conversations[c.id], ...c });
+            renderConvList();
+            if (activeConvId && conversations[activeConvId]) updateHeader();
+            refreshUnreadBadge();
+        } catch (e) {}
+    }
+
+    async function openQuickConversation(otherId, text) {
+        try {
+            const r = await fetch(`/chat/api/quick/${otherId}/`);
+            const d = await r.json();
+            if (d.conversation_id) {
+                await loadConversations();
+                selectConversation(d.conversation_id);
+                if (text) { msgInput.value = text; msgInput.focus(); }
+            }
+        } catch (e) {}
+    }
+
+    // ── Events ─────────────────────────────────────────────────────────
+    msgInput.addEventListener('input', () => {
+        const now = Date.now();
+        if (now - typingSentAt > 2000 && activeConvId) {
+            typingSentAt = now;
+            wsSend({ action: 'typing', conversation_id: activeConvId });
+        }
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => typingSentAt = 0, 3000);
+    });
+    msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('quickChips').addEventListener('click', e => {
+        const chip = e.target.closest('.quick-chip');
+        if (chip) { msgInput.value = chip.dataset.text; msgInput.focus(); }
+    });
+
+    // ── Init ───────────────────────────────────────────────────────────
+    connectWS();
+    loadConversations();
+    setInterval(loadConversations, 20000);
+
+    const params = new URLSearchParams(location.search);
+    if (params.get('to')) openQuickConversation(parseInt(params.get('to'), 10), params.get('text') || '');
+})();
+</script>
+{% endblock %}
