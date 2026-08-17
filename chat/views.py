@@ -140,6 +140,33 @@ def api_send(request, conversation_id):
 
 
 @login_required
+def api_contacts(request):
+    """All linked parents (for a child) or linked children (for a parent),
+    for starting a new WhatsApp-style chat."""
+    from chat.consumers import ONLINE_USERS
+
+    if request.user.role == "PARENT":
+        conns = ConnectionRequest.objects.filter(
+            parent=request.user, status="ACCEPTED"
+        ).select_related("child")
+        contacts = [{"id": c.child.id, "name": c.child.username, "role": c.child.role}
+                    for c in conns]
+    elif request.user.role == "CHILD":
+        conns = ConnectionRequest.objects.filter(
+            child=request.user, status="ACCEPTED"
+        ).select_related("parent")
+        contacts = [{"id": c.parent.id, "name": c.parent.username, "role": c.parent.role}
+                    for c in conns]
+    else:
+        contacts = []
+
+    for c in contacts:
+        c["online"] = c["id"] in ONLINE_USERS
+
+    return JsonResponse({"contacts": contacts})
+
+
+@login_required
 def api_quick_conversation(request, other_user_id):
     """Return (or create) the conversation with a specific linked user.
     Used by integration quick-actions (e.g. 'Ask parent' from a task)."""

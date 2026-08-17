@@ -2,168 +2,433 @@
 {% block title %}Chat - Sadhana{% endblock %}
 {% block content %}
 <style>
-    .chat-card {
-        border: 1px solid var(--bs-border-color);
+    :root {
+        --wa-sent-bg: #005c4b;
+        --wa-sent-fg: #e9edef;
+        --wa-recv-bg: #202c33;
+        --wa-recv-fg: #e9edef;
+        --wa-bg: #0b141a;
+        --wa-sidebar-bg: #111b21;
+        --wa-header-bg: #202c33;
+        --wa-meta: #8696a0;
+        --wa-green: #25d366;
+        --wa-blue: #53bdeb;
+        --wa-hover: #2a3942;
+        --wa-selected: #2a3942;
+        --wa-border: #2a3942;
+        --wa-chip-bg: rgba(37, 211, 102, 0.12);
+        --wa-input-bg: #2a3942;
+        --wa-input-fg: #e9edef;
+        --wa-date-chip-bg: #182229;
+        --wa-date-chip-fg: #8696a0;
+    }
+    [data-bs-theme="light"] {
+        --wa-sent-bg: #d9fdd3;
+        --wa-sent-fg: #111b21;
+        --wa-recv-bg: #ffffff;
+        --wa-recv-fg: #111b21;
+        --wa-bg: #efeae2;
+        --wa-sidebar-bg: #ffffff;
+        --wa-header-bg: #f0f2f5;
+        --wa-meta: #667781;
+        --wa-hover: #f5f6f6;
+        --wa-selected: #f0f2f5;
+        --wa-border: #e9edef;
+        --wa-chip-bg: rgba(37, 211, 102, 0.15);
+        --wa-input-bg: #f0f2f5;
+        --wa-input-fg: #111b21;
+        --wa-date-chip-bg: #ffffff;
+        --wa-date-chip-fg: #667781;
+    }
+
+    .wa-app {
+        display: flex;
+        height: calc(100vh - 150px);
+        min-height: 500px;
         border-radius: 1rem;
         overflow: hidden;
-        background: var(--bs-body-bg);
+        border: 1px solid var(--wa-border);
+        background: var(--wa-bg);
+        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
     }
-    .chat-sidebar {
-        border-right: 1px solid var(--bs-border-color);
-        max-height: 70vh;
-        min-height: 60vh;
+
+    /* ── Sidebar ── */
+    .wa-sidebar {
+        width: 34%;
+        min-width: 300px;
+        max-width: 380px;
         display: flex;
         flex-direction: column;
+        background: var(--wa-sidebar-bg);
+        border-right: 1px solid var(--wa-border);
     }
-    .chat-main {
-        display: flex;
-        flex-direction: column;
-        max-height: 70vh;
-        min-height: 60vh;
-    }
-    .conv-list {
-        overflow-y: auto;
-        flex: 1;
-    }
-    .conv-item {
+    .wa-sidebar-header {
+        background: var(--wa-header-bg);
+        padding: 0.9rem 1rem;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        cursor: pointer;
-        border-bottom: 1px solid var(--bs-border-color-translucent);
+        justify-content: space-between;
+    }
+    .wa-sidebar-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+    .wa-icon-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: var(--wa-meta);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         transition: background 0.15s ease;
     }
-    .conv-item:hover { background: var(--bs-tertiary-bg); }
-    .conv-item.active { background: var(--bs-primary-bg-subtle); }
-    .avatar {
-        width: 42px; height: 42px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-weight: 600; color: #fff; flex-shrink: 0; font-size: 0.95rem;
+    .wa-icon-btn:hover {
+        background: var(--wa-hover);
+        color: var(--wa-sent-fg);
     }
-    .avatar.parent { background: linear-gradient(135deg, #0d6efd, #6610f2); }
-    .avatar.child { background: linear-gradient(135deg, #198754, #20c997); }
-    .status-dot {
-        width: 10px; height: 10px; border-radius: 50%;
-        background: #6c757d; border: 2px solid var(--bs-body-bg); position: absolute;
-        bottom: 0; right: 0;
+    .wa-search {
+        padding: 0.6rem 0.8rem;
+        border-bottom: 1px solid var(--wa-border);
     }
-    .status-dot.online { background: #198754; }
-    .msg-area {
+    .wa-search input {
+        width: 100%;
+        border: none;
+        border-radius: 0.6rem;
+        background: var(--wa-input-bg);
+        color: var(--wa-input-fg);
+        padding: 0.55rem 0.9rem;
+        font-size: 0.88rem;
+    }
+    .wa-search input::placeholder { color: var(--wa-meta); }
+    .wa-search input:focus { outline: none; box-shadow: 0 0 0 1px var(--wa-green); }
+
+    .wa-conv-list {
         flex: 1;
         overflow-y: auto;
-        padding: 1.25rem;
+    }
+    .wa-conv {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 0.65rem 0.9rem;
+        cursor: pointer;
+        transition: background 0.1s ease;
+    }
+    .wa-conv:hover { background: var(--wa-hover); }
+    .wa-conv.active { background: var(--wa-selected); }
+    .wa-avatar-wrap { position: relative; flex-shrink: 0; }
+    .wa-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.05rem;
+        color: #fff;
+    }
+    .wa-avatar.parent { background: linear-gradient(135deg, #0d6efd, #6610f2); }
+    .wa-avatar.child { background: linear-gradient(135deg, #198754, #20c997); }
+    .wa-avatar.me { background: linear-gradient(135deg, #6c757d, #495057); }
+    .wa-online-dot {
+        position: absolute;
+        bottom: 1px;
+        right: 1px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--wa-green);
+        border: 2px solid var(--wa-sidebar-bg);
+        display: none;
+    }
+    .wa-conv.online .wa-online-dot { display: block; }
+    .wa-conv-body { flex: 1; min-width: 0; }
+    .wa-conv-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.5rem;
+    }
+    .wa-conv-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--wa-sent-fg);
+    }
+    .wa-conv-time {
+        font-size: 0.72rem;
+        color: var(--wa-meta);
+        flex-shrink: 0;
+    }
+    .wa-conv-preview {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 2px;
+    }
+    .wa-conv-preview-text {
+        font-size: 0.82rem;
+        color: var(--wa-meta);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .wa-unread {
+        background: var(--wa-green);
+        color: #062e14;
+        font-size: 0.7rem;
+        font-weight: 700;
+        min-width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
+        flex-shrink: 0;
+    }
+    .wa-unread.show { display: flex; }
+
+    /* ── Main ── */
+    .wa-main {
+        flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-        background: var(--bs-tertiary-bg);
+        min-width: 0;
+        background: var(--wa-bg);
     }
-    .bubble {
-        max-width: 70%;
-        padding: 0.55rem 0.9rem;
-        border-radius: 1rem;
-        word-wrap: break-word;
-        font-size: 0.95rem;
-    }
-    .bubble.mine {
-        align-self: flex-end;
-        background: var(--bs-primary);
-        color: #fff;
-        border-bottom-right-radius: 0.25rem;
-    }
-    .bubble.theirs {
-        align-self: flex-start;
-        background: var(--bs-secondary-bg);
-        border-bottom-left-radius: 0.25rem;
-    }
-    .msg-meta {
-        font-size: 0.65rem;
-        opacity: 0.75;
-        margin-top: 0.2rem;
+    .wa-chat-header {
+        background: var(--wa-header-bg);
+        padding: 0.6rem 1rem;
         display: flex;
-        gap: 0.35rem;
+        align-items: center;
+        gap: 0.8rem;
+    }
+    .wa-chat-header .wa-avatar { width: 40px; height: 40px; font-size: 0.95rem; }
+    .wa-chat-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--wa-sent-fg);
+    }
+    .wa-chat-status {
+        font-size: 0.78rem;
+        color: var(--wa-meta);
+    }
+    .wa-chat-status.typing { color: var(--wa-green); }
+
+    .wa-msgs {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        background:
+            radial-gradient(circle at 20% 20%, rgba(37, 211, 102, 0.05) 0, transparent 40%),
+            radial-gradient(circle at 80% 70%, rgba(83, 189, 235, 0.05) 0, transparent 40%),
+            var(--wa-bg);
+    }
+    .wa-day-chip {
+        align-self: center;
+        background: var(--wa-date-chip-bg);
+        color: var(--wa-date-chip-fg);
+        font-size: 0.72rem;
+        padding: 0.2rem 0.7rem;
+        border-radius: 0.5rem;
+        margin: 0.4rem 0;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    .wa-bubble {
+        max-width: 75%;
+        padding: 0.45rem 0.65rem 0.35rem;
+        border-radius: 0.6rem;
+        position: relative;
+        word-wrap: break-word;
+        font-size: 0.9rem;
+        line-height: 1.35;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
+    }
+    .wa-bubble.mine {
+        align-self: flex-end;
+        background: var(--wa-sent-bg);
+        color: var(--wa-sent-fg);
+        border-top-right-radius: 0.15rem;
+    }
+    .wa-bubble.theirs {
+        align-self: flex-start;
+        background: var(--wa-recv-bg);
+        color: var(--wa-recv-fg);
+        border-top-left-radius: 0.15rem;
+    }
+    .wa-bubble-meta {
+        display: flex;
+        align-items: center;
         justify-content: flex-end;
+        gap: 0.3rem;
+        margin-top: 2px;
+        font-size: 0.68rem;
+        color: var(--wa-meta);
     }
-    .bubble.theirs .msg-meta { justify-content: flex-start; }
-    .typing-indicator {
-        font-size: 0.85rem;
-        color: var(--bs-secondary-color);
-        font-style: italic;
-        min-height: 1.2rem;
-        padding-left: 0.25rem;
+    .wa-bubble.mine .wa-bubble-meta { color: rgba(233, 237, 239, 0.75); }
+    [data-bs-theme="light"] .wa-bubble.mine .wa-bubble-meta { color: #667781; }
+    .wa-ticks { font-size: 0.7rem; color: var(--wa-meta); }
+    .wa-ticks.read { color: var(--wa-blue); }
+
+    .wa-composer {
+        background: var(--wa-header-bg);
+        padding: 0.7rem 1rem;
     }
-    .quick-chip {
-        border: 1px solid var(--bs-border-color);
+    .wa-quick-row {
+        display: flex;
+        gap: 0.45rem;
+        overflow-x: auto;
+        padding-bottom: 0.55rem;
+    }
+    .wa-quick-row::-webkit-scrollbar { height: 0; }
+    .wa-chip {
+        border: none;
         border-radius: 999px;
         padding: 0.3rem 0.8rem;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         cursor: pointer;
-        background: var(--bs-body-bg);
-        transition: all 0.15s ease;
+        background: var(--wa-chip-bg);
+        color: var(--wa-sent-fg);
         white-space: nowrap;
+        transition: filter 0.15s ease;
     }
-    .quick-chip:hover { border-color: var(--bs-primary); color: var(--bs-primary); }
-    .conv-empty {
-        display: flex; align-items: center; justify-content: center;
-        height: 100%; color: var(--bs-secondary-color); text-align: center;
+    .wa-chip:hover { filter: brightness(1.2); }
+    .wa-input-row { display: flex; gap: 0.5rem; align-items: center; }
+    .wa-input {
+        flex: 1;
+        border: none;
+        border-radius: 0.6rem;
+        background: var(--wa-input-bg);
+        color: var(--wa-input-fg);
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+    }
+    .wa-input::placeholder { color: var(--wa-meta); }
+    .wa-input:focus { outline: none; box-shadow: 0 0 0 1px var(--wa-green); }
+    .wa-send {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        border: none;
+        background: var(--wa-green);
+        color: #062e14;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.05rem;
+        flex-shrink: 0;
+        transition: filter 0.15s ease;
+    }
+    .wa-send:hover { filter: brightness(1.15); }
+
+    .wa-empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--wa-meta);
+        text-align: center;
+        gap: 0.5rem;
+        padding: 2rem;
+    }
+    .wa-scroll { scrollbar-width: thin; scrollbar-color: var(--wa-border) transparent; }
+
+    .modal-content { background: var(--wa-sidebar-bg); color: var(--wa-sent-fg); }
+    .modal-header { border-color: var(--wa-border); }
+
+    @media (max-width: 768px) {
+        .wa-app { flex-direction: column; height: calc(100vh - 170px); }
+        .wa-sidebar { width: 100%; min-width: 0; max-width: none; border-right: none; border-bottom: 1px solid var(--wa-border); }
+        .wa-conv-list { max-height: 35vh; }
+        .wa-bubble { max-width: 88%; }
     }
 </style>
 
-<div class="row mb-3">
-    <div class="col">
-        <h4 class="mb-0"><i class="fa-solid fa-comments text-primary"></i> Chat</h4>
-        <small class="text-secondary">Private conversation with your
-            {% if user.role == 'PARENT' %}child{% else %}parent{% endif %} — real-time.</small>
+<div class="wa-app shadow-sm">
+    <!-- ── Conversation sidebar ── -->
+    <div class="wa-sidebar">
+        <div class="wa-sidebar-header">
+            <h5>Chats</h5>
+            <button class="wa-icon-btn" id="newChatBtn" title="New chat">
+                <i class="fa-solid fa-square-pen"></i>
+            </button>
+        </div>
+        <div class="wa-search">
+            <input type="text" id="convSearch" placeholder="Search chats…">
+        </div>
+        <div id="convList" class="wa-conv-list wa-scroll">
+            <div class="wa-empty">
+                <i class="fa-regular fa-comment-dots fa-2x"></i>
+                <div>No chats yet.<br>Tap <i class="fa-solid fa-square-pen"></i> to start a new chat.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Chat window ── -->
+    <div class="wa-main">
+        <div id="chatHeader" class="wa-chat-header" style="display:none;">
+            <div class="wa-avatar-wrap">
+                <div class="wa-avatar child" id="headerAvatar">?</div>
+                <span class="wa-online-dot" id="headerDot" style="display:none;"></span>
+            </div>
+            <div class="flex-grow-1">
+                <div class="wa-chat-name" id="headerName">—</div>
+                <div class="wa-chat-status" id="headerStatus">offline</div>
+            </div>
+            <span class="wa-chat-status flex-shrink-0" id="wsStatus"><i class="fa-solid fa-plug-circle-bolt"></i> connecting…</span>
+        </div>
+
+        <div id="chatPlaceholder" class="wa-empty">
+            <i class="fa-regular fa-comment-dots fa-3x"></i>
+            <div>
+                Select a chat to start messaging.<br>
+                <small>Only you and your linked parent/child can see this conversation.</small>
+            </div>
+        </div>
+
+        <div id="chatBody" class="wa-msgs wa-scroll" style="display:none;">
+            <div id="msgList"></div>
+        </div>
+
+        <div id="chatComposer" class="wa-composer" style="display:none;">
+            <div class="wa-quick-row" id="quickChips">
+                <button class="wa-chip" data-text="💪 Keep going!">💪 Keep going!</button>
+                <button class="wa-chip" data-text="🎯 Focus on your goal!">🎯 Focus on your goal!</button>
+                <button class="wa-chip" data-text="⭐ Great job!">⭐ Great job!</button>
+                <button class="wa-chip" data-text="🔥 Keep your streak alive!">🔥 Keep your streak alive!</button>
+                <button class="wa-chip" data-text="❤️ Proud of you!">❤️ Proud of you!</button>
+            </div>
+            <div class="wa-input-row">
+                <input type="text" id="msgInput" class="wa-input" placeholder="Type a message" maxlength="2000" autocomplete="off">
+                <button id="sendBtn" class="wa-send" title="Send">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="row g-0 chat-card shadow-sm">
-    <div class="col-12 col-md-4 col-lg-3 chat-sidebar">
-        <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
-            <strong>Conversations</strong>
-            <span id="totalUnread" class="badge text-bg-success" style="display:none;">0</span>
-        </div>
-        <div id="convList" class="conv-list">
-            <div class="conv-empty p-4">No conversations yet.<br>Once you're linked, say hi!</div>
-        </div>
-    </div>
-
-    <div class="col-12 col-md-8 col-lg-9 chat-main">
-        <div id="chatHeader" class="p-3 border-bottom d-flex align-items-center gap-2 d-none">
-            <div class="avatar parent" id="headerAvatar">?</div>
-            <div>
-                <strong id="headerName">—</strong>
-                <small class="text-secondary d-block" id="headerStatus">offline</small>
+<!-- New chat modal -->
+<div class="modal fade" id="newChatModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold">Start a new chat</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="ms-auto text-secondary small" id="wsStatus"><i class="fa-solid fa-plug-circle-bolt"></i> connecting…</div>
-        </div>
-
-        <div id="chatPlaceholder" class="conv-empty p-4">
-            <div>
-                <i class="fa-regular fa-comment-dots fa-2x mb-2 d-block"></i>
-                Select a conversation to start chatting.
-            </div>
-        </div>
-
-        <div id="chatBody" class="msg-area d-none" style="display:none;">
-            <div id="msgList"></div>
-            <div class="typing-indicator" id="typingIndicator"></div>
-        </div>
-
-        <div id="chatComposer" class="p-3 border-top d-none">
-            <div class="d-flex gap-2 overflow-auto pb-2" id="quickChips">
-                <span class="quick-chip" data-text="💪 Keep going!">💪 Keep going!</span>
-                <span class="quick-chip" data-text="🎯 Focus on your goal!">🎯 Focus on your goal!</span>
-                <span class="quick-chip" data-text="⭐ Great job!">⭐ Great job!</span>
-                <span class="quick-chip" data-text="🔥 Keep your streak alive!">🔥 Keep your streak alive!</span>
-                <span class="quick-chip" data-text="❤️ Proud of you!">❤️ Proud of you!</span>
-            </div>
-            <div class="d-flex gap-2 mt-2">
-                <input type="text" id="msgInput" class="form-control" placeholder="Type a message…" maxlength="2000">
-                <button id="sendBtn" class="btn btn-primary flex-shrink-0">
-                    <i class="fa-solid fa-paper-plane"></i> Send
-                </button>
-            </div>
+            <div class="modal-body p-0" id="contactList"></div>
         </div>
     </div>
 </div>
@@ -174,20 +439,23 @@
 (() => {
     const ME_ID = {{ user.id }};
     const ME_ROLE = "{{ user.role }}";
+    const ME_NAME = "{{ user.username }}";
 
     const convListEl = document.getElementById('convList');
+    const convSearch = document.getElementById('convSearch');
     const chatHeader = document.getElementById('chatHeader');
     const chatPlaceholder = document.getElementById('chatPlaceholder');
     const chatBody = document.getElementById('chatBody');
     const chatComposer = document.getElementById('chatComposer');
     const msgList = document.getElementById('msgList');
     const msgInput = document.getElementById('msgInput');
-    const typingEl = document.getElementById('typingIndicator');
     const wsStatus = document.getElementById('wsStatus');
-    const totalUnreadEl = document.getElementById('totalUnread');
     const headerName = document.getElementById('headerName');
     const headerStatus = document.getElementById('headerStatus');
     const headerAvatar = document.getElementById('headerAvatar');
+    const headerDot = document.getElementById('headerDot');
+    const contactList = document.getElementById('contactList');
+    const newChatModalEl = document.getElementById('newChatModal');
 
     let conversations = {};
     let activeConvId = null;
@@ -195,6 +463,8 @@
     let wsRetry = 0;
     let typingTimer = null;
     let typingSentAt = 0;
+    let searchQuery = '';
+    let lastDayKey = null;
 
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -203,12 +473,19 @@
         const d = new Date(iso);
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
-    const fmtDay = iso => {
+    const dayKey = iso => {
+        const d = new Date(iso);
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    };
+    const dayLabel = iso => {
         const d = new Date(iso);
         const today = new Date();
-        if (d.toDateString() === today.toDateString()) return fmtTime(iso);
-        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const yest = new Date(); yest.setDate(today.getDate() - 1);
+        if (d.toDateString() === today.toDateString()) return 'Today';
+        if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+        return d.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
     };
+    const initials = name => (name || '?').slice(0, 2).toUpperCase();
 
     // ── WebSocket ──────────────────────────────────────────────────────
     function connectWS() {
@@ -217,7 +494,6 @@
         ws.onopen = () => {
             wsRetry = 0;
             wsStatus.innerHTML = '<i class="fa-solid fa-circle text-success"></i> online';
-            wsStatus.className = 'ms-auto text-secondary small';
         };
         ws.onmessage = e => handleWS(JSON.parse(e.data));
         ws.onclose = () => {
@@ -232,24 +508,22 @@
             case 'connected':
                 data.conversations.forEach(c => conversations[c.id] = { ...conversations[c.id], ...c });
                 renderConvList();
-                if (activeConvId && !conversations[activeConvId]) selectConversation(null);
                 break;
             case 'chat_message':
                 appendMessage(data, true);
                 break;
             case 'typing':
-                if (data.conversation_id === activeConvId && data.user_id !== ME_ID) {
-                    typingEl.textContent = `${data.user_name} is typing…`;
-                    clearTimeout(typingEl._t);
-                    typingEl._t = setTimeout(() => typingEl.textContent = '', 2500);
-                }
+                if (data.conversation_id === activeConvId) showTyping(data.user_name);
                 break;
             case 'read':
-                if (data.conversation_id === activeConvId) markMyRead(data.reader_id);
+                if (data.conversation_id === activeConvId) markMyRead();
                 break;
             case 'presence':
-                const conv = Object.values(conversations).find(c => c.other_id === data.user_id);
-                if (conv) { conv.online = data.online; renderConvList(); updateHeader(); }
+                Object.values(conversations).forEach(c => {
+                    if (c.other_id === data.user_id) c.online = data.online;
+                });
+                renderConvList();
+                updateHeader();
                 break;
             case 'error':
                 console.warn('chat ws:', data.message);
@@ -258,39 +532,48 @@
     }
 
     function wsSend(obj) {
-        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
-        else return false;
-        return true;
+        if (ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify(obj)); return true; }
+        return false;
     }
 
-    // ── Rendering ──────────────────────────────────────────────────────
+    // ── Conversation list ──────────────────────────────────────────────
     function renderConvList() {
-        const list = Object.values(conversations).sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+        let list = Object.values(conversations).sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+        if (searchQuery) {
+            list = list.filter(c => c.other_name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
         if (!list.length) {
-            convListEl.innerHTML = '<div class="conv-empty p-4">No conversations yet.<br>Once you\'re linked, say hi!</div>';
+            convListEl.innerHTML = searchQuery
+                ? `<div class="wa-empty"><i class="fa-solid fa-magnifying-glass fa-2x"></i><div>No chats found</div></div>`
+                : `<div class="wa-empty">
+                    <i class="fa-regular fa-comment-dots fa-2x"></i>
+                    <div>No chats yet.<br>Tap <i class="fa-solid fa-square-pen"></i> to start a new chat.</div>
+                </div>`;
             return;
         }
         convListEl.innerHTML = list.map(c => `
-            <div class="conv-item ${c.id === activeConvId ? 'active' : ''}" data-id="${c.id}">
-                <div class="position-relative">
-                    <div class="avatar ${c.other_role === 'PARENT' ? 'parent' : 'child'}">${esc((c.other_name[0] || '?').toUpperCase())}</div>
-                    <span class="status-dot ${c.online ? 'online' : ''}"></span>
+            <div class="wa-conv ${c.id === activeConvId ? 'active' : ''} ${c.online ? 'online' : ''}" data-id="${c.id}">
+                <div class="wa-avatar-wrap">
+                    <div class="wa-avatar ${c.other_role === 'PARENT' ? 'parent' : 'child'}">${initials(c.other_name)}</div>
+                    <span class="wa-online-dot"></span>
                 </div>
-                <div class="flex-grow-1 overflow-hidden">
-                    <div class="d-flex justify-content-between align-items-baseline">
-                        <strong class="text-truncate">${esc(c.other_name)}</strong>
-                        <small class="text-secondary flex-shrink-0 ms-2">${c.last_message_at ? fmtDay(c.last_message_at) : ''}</small>
+                <div class="wa-conv-body">
+                    <div class="wa-conv-top">
+                        <span class="wa-conv-name">${esc(c.other_name)}</span>
+                        <span class="wa-conv-time">${c.last_message_at ? fmtTime(c.last_message_at) : ''}</span>
                     </div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-secondary text-truncate">
-                            ${c.last_message ? esc(c.last_sender === '{{ user.username }}' ? 'You: ' : '') + esc(c.last_message) : '<em>Start chatting</em>'}
-                        </small>
-                        ${c.unread_count > 0 ? `<span class="badge text-bg-danger rounded-pill ms-2 flex-shrink-0">${c.unread_count}</span>` : ''}
+                    <div class="wa-conv-preview">
+                        <span class="wa-conv-preview-text">
+                            ${c.last_message
+                                ? (c.last_sender === ME_NAME ? '<strong class="text-secondary">You: </strong>' : '') + esc(c.last_message)
+                                : 'Start chatting'}
+                        </span>
+                        <span class="wa-unread ${c.unread_count > 0 ? 'show' : ''}">${c.unread_count || ''}</span>
                     </div>
                 </div>
             </div>`).join('');
 
-        convListEl.querySelectorAll('.conv-item').forEach(el => {
+        convListEl.querySelectorAll('.wa-conv').forEach(el => {
             el.addEventListener('click', () => selectConversation(parseInt(el.dataset.id, 10)));
         });
     }
@@ -299,10 +582,39 @@
         const c = conversations[activeConvId];
         if (!c) return;
         headerName.textContent = `${c.other_name} (${c.other_role === 'PARENT' ? 'Parent' : 'Child'})`;
-        headerStatus.textContent = c.online ? 'online' : 'offline';
-        headerStatus.className = c.online ? 'text-success' : 'text-secondary';
-        headerAvatar.className = `avatar ${c.other_role === 'PARENT' ? 'parent' : 'child'}`;
-        headerAvatar.textContent = (c.other_name[0] || '?').toUpperCase();
+        headerAvatar.className = `wa-avatar ${c.other_role === 'PARENT' ? 'parent' : 'child'}`;
+        headerAvatar.textContent = initials(c.other_name);
+        headerDot.style.display = c.online ? '' : 'none';
+        if (c.online) {
+            headerStatus.textContent = 'online';
+            headerStatus.className = 'wa-chat-status';
+        } else {
+            headerStatus.textContent = 'offline';
+            headerStatus.className = 'wa-chat-status';
+        }
+    }
+
+    function showTyping(name) {
+        headerStatus.textContent = 'typing…';
+        headerStatus.className = 'wa-chat-status typing';
+        clearTimeout(showTyping._t);
+        showTyping._t = setTimeout(() => {
+            const c = conversations[activeConvId];
+            headerStatus.textContent = c && c.online ? 'online' : 'offline';
+            headerStatus.className = 'wa-chat-status';
+        }, 2500);
+    }
+
+    // ── Messages ───────────────────────────────────────────────────────
+    function addDayChip(iso) {
+        const key = dayKey(iso);
+        if (key !== lastDayKey) {
+            lastDayKey = key;
+            const chip = document.createElement('div');
+            chip.className = 'wa-day-chip';
+            chip.textContent = dayLabel(iso);
+            msgList.appendChild(chip);
+        }
     }
 
     function appendMessage(m, viaWS) {
@@ -312,6 +624,7 @@
                 if (c) {
                     c.last_message = m.text;
                     c.last_message_at = m.created_at;
+                    c.last_sender = m.sender_name;
                     if (m.sender_id !== ME_ID) {
                         c.unread_count = (c.unread_count || 0) + 1;
                         refreshUnreadBadge();
@@ -322,27 +635,28 @@
             return;
         }
         const mine = m.sender_id === ME_ID;
+        addDayChip(m.created_at);
         const div = document.createElement('div');
-        div.className = `bubble ${mine ? 'mine' : 'theirs'}`;
+        div.className = `wa-bubble ${mine ? 'mine' : 'theirs'}`;
         div.innerHTML = `
             <div>${esc(m.text)}</div>
-            <div class="msg-meta">
+            <div class="wa-bubble-meta">
                 <span>${fmtTime(m.created_at)}</span>
-                ${mine ? `<span title="Read">${m.is_read ? '<i class="fa-solid fa-check-double text-success"></i>' : '<i class="fa-solid fa-check"></i>'}</span>` : ''}
+                ${mine ? `<span class="wa-ticks ${m.is_read ? 'read' : ''}">
+                    ${m.is_read ? '<i class="fa-solid fa-check-double"></i>' : '<i class="fa-solid fa-check"></i>'}</span>` : ''}
             </div>`;
         msgList.appendChild(div);
         msgList.scrollTop = msgList.scrollHeight;
-        if (!mine) {
+        if (!mine && viaWS) {
             wsSend({ action: 'mark_read', conversation_id: m.conversation_id });
         }
     }
 
-    function markMyRead(readerId) {
-        msgList.querySelectorAll('.bubble.mine').forEach(b => {
-            const check = b.querySelector('.msg-meta span[title="Read"]');
-            if (check) check.innerHTML = '<i class="fa-solid fa-check-double text-success"></i>';
+    function markMyRead() {
+        msgList.querySelectorAll('.wa-bubble.mine .wa-ticks').forEach(t => {
+            t.classList.add('read');
+            t.innerHTML = '<i class="fa-solid fa-check-double"></i>';
         });
-        void readerId;
     }
 
     async function loadMessages(convId) {
@@ -351,7 +665,9 @@
             if (!r.ok) return;
             const data = await r.json();
             msgList.innerHTML = '';
+            lastDayKey = null;
             data.messages.forEach(m => appendMessage(m, false));
+            msgList.scrollTop = msgList.scrollHeight;
             wsSend({ action: 'mark_read', conversation_id: convId });
         } catch (e) { console.warn(e); }
     }
@@ -360,20 +676,23 @@
         activeConvId = convId;
         const c = conversations[convId];
         if (!c) {
-            chatHeader.classList.add('d-none');
-            chatPlaceholder.classList.remove('d-none');
-            chatBody.classList.add('d-none');
-            chatComposer.classList.add('d-none');
+            chatHeader.style.display = 'none';
+            chatPlaceholder.style.display = '';
+            chatBody.style.display = 'none';
+            chatComposer.style.display = 'none';
             renderConvList();
             return;
         }
-        chatHeader.classList.remove('d-none');
-        chatPlaceholder.classList.add('d-none');
-        chatBody.classList.remove('d-none');
-        chatComposer.classList.remove('d-none');
+        chatHeader.style.display = '';
+        chatPlaceholder.style.display = 'none';
         chatBody.style.display = '';
+        chatComposer.style.display = '';
+        if (c.unread_count) {
+            c.unread_count = 0;
+            renderConvList();
+            refreshUnreadBadge();
+        }
         updateHeader();
-        renderConvList();
         loadMessages(convId);
         msgInput.focus();
     }
@@ -392,9 +711,9 @@
                 });
                 if (r.ok) {
                     const d = await r.json();
-                    const mine = { id: d.id, conversation_id: activeConvId, sender_id: ME_ID, sender_name: 'You', text, is_read: false, created_at: d.created_at };
+                    const mine = { id: d.id, conversation_id: activeConvId, sender_id: ME_ID, sender_name: ME_NAME, text, is_read: false, created_at: d.created_at };
                     const c = conversations[activeConvId];
-                    c.last_message = text; c.last_message_at = d.created_at;
+                    c.last_message = text; c.last_message_at = d.created_at; c.last_sender = ME_NAME;
                     appendMessage(mine, false);
                     renderConvList();
                 }
@@ -409,13 +728,6 @@
 
     // ── Unread badges ──────────────────────────────────────────────────
     async function refreshUnreadBadge() {
-        const total = Object.values(conversations).reduce((s, c) => s + (c.unread_count || 0), 0);
-        if (total > 0) {
-            totalUnreadEl.textContent = total;
-            totalUnreadEl.style.display = '';
-        } else {
-            totalUnreadEl.style.display = 'none';
-        }
         try {
             const r = await fetch('/chat/api/unread-count/');
             const d = await r.json();
@@ -427,7 +739,6 @@
         } catch (e) {}
     }
 
-    // ── Conversation refresh + quick-open from other pages ────────────
     async function loadConversations() {
         try {
             const r = await fetch('/chat/api/conversations/');
@@ -436,6 +747,36 @@
             renderConvList();
             if (activeConvId && conversations[activeConvId]) updateHeader();
             refreshUnreadBadge();
+        } catch (e) {}
+    }
+
+    // ── New chat ───────────────────────────────────────────────────────
+    async function loadContacts() {
+        try {
+            const r = await fetch('/chat/api/contacts/');
+            const d = await r.json();
+            const contacts = d.contacts || [];
+            if (!contacts.length) {
+                contactList.innerHTML = `<div class="wa-empty p-4">No linked ${ME_ROLE === 'PARENT' ? 'children' : 'parents'} yet.</div>`;
+                return;
+            }
+            contactList.innerHTML = contacts.map(c => `
+                <div class="wa-conv ${c.online ? 'online' : ''}" data-id="${c.id}" style="border-bottom:1px solid var(--wa-border);">
+                    <div class="wa-avatar-wrap">
+                        <div class="wa-avatar ${c.role === 'PARENT' ? 'parent' : 'child'}">${initials(c.name)}</div>
+                        <span class="wa-online-dot"></span>
+                    </div>
+                    <div class="wa-conv-body">
+                        <div class="wa-conv-name">${esc(c.name)} <small class="text-secondary">(${c.role === 'PARENT' ? 'Parent' : 'Child'})</small></div>
+                        <div class="wa-conv-preview-text">${c.online ? '<span class="text-success">online</span>' : 'offline'}</div>
+                    </div>
+                </div>`).join('');
+            contactList.querySelectorAll('.wa-conv').forEach(el => {
+                el.addEventListener('click', () => {
+                    bootstrap.Modal.getInstance(newChatModalEl)?.hide();
+                    openQuickConversation(parseInt(el.dataset.id, 10), '');
+                });
+            });
         } catch (e) {}
     }
 
@@ -464,8 +805,16 @@
     msgInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
     document.getElementById('quickChips').addEventListener('click', e => {
-        const chip = e.target.closest('.quick-chip');
+        const chip = e.target.closest('.wa-chip');
         if (chip) { msgInput.value = chip.dataset.text; msgInput.focus(); }
+    });
+    convSearch.addEventListener('input', () => {
+        searchQuery = convSearch.value.trim();
+        renderConvList();
+    });
+    document.getElementById('newChatBtn').addEventListener('click', () => {
+        loadContacts();
+        bootstrap.Modal.getOrCreateInstance(newChatModalEl).show();
     });
 
     // ── Init ───────────────────────────────────────────────────────────

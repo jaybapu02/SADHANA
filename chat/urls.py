@@ -11,5 +11,6 @@ urlpatterns = [
     path("api/conversations/<int:conversation_id>/mark-read/", views.api_mark_read, name="api_mark_read"),
     path("api/conversations/<int:conversation_id>/send/", views.api_send, name="api_send"),
     path("api/unread-count/", views.api_unread_count, name="api_unread_count"),
+    path("api/contacts/", views.api_contacts, name="api_contacts"),
     path("api/quick/<int:other_user_id>/", views.api_quick_conversation, name="api_quick_conversation"),
 ]
