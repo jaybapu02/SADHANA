@@ -4,17 +4,22 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
 from .models import Conversation, Message
-
-# In-process presence registry (single-process dev server).
-ONLINE_USERS = set()
+from .services import (
+    ONLINE_USERS,
+    create_message,
+    delete_message,
+    edit_message,
+    maybe_notify_chat_message,
+    message_payload,
+)
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     """Real-time chat between a linked Parent and Child.
 
     The user opens one WebSocket and is subscribed to all of their own
-    conversations. Every message/typing/read/presence event is delivered to
-    both participants of the conversation group only.
+    conversations. Every message/typing/read/presence/edit/delete event is
+    delivered to both participants of the conversation group only.
     """
 
     async def connect(self):
@@ -89,6 +94,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self._handle_mark_read(content)
         elif action == "message":
             await self._handle_message(content)
+        elif action == "edit":
+            await self._handle_edit(content)
+        elif action == "delete":
+            await self._handle_delete(content)
         else:
             await self.send_json({"type": "error", "message": "Unknown action."})
 
@@ -120,27 +129,74 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             return
 
         receiver = conv.other_participant(self.user)
-        msg = await Message.objects.acreate(
-            conversation=conv,
-            sender=self.user,
-            receiver=receiver,
-            text=text,
-        )
-        conv.last_message_at = msg.created_at
-        await conv.asave(update_fields=["last_message_at"])
+        reply_to_id = content.get("reply_to_id")
 
-        payload = {
-            "type": "chat_message",
-            "id": msg.id,
-            "conversation_id": conv.id,
-            "sender_id": self.user.id,
-            "sender_name": self.user.username,
-            "text": text,
-            "is_read": False,
-            "created_at": msg.created_at.isoformat(),
-        }
+        msg = await sync_to_async(create_message)(
+            conv, self.user, receiver, text, reply_to_id=reply_to_id
+        )
+        await sync_to_async(maybe_notify_chat_message)(receiver, self.user, msg.text)
+
+        payload = message_payload(msg)
+        payload["type"] = "chat_message"
         await self.channel_layer.group_send(
             f"chat_{conv.id}", {"type": "chat.message", "payload": payload}
+        )
+
+    async def _handle_edit(self, content):
+        conv_id = content.get("conversation_id")
+        text = (content.get("text") or "").strip()
+        message_id = content.get("message_id")
+        if not conv_id or not message_id or not text:
+            await self.send_json({"type": "error", "message": "Missing fields."})
+            return
+
+        conv = await self._get_conversation(conv_id)
+        if not conv:
+            await self.send_json({"type": "error", "message": "Conversation not found."})
+            return
+
+        msg = await sync_to_async(
+            lambda: conv.messages.select_related(
+                "sender", "parent_msg", "parent_msg__sender"
+            ).filter(id=message_id).first()
+        )()
+        if not msg or msg.sender_id != self.user.id or msg.is_deleted:
+            await self.send_json({"type": "error", "message": "Cannot edit this message."})
+            return
+
+        await sync_to_async(edit_message)(msg, text)
+        payload = message_payload(msg)
+        payload["type"] = "chat_edit"
+        await self.channel_layer.group_send(
+            f"chat_{conv.id}", {"type": "chat.edit", "payload": payload}
+        )
+
+    async def _handle_delete(self, content):
+        conv_id = content.get("conversation_id")
+        message_id = content.get("message_id")
+        if not conv_id or not message_id:
+            await self.send_json({"type": "error", "message": "Missing fields."})
+            return
+
+        conv = await self._get_conversation(conv_id)
+        if not conv:
+            await self.send_json({"type": "error", "message": "Conversation not found."})
+            return
+
+        msg = await sync_to_async(
+            lambda: conv.messages.select_related(
+                "sender", "parent_msg", "parent_msg__sender"
+            ).filter(id=message_id).first()
+        )()
+        if not msg or msg.sender_id != self.user.id or msg.is_deleted:
+            await self.send_json({"type": "error", "message": "Cannot delete this message."})
+            return
+
+        await sync_to_async(delete_message)(msg)
+        payload = message_payload(msg)
+        payload["type"] = "chat_delete"
+        await self.channel_layer.group_send(
+            f"chat_{conv.id}", {"type": "chat.delete", "payload": payload}
         )
 
     async def _handle_typing(self, content):
@@ -184,6 +240,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     # ── Group message handlers ─────────────────────────────────────────
 
     async def chat_message(self, event):
+        await self.send_json(event["payload"])
+
+    async def chat_edit(self, event):
+        await self.send_json(event["payload"])
+
+    async def chat_delete(self, event):
         await self.send_json(event["payload"])
 
     async def chat_typing(self, event):

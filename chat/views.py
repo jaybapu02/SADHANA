@@ -10,6 +10,18 @@ from django.utils import timezone
 
 from relationships.models import ConnectionRequest
 from .models import Conversation, Message
+from .services import (
+    ALLOWED_ATTACHMENT_TYPES,
+    MAX_ATTACHMENT_BYTES,
+    broadcast,
+    create_message,
+    delete_message,
+    edit_message,
+    message_payload,
+    maybe_notify_chat_message,
+)
+
+PAGE_SIZE = 50
 
 
 def _conversation_list(user):
@@ -24,12 +36,20 @@ def _conversation_payload(user, conv):
     other = conv.other_participant(user)
     last = conv.messages.order_by("-created_at").first()
     unread = conv.messages.filter(receiver=user, is_read=False).count()
+    last_text = ""
+    if last:
+        if last.is_deleted:
+            last_text = "🚫 This message was deleted"
+        elif last.text:
+            last_text = last.text
+        elif last.attachment:
+            last_text = "🖼️ Photo" if last.attachment_type == "image" else "📄 PDF"
     return {
         "id": conv.id,
         "other_id": other.id,
         "other_name": other.username,
         "other_role": other.role,
-        "last_message": last.text if last else "",
+        "last_message": last_text,
         "last_message_at": last.created_at.isoformat() if last else None,
         "last_sender": last.sender.username if last else None,
         "unread_count": unread,
@@ -40,10 +60,9 @@ def _conversation_payload(user, conv):
 def chat_page(request):
     conversations = _conversation_list(request.user)
     payload = [_conversation_payload(request.user, c) for c in conversations]
-    total_unread = Message.unread_count_for(request.user)
     context = {
         "conversations": payload,
-        "total_unread": total_unread,
+        "total_unread": Message.unread_count_for(request.user),
     }
     return render(request, "chat/chat.html", context)
 
@@ -61,6 +80,29 @@ def api_conversations(request):
     })
 
 
+def _message_queryset(conv, before_id=None, around_id=None):
+    """Return (messages oldest-first, has_more). Supports pagination via
+    before_id, jumping to a specific message via around_id, and latest page."""
+    qs = conv.messages.select_related(
+        "sender", "parent_msg", "parent_msg__sender"
+    )
+    if around_id:
+        return (
+            list(
+                qs.filter(
+                    id__gte=around_id - PAGE_SIZE // 2,
+                    id__lte=around_id + PAGE_SIZE // 2,
+                ).order_by("id")
+            ),
+            False,
+        )
+    qs = qs.order_by("-id")
+    if before_id:
+        qs = qs.filter(id__lt=before_id)
+    page = list(qs[:PAGE_SIZE])
+    return list(reversed(page)), len(page) == PAGE_SIZE
+
+
 @login_required
 def api_messages(request, conversation_id):
     conv = get_object_or_404(Conversation, id=conversation_id)
@@ -68,19 +110,15 @@ def api_messages(request, conversation_id):
         return JsonResponse({"error": "Forbidden."}, status=403)
 
     before_id = request.GET.get("before_id")
-    qs = conv.messages.select_related("sender").order_by("-created_at")
-    if before_id:
-        qs = qs.filter(id__lt=before_id)
-    qs = qs[:50]
+    around_id = request.GET.get("around_id")
+    try:
+        before_id = int(before_id) if before_id else None
+        around_id = int(around_id) if around_id else None
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Invalid paging."}, status=400)
 
-    messages = [{
-        "id": m.id,
-        "sender_id": m.sender_id,
-        "sender_name": m.sender.username,
-        "text": m.text,
-        "is_read": m.is_read,
-        "created_at": m.created_at.isoformat(),
-    } for m in reversed(list(qs))]
+    qs, has_more = _message_queryset(conv, before_id=before_id, around_id=around_id)
+    messages = [message_payload(m) for m in qs]
 
     return JsonResponse({
         "conversation_id": conversation_id,
@@ -89,22 +127,38 @@ def api_messages(request, conversation_id):
             "name": conv.other_participant(request.user).username,
         },
         "messages": messages,
+        "has_more": has_more,
     })
 
 
 @login_required
-@require_http_methods(["POST"])
-def api_mark_read(request, conversation_id):
-    conv = get_object_or_404(Conversation, id=conversation_id)
-    if not conv.is_participant(request.user):
-        return JsonResponse({"error": "Forbidden."}, status=403)
-    count = conv.messages.filter(receiver=request.user, is_read=False).update(is_read=True)
-    return JsonResponse({"status": "ok", "marked": count})
-
-
-@login_required
-def api_unread_count(request):
-    return JsonResponse({"unread_count": Message.unread_count_for(request.user)})
+def api_search(request):
+    """Search messages inside the user's own conversations only."""
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 2:
+        return JsonResponse({"results": []})
+    convs = _conversation_list(request.user)
+    conv_ids = [c.id for c in convs]
+    by_id = {c.id: c for c in convs}
+    msgs = (
+        Message.objects.filter(
+            conversation_id__in=conv_ids, text__icontains=q, is_deleted=False
+        )
+        .select_related("conversation", "sender")
+        .order_by("-created_at")[:30]
+    )
+    results = []
+    for m in msgs:
+        conv = by_id.get(m.conversation_id)
+        results.append({
+            "conversation_id": m.conversation_id,
+            "message_id": m.id,
+            "other_name": conv.other_participant(request.user).username,
+            "sender_name": m.sender.username,
+            "text": m.text,
+            "created_at": m.created_at.isoformat(),
+        })
+    return JsonResponse({"results": results})
 
 
 @login_required
@@ -126,24 +180,132 @@ def api_send(request, conversation_id):
         return JsonResponse({"error": "Empty message."}, status=400)
 
     receiver = conv.other_participant(request.user)
+    msg = create_message(conv, request.user, receiver, text,
+                         reply_to_id=data.get("reply_to_id"))
+    maybe_notify_chat_message(receiver, request.user, msg.text)
+    payload = message_payload(msg)
+    broadcast("chat_message", conv.id, payload)
+    return JsonResponse({"status": "ok", **payload})
+
+
+@login_required
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_upload(request, conversation_id):
+    """Upload an image/PDF attachment and broadcast it in real time."""
+    conv = get_object_or_404(Conversation, id=conversation_id)
+    if not conv.is_participant(request.user):
+        return JsonResponse({"error": "Forbidden."}, status=403)
+
+    file = request.FILES.get("file")
+    if not file:
+        return JsonResponse({"error": "No file provided."}, status=400)
+    if file.size > MAX_ATTACHMENT_BYTES:
+        return JsonResponse({"error": "File too large (max 5 MB)."}, status=400)
+
+    content_type = (file.content_type or "").lower()
+    if content_type.startswith("image/"):
+        attachment_type = "image"
+    elif content_type == "application/pdf":
+        attachment_type = "pdf"
+    else:
+        return JsonResponse({"error": "Only images and PDFs are allowed."}, status=400)
+
+    receiver = conv.other_participant(request.user)
     msg = Message.objects.create(
-        conversation=conv, sender=request.user, receiver=receiver, text=text,
+        conversation=conv,
+        sender=request.user,
+        receiver=receiver,
+        text="",
+        attachment=file,
+        attachment_name=file.name,
+        attachment_type=attachment_type,
     )
     conv.last_message_at = msg.created_at
     conv.save(update_fields=["last_message_at"])
+    if receiver.id in _online_users():
+        msg.is_delivered = True
+        msg.save(update_fields=["is_delivered"])
 
-    return JsonResponse({
-        "status": "ok",
-        "id": msg.id,
-        "created_at": msg.created_at.isoformat(),
-    })
+    maybe_notify_chat_message(receiver, request.user, "🖼️ Photo" if attachment_type == "image" else "📄 PDF")
+    payload = message_payload(msg)
+    broadcast("chat_message", conv.id, payload)
+    return JsonResponse({"status": "ok", **payload})
+
+
+def _online_users():
+    from .services import ONLINE_USERS
+    return ONLINE_USERS
+
+
+@login_required
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_edit(request, conversation_id):
+    """Edit one of the user's own messages (HTTP fallback for the WS action)."""
+    conv = get_object_or_404(Conversation, id=conversation_id)
+    if not conv.is_participant(request.user):
+        return JsonResponse({"error": "Forbidden."}, status=403)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    msg = conv.messages.filter(id=data.get("message_id")).first()
+    if not msg or msg.sender_id != request.user.id or msg.is_deleted:
+        return JsonResponse({"error": "Cannot edit this message."}, status=403)
+
+    text = (data.get("text") or "").strip()
+    if not text:
+        return JsonResponse({"error": "Empty message."}, status=400)
+    edit_message(msg, text)
+    payload = message_payload(msg)
+    broadcast("chat_edit", conv.id, payload)
+    return JsonResponse({"status": "ok", **payload})
+
+
+@login_required
+@require_http_methods(["POST"])
+@csrf_exempt
+def api_delete(request, conversation_id):
+    """Delete one of the user's own messages (HTTP fallback for the WS action)."""
+    conv = get_object_or_404(Conversation, id=conversation_id)
+    if not conv.is_participant(request.user):
+        return JsonResponse({"error": "Forbidden."}, status=403)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+    msg = conv.messages.filter(id=data.get("message_id")).first()
+    if not msg or msg.sender_id != request.user.id or msg.is_deleted:
+        return JsonResponse({"error": "Cannot delete this message."}, status=403)
+    delete_message(msg)
+    payload = message_payload(msg)
+    broadcast("chat_delete", conv.id, payload)
+    return JsonResponse({"status": "ok", **payload})
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_mark_read(request, conversation_id):
+    conv = get_object_or_404(Conversation, id=conversation_id)
+    if not conv.is_participant(request.user):
+        return JsonResponse({"error": "Forbidden."}, status=403)
+    count = conv.messages.filter(receiver=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({"status": "ok", "marked": count})
+
+
+@login_required
+def api_unread_count(request):
+    return JsonResponse({"unread_count": Message.unread_count_for(request.user)})
 
 
 @login_required
 def api_contacts(request):
     """All linked parents (for a child) or linked children (for a parent),
     for starting a new WhatsApp-style chat."""
-    from chat.consumers import ONLINE_USERS
+    from .services import ONLINE_USERS
 
     if request.user.role == "PARENT":
         conns = ConnectionRequest.objects.filter(

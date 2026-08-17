@@ -102,6 +102,13 @@ class ChatMessageFlowTests(TestCase):
         link(self.parent_b, self.child_b)
         self.conv_a = Conversation.objects.create(parent=self.parent_a, child=self.child_a)
 
+    def _send(self, client, conv_id, text, **extra):
+        return client.post(
+            f"/chat/api/conversations/{conv_id}/send/",
+            data=json.dumps({"text": text, **extra}),
+            content_type="application/json",
+        )
+
     def test_http_send_and_history(self):
         self.client.login(username="child_a", password="pass")
         r = self.client.post(
@@ -256,6 +263,209 @@ class ChatConsumerTests(TestCase):
         self.assertFalse(await sync_to_async(
             lambda: Message.objects.filter(conversation=self.conv_a, text="trespass").exists()
         )())
+
+
+class ChatFeatureTests(TestCase):
+    """Edit / delete / reply / attachments / search / pagination / delivery."""
+
+    def setUp(self):
+        self.parent_a, self.parent_b, self.child_a, self.child_b = make_users()
+        link(self.parent_a, self.child_a)
+        link(self.parent_b, self.child_b)
+        self.conv_a = Conversation.objects.create(parent=self.parent_a, child=self.child_a)
+        self.conv_b = Conversation.objects.create(parent=self.parent_b, child=self.child_b)
+
+    def _send(self, client, conv_id, text, **extra):
+        return client.post(
+            f"/chat/api/conversations/{conv_id}/send/",
+            data=json.dumps({"text": text, **extra}),
+            content_type="application/json",
+        )
+
+    def _post(self, client, url, data):
+        return client.post(url, data=json.dumps(data), content_type="application/json")
+
+    def test_edit_own_message(self):
+        msg = Message.objects.create(
+            conversation=self.conv_a, sender=self.child_a,
+            receiver=self.parent_a, text="original",
+        )
+        self.client.login(username="child_a", password="pass")
+        r = self._post(self.client, f"/chat/api/conversations/{self.conv_a.id}/edit/",
+                       {"message_id": msg.id, "text": "edited text"})
+        self.assertEqual(r.status_code, 200)
+        msg.refresh_from_db()
+        self.assertEqual(msg.text, "edited text")
+        self.assertTrue(msg.is_edited)
+
+    def test_cannot_edit_others_message(self):
+        msg = Message.objects.create(
+            conversation=self.conv_a, sender=self.parent_a,
+            receiver=self.child_a, text="from parent",
+        )
+        self.client.login(username="child_a", password="pass")
+        r = self._post(self.client, f"/chat/api/conversations/{self.conv_a.id}/edit/",
+                       {"message_id": msg.id, "text": "hacked"})
+        self.assertEqual(r.status_code, 403)
+        msg.refresh_from_db()
+        self.assertEqual(msg.text, "from parent")
+
+    def test_cannot_edit_in_other_conversation(self):
+        msg = Message.objects.create(
+            conversation=self.conv_b, sender=self.parent_b,
+            receiver=self.child_b, text="other pair",
+        )
+        self.client.login(username="parent_a", password="pass")
+        r = self._post(self.client, f"/chat/api/conversations/{self.conv_b.id}/edit/",
+                       {"message_id": msg.id, "text": "hacked"})
+        self.assertEqual(r.status_code, 403)
+
+    def test_delete_own_message_tombstone(self):
+        msg = Message.objects.create(
+            conversation=self.conv_a, sender=self.child_a,
+            receiver=self.parent_a, text="remove me",
+        )
+        self.client.login(username="child_a", password="pass")
+        r = self._post(self.client, f"/chat/api/conversations/{self.conv_a.id}/delete/",
+                       {"message_id": msg.id})
+        self.assertEqual(r.status_code, 200)
+        msg.refresh_from_db()
+        self.assertTrue(msg.is_deleted)
+        self.assertEqual(msg.text, "")
+
+    def test_cannot_delete_others_message(self):
+        msg = Message.objects.create(
+            conversation=self.conv_a, sender=self.parent_a,
+            receiver=self.child_a, text="keep me",
+        )
+        self.client.login(username="child_a", password="pass")
+        r = self._post(self.client, f"/chat/api/conversations/{self.conv_a.id}/delete/",
+                       {"message_id": msg.id})
+        self.assertEqual(r.status_code, 403)
+        msg.refresh_from_db()
+        self.assertFalse(msg.is_deleted)
+
+    def test_reply_wires_parent_message(self):
+        original = Message.objects.create(
+            conversation=self.conv_a, sender=self.parent_a,
+            receiver=self.child_a, text="How's the math homework?",
+        )
+        self.client.login(username="child_a", password="pass")
+        r = self._send(self.client, self.conv_a.id, "Almost done!", reply_to_id=original.id)
+        self.assertEqual(r.status_code, 200)
+        reply = Message.objects.filter(conversation=self.conv_a, text="Almost done!").first()
+        self.assertEqual(reply.parent_msg_id, original.id)
+        self.assertIsNotNone(r.json()["reply_to"])
+
+    def test_upload_image_attachment(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        png = SimpleUploadedFile(
+            "plot.png", b"\x89PNG\r\n\x1a\n fake-png-bytes",
+            content_type="image/png",
+        )
+        self.client.login(username="parent_a", password="pass")
+        r = self.client.post(
+            f"/chat/api/conversations/{self.conv_a.id}/upload/",
+            {"file": png},
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["attachment_type"], "image")
+        self.assertTrue(data["attachment_url"].endswith("plot.png"))
+        msg = Message.objects.get(id=data["id"])
+        self.assertTrue(msg.attachment.name.endswith("plot.png"))
+
+    def test_upload_rejects_unsupported_type(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        exe = SimpleUploadedFile("virus.exe", b"MZ\x90\x00", content_type="application/x-msdownload")
+        self.client.login(username="child_a", password="pass")
+        r = self.client.post(
+            f"/chat/api/conversations/{self.conv_a.id}/upload/",
+            {"file": exe},
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertFalse(Message.objects.filter(conversation=self.conv_a).exists())
+
+    def test_upload_forbidden_for_outsider(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        png = SimpleUploadedFile("x.png", b"png", content_type="image/png")
+        self.client.login(username="parent_b", password="pass")
+        r = self.client.post(
+            f"/chat/api/conversations/{self.conv_a.id}/upload/",
+            {"file": png},
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_search_only_in_own_conversations(self):
+        Message.objects.create(
+            conversation=self.conv_a, sender=self.child_a,
+            receiver=self.parent_a, text="math homework discussion",
+        )
+        Message.objects.create(
+            conversation=self.conv_b, sender=self.child_b,
+            receiver=self.parent_b, text="math homework other pair",
+        )
+        self.client.login(username="parent_a", password="pass")
+        r = self.client.get("/chat/api/search/?q=homework")
+        results = r.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["conversation_id"], self.conv_a.id)
+
+    def test_pagination_before_id(self):
+        for i in range(5):
+            Message.objects.create(
+                conversation=self.conv_a, sender=self.parent_a,
+                receiver=self.child_a, text=f"msg {i}",
+            )
+        self.client.login(username="child_a", password="pass")
+        # Load latest page: 5 messages newest first in payload but chronological array.
+        r = self.client.get(f"/chat/api/conversations/{self.conv_a.id}/messages/")
+        msgs = r.json()["messages"]
+        self.assertEqual(len(msgs), 5)
+        self.assertEqual(msgs[0]["text"], "msg 0")
+        self.assertEqual(msgs[-1]["text"], "msg 4")
+        # Page older than the last id returns the remaining.
+        r = self.client.get(
+            f"/chat/api/conversations/{self.conv_a.id}/messages/?before_id={msgs[0]['id']}"
+        )
+        self.assertEqual(r.json()["messages"], [])
+
+    def test_around_id_window(self):
+        ids = []
+        for i in range(10):
+            ids.append(Message.objects.create(
+                conversation=self.conv_a, sender=self.parent_a,
+                receiver=self.child_a, text=f"around {i}",
+            ).id)
+        self.client.login(username="child_a", password="pass")
+        r = self.client.get(
+            f"/chat/api/conversations/{self.conv_a.id}/messages/?around_id={ids[7]}"
+        )
+        texts = [m["text"] for m in r.json()["messages"]]
+        self.assertIn("around 7", texts)
+        self.assertIn("around 2", texts)  # window covers earlier messages
+
+    def test_delivered_flag_when_receiver_online(self):
+        from .services import ONLINE_USERS
+        ONLINE_USERS.add(self.parent_a.id)
+        try:
+            self.client.login(username="child_a", password="pass")
+            r = self._send(self.client, self.conv_a.id, "are you there?")
+            self.assertTrue(r.json()["is_delivered"])
+        finally:
+            ONLINE_USERS.discard(self.parent_a.id)
+
+    def test_offline_chat_notification_created(self):
+        from .services import ONLINE_USERS
+        ONLINE_USERS.discard(self.parent_a.id)
+        from notifications.models import Notification
+        self.client.login(username="child_a", password="pass")
+        self._send(self.client, self.conv_a.id, "hello while offline")
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.parent_a, notification_type="CHAT_MESSAGE"
+            ).exists()
+        )
 
 
 def user_injector_app(user):

@@ -26,6 +26,7 @@ class Notification(models.Model):
         FOCUS_INTERRUPTED = 'FOCUS_INTERRUPTED', 'Focus Session Interrupted'
         LEVEL_UP = 'LEVEL_UP', 'Level Up'
         BADGE_EARNED = 'BADGE_EARNED', 'Badge Earned'
+        CHAT_MESSAGE = 'CHAT_MESSAGE', 'Chat Message'
 
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,

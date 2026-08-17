@@ -287,6 +287,17 @@ class NotificationService:
         )
 
     @staticmethod
+    def chat_message(recipient, sender, preview):
+        """A new chat message arrived while the recipient was not online."""
+        return NotificationService._create(
+            recipient=recipient,
+            sender=sender,
+            sender_name=sender.username,
+            notification_type=Notification.NotificationType.CHAT_MESSAGE,
+            message=f"💬 {sender.username} sent you a message: \"{preview[:80]}\"",
+        )
+
+    @staticmethod
     def notify_all_parents(child, notify_func, *args, **kwargs):
         from relationships.models import ConnectionRequest
         connections = ConnectionRequest.objects.filter(

@@ -56,8 +56,25 @@ class Message(models.Model):
         on_delete=models.CASCADE,
         related_name='received_chat_messages',
     )
-    text = models.TextField(max_length=2000)
+    text = models.TextField(max_length=2000, blank=True)
+    parent_msg = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='replies',
+    )
+    attachment = models.FileField(
+        upload_to='chat_files/%Y/%m/',
+        null=True,
+        blank=True,
+    )
+    attachment_name = models.CharField(max_length=255, blank=True)
+    attachment_type = models.CharField(max_length=10, blank=True)  # image | pdf
     is_read = models.BooleanField(default=False)
+    is_delivered = models.BooleanField(default=False)
+    is_edited = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:
