@@ -1,60 +1,44 @@
 {% extends 'base.html' %}
 {% block title %}Chat - Sadhana{% endblock %}
+{% block body_class %}page-chat{% endblock %}
 {% block content %}
 <style>
+    /* Palette remapped onto Sadhana design tokens (auto light/dark) */
     :root {
-        --wa-sent-bg: #005c4b;
-        --wa-sent-fg: #e9edef;
-        --wa-recv-bg: #202c33;
-        --wa-recv-fg: #e9edef;
-        --wa-bg: #0b141a;
-        --wa-sidebar-bg: #111b21;
-        --wa-header-bg: #202c33;
-        --wa-meta: #8696a0;
-        --wa-green: #25d366;
-        --wa-blue: #53bdeb;
-        --wa-hover: #2a3942;
-        --wa-selected: #2a3942;
-        --wa-border: #2a3942;
-        --wa-chip-bg: rgba(37, 211, 102, 0.12);
-        --wa-input-bg: #2a3942;
-        --wa-input-fg: #e9edef;
-        --wa-date-chip-bg: #182229;
-        --wa-date-chip-fg: #8696a0;
-        --wa-quote-bg: rgba(134, 150, 160, 0.18);
-        --wa-quote-border: #25d366;
+        --wa-sent-bg: #454dc0;
+        --wa-sent-fg: #f2f3ff;
+        --wa-recv-bg: var(--sd-surface-2);
+        --wa-recv-fg: var(--sd-text);
+        --wa-bg: var(--sd-bg-inset);
+        --wa-sidebar-bg: var(--sd-surface);
+        --wa-header-bg: var(--sd-surface-2);
+        --wa-meta: var(--sd-text-faint);
+        --wa-green: var(--sd-accent);
+        --wa-blue: var(--sd-info);
+        --wa-hover: var(--sd-surface-3);
+        --wa-selected: var(--sd-nav-active-bg);
+        --wa-border: var(--sd-border);
+        --wa-chip-bg: var(--sd-primary-soft);
+        --wa-input-bg: var(--sd-surface-3);
+        --wa-input-fg: var(--sd-text);
+        --wa-date-chip-bg: var(--sd-surface);
+        --wa-date-chip-fg: var(--sd-text-muted);
+        --wa-quote-bg: var(--sd-primary-soft);
+        --wa-quote-border: var(--sd-primary);
     }
     [data-bs-theme="light"] {
-        --wa-sent-bg: #d9fdd3;
-        --wa-sent-fg: #111b21;
-        --wa-recv-bg: #ffffff;
-        --wa-recv-fg: #111b21;
-        --wa-bg: #efeae2;
-        --wa-sidebar-bg: #ffffff;
-        --wa-header-bg: #f0f2f5;
-        --wa-meta: #667781;
-        --wa-hover: #f5f6f6;
-        --wa-selected: #f0f2f5;
-        --wa-border: #e9edef;
-        --wa-chip-bg: rgba(37, 211, 102, 0.15);
-        --wa-input-bg: #f0f2f5;
-        --wa-input-fg: #111b21;
-        --wa-date-chip-bg: #ffffff;
-        --wa-date-chip-fg: #667781;
-        --wa-quote-bg: rgba(17, 27, 33, 0.06);
-        --wa-quote-border: #008069;
+        --wa-sent-bg: #e0e2fd;
+        --wa-sent-fg: #2a2d6e;
     }
 
     .wa-app {
         display: flex;
-        height: calc(100vh - 150px);
-        min-height: 520px;
-        border-radius: 1rem;
+        height: calc(100vh - var(--topbar-h));
+        min-height: 480px;
         overflow: hidden;
-        border: 1px solid var(--wa-border);
         background: var(--wa-bg);
-        box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
     }
+    body.page-chat .sd-content { padding: 0; max-width: none; }
 
     /* ── Sidebar ── */
     .wa-sidebar {
@@ -103,9 +87,9 @@
         display: flex; align-items: center; justify-content: center;
         font-weight: 600; font-size: 1.05rem; color: #fff;
     }
-    .wa-avatar.parent { background: linear-gradient(135deg, #0d6efd, #6610f2); }
-    .wa-avatar.child { background: linear-gradient(135deg, #198754, #20c997); }
-    .wa-avatar.me { background: linear-gradient(135deg, #6c757d, #495057); }
+    .wa-avatar.parent { background: linear-gradient(135deg, #5a67f2, #22d3ee); }
+    .wa-avatar.child { background: linear-gradient(135deg, #16a34a, #4ade9e); }
+    .wa-avatar.me { background: linear-gradient(135deg, #475569, #94a3b8); }
     .wa-online-dot {
         position: absolute; bottom: 1px; right: 1px;
         width: 12px; height: 12px; border-radius: 50%;
@@ -154,8 +138,8 @@
         flex: 1; overflow-y: auto; padding: 1rem 1.25rem;
         display: flex; flex-direction: column; gap: 3px;
         background:
-            radial-gradient(circle at 20% 20%, rgba(37, 211, 102, 0.05) 0, transparent 40%),
-            radial-gradient(circle at 80% 70%, rgba(83, 189, 235, 0.05) 0, transparent 40%),
+            radial-gradient(circle at 20% 20%, rgba(90, 103, 242, 0.06) 0, transparent 40%),
+            radial-gradient(circle at 80% 70%, rgba(34, 211, 238, 0.05) 0, transparent 40%),
             var(--wa-bg);
     }
     .wa-day-chip {
@@ -300,7 +284,7 @@
     .modal-header { border-color: var(--wa-border); }
 
     @media (max-width: 768px) {
-        .wa-app { flex-direction: column; height: calc(100vh - 170px); }
+        .wa-app { flex-direction: column; height: calc(100vh - var(--topbar-h)); }
         .wa-sidebar { width: 100%; min-width: 0; max-width: none; border-right: none; border-bottom: 1px solid var(--wa-border); }
         .wa-conv-list { max-height: 35vh; }
         .wa-bubble { max-width: 88%; }

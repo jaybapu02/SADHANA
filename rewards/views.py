@@ -1,5 +1,5 @@
 import json
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
@@ -93,13 +93,13 @@ def api_check_level_up(request):
 @login_required
 def parent_reward_view(request, child_id):
     if request.user.role != 'PARENT':
-        return render(request, 'dashboard_router')
+        return redirect('dashboard_router')
 
     conn = ConnectionRequest.objects.filter(
         parent=request.user, child_id=child_id, status='ACCEPTED'
     ).first()
     if not conn:
-        return render(request, 'dashboard_router')
+        return redirect('dashboard_router')
 
     child = conn.child
     ctx = get_reward_context(child)

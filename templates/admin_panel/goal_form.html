@@ -1,23 +1,26 @@
 {% extends 'base.html' %}
+{% block title %}Edit Goal - Admin{% endblock %}
+{% block topbar_title %}Edit Goal{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
-            <div class="card-header"><i class="fa-solid fa-pen"></i> Edit Goal: {{ goal.child.username }}</div>
-            <div class="card-body">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title mb-3"><i class="fa-solid fa-pen"></i> Edit Goal: {{ goal.child.username }}</h5>
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
                         <label class="form-label">Daily Goal (minutes)</label>
                         <input type="number" name="daily_goal" class="form-control" value="{{ goal.daily_goal }}" min="0" required>
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">Weekly Goal (minutes)</label>
                         <input type="number" name="weekly_goal" class="form-control" value="{{ goal.weekly_goal }}" min="0" required>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <a href="{% url 'admin_list_goals' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-gradient"><i class="fa-solid fa-floppy-disk me-1"></i> Save</button>
+                        <a href="{% url 'admin_list_goals' %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

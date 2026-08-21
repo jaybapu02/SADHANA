@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
+{% block title %}Edit Task - Admin{% endblock %}
+{% block topbar_title %}Edit Task{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
-            <div class="card-header"><i class="fa-solid fa-pen"></i> Edit Task</div>
-            <div class="card-body">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title mb-3"><i class="fa-solid fa-pen"></i> Edit Task</h5>
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
@@ -23,13 +26,13 @@
                         <label class="form-label">Due Date</label>
                         <input type="date" name="due_date" class="form-control" value="{{ task.due_date|date:'Y-m-d' }}">
                     </div>
-                    <div class="form-check mb-3">
-                        <input type="checkbox" name="status" class="form-check-input" id="id_status" {% if task.status %}checked{% endif %}>
+                    <div class="form-check form-switch mb-4">
+                        <input type="checkbox" name="status" class="form-check-input" role="switch" id="id_status" {% if task.status %}checked{% endif %}>
                         <label class="form-check-label" for="id_status">Completed</label>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <a href="{% url 'admin_list_tasks' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-gradient"><i class="fa-solid fa-floppy-disk me-1"></i> Save</button>
+                        <a href="{% url 'admin_list_tasks' %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

@@ -1,42 +1,42 @@
 {% extends 'base.html' %}
-{% block content %}
-<div class="row mt-4">
-    <div class="col-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-            <div>
-                <h2 class="fw-bold"><i class="fa-solid fa-list-check text-primary me-2"></i>My To-Do</h2>
-                <p class="text-muted">{{ today|date:"l, F j, Y" }}</p>
-            </div>
-            <div>
-                <a href="{% url 'child_dashboard' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Dashboard</a>
-            </div>
-        </div>
-        <hr>
-    </div>
+{% block title %}My To-Do - Sadhana{% endblock %}
+{% block topbar_title %}My To-Do{% endblock %}
 
-    <div class="col-lg-4 mb-4">
-        <div class="card shadow-sm border-0 rounded-4 mb-4">
-            <div class="card-body">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-plus-circle text-primary me-2"></i>Add New Task</h5>
+{% block content %}
+<a href="{% url 'child_dashboard' %}" class="sd-breadcrumb"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-list-check"></i></span> My To-Do</h2>
+        <p class="sd-page-subtitle">{{ today|date:"l, F j, Y" }}</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- LEFT COLUMN -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title"><i class="fa-solid fa-plus"></i> Add New Task</h5>
                 <form action="{% url 'add_task' %}" method="POST">
                     {% csrf_token %}
-                    <div class="mb-2">
+                    <div class="mb-3">
                         <input type="text" class="form-control" name="task_name" placeholder="What do you need to do?" required>
                     </div>
-                    <div class="row g-2 mb-2">
+                    <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <select class="form-select" name="priority">
+                            <select class="form-select" name="priority" aria-label="Priority">
                                 <option value="HIGH">High</option>
                                 <option value="MEDIUM" selected>Medium</option>
                                 <option value="LOW">Low</option>
                             </select>
                         </div>
                         <div class="col-6">
-                            <input type="date" class="form-control" name="due_date">
+                            <input type="date" class="form-control" name="due_date" aria-label="Due date">
                         </div>
                     </div>
-                    <div class="mb-2">
-                        <select class="form-select" name="subject">
+                    <div class="mb-3">
+                        <select class="form-select" name="subject" aria-label="Subject">
                             <option value="">Select subject (optional)</option>
                             <option value="MATH">Mathematics</option>
                             <option value="SCIENCE">Science</option>
@@ -49,133 +49,116 @@
                             <option value="OTHER">Other</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Add Task</button>
+                    <button type="submit" class="btn btn-gradient w-100"><i class="fa-solid fa-plus me-1"></i> Add Task</button>
                 </form>
             </div>
         </div>
 
-        <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-body">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-chart-simple text-success me-2"></i>Completion Stats</h5>
+        <div class="card">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title"><i class="fa-solid fa-chart-simple" style="color: var(--sd-success);"></i> Completion Stats</h5>
                 <div class="mb-3">
-                    <div class="d-flex justify-content-between small mb-1">
-                        <span>Today</span>
-                        <span class="fw-bold">{{ today_pct }}%</span>
+                    <div class="d-flex justify-content-between small mb-1 tabular">
+                        <span>Today</span><span class="fw-bold">{{ today_pct }}%</span>
                     </div>
-                    <div class="progress" style="height:10px;">
-                        <div class="progress-bar bg-success" role="progressbar" style="width:{{ today_pct }}%"></div>
-                    </div>
+                    <div class="progress progress-thin"><div class="progress-bar bg-success" style="width:{{ today_pct }}%"></div></div>
                 </div>
                 <div class="mb-3">
-                    <div class="d-flex justify-content-between small mb-1">
-                        <span>This Week</span>
-                        <span class="fw-bold">{{ week_pct }}%</span>
+                    <div class="d-flex justify-content-between small mb-1 tabular">
+                        <span>This Week</span><span class="fw-bold">{{ week_pct }}%</span>
                     </div>
-                    <div class="progress" style="height:10px;">
-                        <div class="progress-bar bg-primary" role="progressbar" style="width:{{ week_pct }}%"></div>
-                    </div>
+                    <div class="progress progress-thin"><div class="progress-bar bg-primary" style="width:{{ week_pct }}%"></div></div>
                 </div>
                 <div class="mb-3">
-                    <div class="d-flex justify-content-between small mb-1">
-                        <span>This Month</span>
-                        <span class="fw-bold">{{ month_pct }}%</span>
+                    <div class="d-flex justify-content-between small mb-1 tabular">
+                        <span>This Month</span><span class="fw-bold">{{ month_pct }}%</span>
                     </div>
-                    <div class="progress" style="height:10px;">
-                        <div class="progress-bar bg-info" role="progressbar" style="width:{{ month_pct }}%"></div>
-                    </div>
+                    <div class="progress progress-thin"><div class="progress-bar bg-info" style="width:{{ month_pct }}%"></div></div>
                 </div>
                 <div>
-                    <div class="d-flex justify-content-between small mb-1">
-                        <span>Consistency Score</span>
-                        <span class="fw-bold">{{ consistency_score }}%</span>
+                    <div class="d-flex justify-content-between small mb-1 tabular">
+                        <span>Consistency Score</span><span class="fw-bold">{{ consistency_score }}%</span>
                     </div>
-                    <div class="progress" style="height:10px;">
-                        <div class="progress-bar bg-warning" role="progressbar" style="width:{{ consistency_score }}%"></div>
-                    </div>
-                    <small class="text-muted">Days with &ge;50% completion (last 30 days)</small>
+                    <div class="progress progress-thin"><div class="progress-bar bg-warning" style="width:{{ consistency_score }}%"></div></div>
+                    <small class="text-muted d-block mt-1">Days with &ge;50% completion (last 30 days)</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-8 mb-4">
+    <!-- RIGHT COLUMN -->
+    <div class="col-lg-8">
         <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="card bg-primary bg-opacity-10 border-0 rounded-4 text-center h-100 shadow-sm">
-                    <div class="card-body">
-                        <h6 class="text-muted small text-uppercase">Total</h6>
-                        <h2 class="fw-bold mb-0">{{ today_total }}</h2>
-                    </div>
+            <div class="col-md-4 col-4">
+                <div class="stat-card text-center py-3 tint-primary">
+                    <div class="stat-label">Total</div>
+                    <div class="stat-value">{{ today_total }}</div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card bg-success bg-opacity-10 border-0 rounded-4 text-center h-100 shadow-sm">
-                    <div class="card-body">
-                        <h6 class="text-muted small text-uppercase">Completed</h6>
-                        <h2 class="fw-bold mb-0 text-success">{{ today_completed }}</h2>
-                    </div>
+            <div class="col-md-4 col-4">
+                <div class="stat-card text-center py-3 tint-success">
+                    <div class="stat-label">Completed</div>
+                    <div class="stat-value">{{ today_completed }}</div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card bg-danger bg-opacity-10 border-0 rounded-4 text-center h-100 shadow-sm">
-                    <div class="card-body">
-                        <h6 class="text-muted small text-uppercase">Pending</h6>
-                        <h2 class="fw-bold mb-0 text-danger">{{ today_pending }}</h2>
-                    </div>
+            <div class="col-md-4 col-4">
+                <div class="stat-card text-center py-3 tint-danger">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value">{{ today_pending }}</div>
                 </div>
             </div>
         </div>
 
-        <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card mb-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-hourglass-half text-warning me-2"></i>Pending Tasks</h5>
-                    <span class="badge bg-warning text-dark">{{ pending_tasks|length }} remaining</span>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="sd-card-title mb-0"><i class="fa-solid fa-hourglass-half" style="color: var(--sd-warning);"></i> Pending Tasks</h5>
+                    <span class="badge soft-warning tabular">{{ pending_tasks|length }} remaining</span>
                 </div>
                 {% if pending_tasks %}
                     <div class="list-group list-group-flush">
                         {% for task in pending_tasks %}
-                            <div class="list-group-item bg-transparent px-0 border-bottom d-flex justify-content-between align-items-center">
-                                <div class="d-flex align-items-center gap-2 flex-grow-1">
-                                    <a href="{% url 'toggle_task' task.id %}" class="btn btn-sm btn-outline-success rounded-circle" style="width:32px;height:32px;" title="Mark complete">
+                            <div class="task-row flex-wrap flex-lg-nowrap">
+                                <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                                    <a href="{% url 'toggle_task' task.id %}" class="task-check pending" title="Mark complete" aria-label="Mark {{ task.task_name }} complete">
                                         <i class="fa-regular fa-circle"></i>
                                     </a>
-                                    <div class="flex-grow-1">
-                                        <span class="fw-medium {% if task.parent %}text-info{% endif %}">{{ task.task_name }}</span>
+                                    <div class="flex-grow-1 min-w-0">
+                                        <span class="fw-medium {% if task.parent %}text-brand{% endif %}">{{ task.task_name }}</span>
                                         {% if task.parent %}
-                                            <span class="badge bg-info bg-opacity-25 text-info ms-1" title="Assigned by {{ task.parent.username }}"><i class="fa-solid fa-user-tie"></i></span>
+                                            <span class="badge soft-info ms-1" title="Assigned by {{ task.parent.username }}"><i class="fa-solid fa-user-tie"></i></span>
                                         {% endif %}
-                                        <div class="d-flex gap-2 mt-1">
-                                            <span class="badge {% if task.priority == 'HIGH' %}bg-danger{% elif task.priority == 'MEDIUM' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ task.get_priority_display }}</span>
+                                        <div class="d-flex gap-2 mt-1 flex-wrap">
+                                            <span class="badge priority-{{ task.priority }}">{{ task.get_priority_display }}</span>
                                             {% if task.due_date %}
-                                                <span class="badge bg-outline-secondary text-muted border"><i class="fa-regular fa-calendar me-1"></i>{{ task.due_date|date:"M d" }}</span>
+                                                <span class="pill-tag"><i class="fa-regular fa-calendar me-1"></i>{{ task.due_date|date:"M d" }}</span>
                                             {% endif %}
                                         </div>
                                     </div>
                                 </div>
                                 <div class="d-flex gap-1">
                                     {% if task.parent %}
-                                    <a href="{% url 'chat:chat_page' %}?to={{ task.parent.id }}&text={{ task.task_name|urlencode|slice:":50" }}" class="btn btn-sm btn-outline-primary" title="Discuss with {{ task.parent.username }}">
+                                    <a href="{% url 'chat:chat_page' %}?to={{ task.parent.id }}&text={{ task.task_name|urlencode|slice:":50" }}" class="btn btn-action btn-outline-secondary" title="Discuss with {{ task.parent.username }}">
                                         <i class="fa-solid fa-comments"></i>
                                     </a>
                                     {% endif %}
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal{{ task.id }}" title="Edit">
+                                    <button type="button" class="btn btn-action btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal{{ task.id }}" title="Edit" aria-label="Edit {{ task.task_name }}">
                                         <i class="fa-solid fa-pen"></i>
                                     </button>
-                                    <a href="{% url 'delete_task' task.id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this task?')" title="Delete">
+                                    <a href="{% url 'delete_task' task.id %}" class="btn btn-action btn-outline-danger" onclick="return confirm('Delete this task?')" title="Delete" aria-label="Delete {{ task.task_name }}">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </a>
                                 </div>
                             </div>
 
-                            <div class="modal fade" id="editModal{{ task.id }}" tabindex="-1">
+                            <div class="modal fade" id="editModal{{ task.id }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
                                         <form action="{% url 'edit_task' task.id %}" method="POST">
                                             {% csrf_token %}
                                             <div class="modal-header">
-                                                <h5 class="modal-title fw-bold">Edit Task</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                <h5 class="modal-title">Edit Task</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body">
                                                 <div class="mb-3">
@@ -213,8 +196,8 @@
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-gradient">Save Changes</button>
                                             </div>
                                         </form>
                                     </div>
@@ -223,32 +206,32 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-4">
-                        <i class="fa-solid fa-check-circle text-success fa-3x mb-3"></i>
-                        <p class="text-muted">All tasks completed! Great job!</p>
+                    <div class="empty-state compact">
+                        <span class="es-icon"><i class="fa-solid fa-circle-check"></i></span>
+                        <p class="es-text mb-0">All tasks completed! Great job!</p>
                     </div>
                 {% endif %}
             </div>
         </div>
 
-        <div class="card shadow-sm border-0 rounded-4">
+        <div class="card">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-check-circle text-success me-2"></i>Completed Today</h5>
-                    <span class="badge bg-success">{{ completed_tasks|length }} done</span>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="sd-card-title mb-0"><i class="fa-solid fa-circle-check" style="color: var(--sd-success);"></i> Completed Today</h5>
+                    <span class="badge soft-success tabular">{{ completed_tasks|length }} done</span>
                 </div>
                 {% if completed_tasks %}
                     <div class="list-group list-group-flush">
                         {% for task in completed_tasks %}
-                            <div class="list-group-item bg-transparent px-0 border-bottom d-flex justify-content-between align-items-center">
-                                <div class="d-flex align-items-center gap-2">
-                                    <a href="{% url 'toggle_task' task.id %}" class="btn btn-sm btn-success rounded-circle" style="width:32px;height:32px;" title="Re-open">
+                            <div class="task-row">
+                                <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                                    <a href="{% url 'toggle_task' task.id %}" class="task-check done" title="Re-open" aria-label="Re-open {{ task.task_name }}">
                                         <i class="fa-solid fa-check"></i>
                                     </a>
-                                    <span class="text-muted text-decoration-line-through">{{ task.task_name }}</span>
-                                    <span class="badge {% if task.priority == 'HIGH' %}bg-danger{% elif task.priority == 'MEDIUM' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ task.get_priority_display }}</span>
+                                    <span class="task-done-text">{{ task.task_name }}</span>
+                                    <span class="badge priority-{{ task.priority }}">{{ task.get_priority_display }}</span>
                                 </div>
-                                <a href="{% url 'delete_task' task.id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this task?')">
+                                <a href="{% url 'delete_task' task.id %}" class="btn btn-action btn-outline-danger" onclick="return confirm('Delete this task?')" aria-label="Delete {{ task.task_name }}">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </a>
                             </div>

@@ -1,13 +1,22 @@
 {% extends 'base.html' %}
+{% block title %}Leaderboard - Sadhana{% endblock %}
+{% block topbar_title %}Leaderboard{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold"><i class="fa-solid fa-trophy text-warning me-2"></i>Leaderboard</h2>
-    <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon" style="background:rgba(245,183,61,.15);color:var(--sd-warning);"><i class="fa-solid fa-trophy"></i></span> Leaderboard</h2>
+        <p class="sd-page-subtitle">Top students ranked by XP</p>
+    </div>
+    <div class="sd-page-actions">
+        <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary">Back</a>
+    </div>
 </div>
 
-<div class="card shadow border-0 rounded-4">
-    <div class="card-body p-0">
-        <table class="table table-dark table-hover mb-0">
+<div class="sd-table-wrap">
+    {% if leaderboard %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr>
                     <th>#</th>
@@ -22,27 +31,27 @@
                 {% for p in leaderboard %}
                 <tr>
                     <td>
-                        {% if forloop.counter == 1 %}
-                            <span class="fs-5">🥇</span>
-                        {% elif forloop.counter == 2 %}
-                            <span class="fs-5">🥈</span>
-                        {% elif forloop.counter == 3 %}
-                            <span class="fs-5">🥉</span>
+                        {% if forloop.counter <= 3 %}
+                            <span class="leader-rank r{{ forloop.counter }}">{{ forloop.counter }}</span>
                         {% else %}
-                            {{ forloop.counter }}
+                            <span class="text-muted tabular">{{ forloop.counter }}</span>
                         {% endif %}
                     </td>
-                    <td>{{ p.user.username }}</td>
-                    <td><span class="badge bg-primary">Lv.{{ p.level }}</span></td>
-                    <td><strong>{{ p.xp }}</strong> <span class="text-muted small">XP</span></td>
-                    <td><span class="text-warning">{{ p.coins }}</span> <span class="text-muted small">🪙</span></td>
-                    <td>{% if p.current_streak > 0 %}{{ p.current_streak }} days 🔥{% else %}—{% endif %}</td>
+                    <td class="fw-medium">{{ p.user.username }}</td>
+                    <td><span class="badge soft-primary">Lv.{{ p.level }}</span></td>
+                    <td><strong class="tabular">{{ p.xp }}</strong> <span class="text-muted small">XP</span></td>
+                    <td class="tabular"><i class="fa-solid fa-coins text-warning me-1"></i>{{ p.coins }}</td>
+                    <td class="tabular">{% if p.current_streak > 0 %}<i class="fa-solid fa-fire text-warning me-1"></i>{{ p.current_streak }} days{% else %}&mdash;{% endif %}</td>
                 </tr>
-                {% empty %}
-                <tr><td colspan="6" class="text-center text-muted">No students yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    {% else %}
+    <div class="empty-state">
+        <span class="es-icon"><i class="fa-solid fa-trophy"></i></span>
+        <p class="es-text">No students yet.</p>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -1,29 +1,34 @@
 {% extends 'base.html' %}
+{% block title %}Edit Access Request - Admin{% endblock %}
+{% block topbar_title %}Edit Access Request{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
-            <div class="card-header"><i class="fa-solid fa-pen"></i> Edit Access Request #{{ req.id }}</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Child</label>
-                    <p class="form-control-plaintext">{{ req.child.username }}</p>
+            <div class="card-body p-4">
+                <h5 class="sd-card-title mb-3"><i class="fa-solid fa-pen"></i> Edit Access Request #{{ req.id }}</h5>
+                <div class="mb-2">
+                    <div class="dna-mini-label">Child</div>
+                    <p class="mb-2">{{ req.child.username }}</p>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Parent</label>
-                    <p class="form-control-plaintext">{{ req.parent.username }}</p>
+                <div class="mb-2">
+                    <div class="dna-mini-label">Parent</div>
+                    <p class="mb-2">{{ req.parent.username }}</p>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Requested App</label>
-                    <p class="form-control-plaintext">{{ req.blacklist_item.name }}</p>
+                <div class="mb-2">
+                    <div class="dna-mini-label">Requested App</div>
+                    <p class="mb-2">{{ req.blacklist_item.name }}</p>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Focus Session</label>
-                    <p class="form-control-plaintext">#{{ req.session.id }} — {{ req.session.planned_duration }} min</p>
+                {% if req.session %}
+                <div class="mb-4">
+                    <div class="dna-mini-label">Focus Session</div>
+                    <p class="mb-0 tabular">#{{ req.session.id }} &mdash; {{ req.session.planned_duration }} min</p>
                 </div>
+                {% endif %}
                 <form method="post">
                     {% csrf_token %}
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">Status</label>
                         <select name="status" class="form-select">
                             <option value="PENDING" {% if req.status == 'PENDING' %}selected{% endif %}>Pending</option>
@@ -33,8 +38,8 @@
                         </select>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <a href="{% url 'admin_list_access_requests' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-gradient"><i class="fa-solid fa-floppy-disk me-1"></i> Save</button>
+                        <a href="{% url 'admin_list_access_requests' %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

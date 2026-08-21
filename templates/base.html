@@ -3,113 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sadhana - Study Focus & Discipline</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>{% block title %}Sadhana - Study Focus &amp; Discipline{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bs-body-bg);
-            transition: background-color 0.3s ease;
-        }
-        .navbar-brand {
-            font-weight: 700;
-            letter-spacing: 1px;
-        }
-    </style>
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('theme');
+                if (t === 'light' || t === 'dark') {
+                    document.documentElement.setAttribute('data-bs-theme', t);
+                }
+            } catch (e) {}
+        })();
+    </script>
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
-        <div class="container">
-            <a class="navbar-brand text-primary" href="{% url 'home' %}">
-                <i class="fa-solid fa-leaf"></i> Sadhana
+<body class="{% if user.is_authenticated %}has-sidebar{% endif %} {% block body_class %}{% endblock %}">
+    <a class="skip-link" href="#sd-main-content">Skip to content</a>
+
+    {% if user.is_authenticated %}
+    <!-- ======================= App shell ======================= -->
+    <div class="sd-app">
+        <!-- Backdrop for mobile drawer -->
+        <div class="sd-backdrop" id="sdBackdrop"></div>
+
+        <!-- ==================== Sidebar ==================== -->
+        <aside class="sd-sidebar" id="sdSidebar" aria-label="Main navigation">
+            <a class="sd-sidebar-brand" href="{% url 'home' %}" title="Sadhana">
+                <span class="sd-brand-mark"><i class="fa-solid fa-leaf"></i></span>
+                <span class="sd-brand-name">Sadhana<small>Study &middot; Focus</small></span>
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    {% if user.is_authenticated %}
-                        {% if user.is_staff or user.role == 'ADMIN' %}
-                        <li class="nav-item">
-                            <a class="nav-link text-warning" href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-shield-halved"></i> Admin</a>
-                        </li>
-                        {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard_router' %}">Dashboard</a>
-                        </li>
-                        {% if user.role == 'PARENT' or user.role == 'CHILD' %}
-                        <li class="nav-item">
-                            <a class="nav-link position-relative" href="{% url 'chat:chat_page' %}">
-                                <i class="fa-solid fa-comments"></i> Chat
-                                <span id="navbarChatBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success" style="display:none; font-size:0.6rem;">0</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if user.role == 'CHILD' %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'focus_session' %}"><i class="fa-solid fa-bullseye"></i> Focus</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'todo_dashboard' %}"><i class="fa-solid fa-list-check"></i> To-Do</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'studydna_dashboard' %}"><i class="fa-solid fa-dna"></i> Study DNA</a>
-                        </li>
-                        {% endif %}
-                    {% if user.role == 'PARENT' %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'parent_focus_dashboard' %}"><i class="fa-solid fa-bullseye"></i> Focus</a>
-                        </li>
+
+            <nav class="sd-nav">
+                <a class="sd-nav-link {% if request.resolver_match.url_name == 'dashboard_router' or request.resolver_match.url_name == 'parent_dashboard' or request.resolver_match.url_name == 'child_dashboard' %}active{% endif %}"
+                   href="{% url 'dashboard_router' %}">
+                    <i class="fa-solid fa-gauge-high"></i><span>Dashboard</span>
+                </a>
+
+                {% if user.is_staff or user.role == 'ADMIN' %}
+                <div class="sd-nav-heading">Administration</div>
+                <a class="sd-nav-link {% if request.resolver_match.url_name and 'admin' in request.resolver_match.url_name %}active{% endif %}"
+                   href="{% url 'admin_dashboard' %}">
+                    <i class="fa-solid fa-shield-halved"></i><span>Admin Panel</span>
+                </a>
+                {% endif %}
+
+                {% if user.role == 'CHILD' %}
+                <div class="sd-nav-heading">My Study</div>
+                <a class="sd-nav-link {% if request.resolver_match.url_name and 'focus' in request.resolver_match.url_name %}active{% endif %}"
+                   href="{% url 'focus_session' %}">
+                    <i class="fa-solid fa-bullseye"></i><span>Focus Mode</span>
+                </a>
+                <a class="sd-nav-link {% if request.resolver_match.url_name == 'todo_dashboard' %}active{% endif %}"
+                   href="{% url 'todo_dashboard' %}">
+                    <i class="fa-solid fa-list-check"></i><span>To-Do</span>
+                </a>
+                <a class="sd-nav-link {% if request.resolver_match.url_name == 'studydna_dashboard' %}active{% endif %}"
+                   href="{% url 'studydna_dashboard' %}">
+                    <i class="fa-solid fa-dna"></i><span>Study DNA</span>
+                </a>
+                {% endif %}
+
+                {% if user.role == 'PARENT' %}
+                <div class="sd-nav-heading">Monitor</div>
+                <a class="sd-nav-link {% if request.resolver_match.url_name and 'focus' in request.resolver_match.url_name %}active{% endif %}"
+                   href="{% url 'parent_focus_dashboard' %}">
+                    <i class="fa-solid fa-bullseye"></i><span>Focus Monitor</span>
+                </a>
+                {% endif %}
+
+                {% if user.role == 'PARENT' or user.role == 'CHILD' %}
+                <div class="sd-nav-heading">Connect</div>
+                <a class="sd-nav-link {% if request.resolver_match.url_name == 'chat_page' %}active{% endif %}"
+                   href="{% url 'chat:chat_page' %}">
+                    <i class="fa-solid fa-comments"></i><span>Chat</span>
+                    <span id="sidebarChatBadge" class="sd-nav-badge">0</span>
+                </a>
+                {% endif %}
+
+                {% if user.is_staff or user.role == 'ADMIN' or user.role == 'PARENT' or user.role == 'CHILD' %}
+                <div class="sd-nav-heading">Rewards</div>
+                <a class="sd-nav-link {% if request.resolver_match.url_name == 'reward_leaderboard' %}active{% endif %}"
+                   href="{% url 'reward_leaderboard' %}">
+                    <i class="fa-solid fa-ranking-star"></i><span>Leaderboard</span>
+                </a>
+                {% endif %}
+            </nav>
+
+            <div class="sd-nav-footer">
+                <div class="d-flex align-items-center gap-2 sd-sidebar-footer-user">
+                    <span class="sd-avatar">{{ user.username|slice:":2"|upper }}</span>
+                    <span class="overflow-hidden">
+                        <span class="sd-user-name d-block">{{ user.username }}</span>
+                        <span class="sd-user-role">{{ user.role|lower }}</span>
+                    </span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ==================== Main column ==================== -->
+        <div class="sd-main">
+            <!-- Topbar -->
+            <header class="sd-topbar">
+                <button class="sd-icon-btn d-lg-none" id="sdMobileToggle" type="button"
+                        aria-label="Open navigation menu" aria-controls="sdSidebar" aria-expanded="false">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <button class="sd-icon-btn sd-desktop-only" id="sdCollapseToggle" type="button" aria-label="Collapse sidebar">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                </button>
+
+                <h1 class="sd-topbar-title">{% block topbar_title %}{% endblock %}</h1>
+
+                <div class="ms-auto d-flex align-items-center gap-1">
+                    {% if user.role == 'PARENT' or user.role == 'CHILD' %}
+                    <a class="sd-icon-btn" href="{% url 'chat:chat_page' %}" aria-label="Chat messages">
+                        <i class="fa-solid fa-comment-dots"></i>
+                        <span id="navbarChatBadge" class="sd-dot-badge" style="display:none;">0</span>
+                    </a>
                     {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link position-relative" href="{% url 'notification_list' %}">
-                                <i class="fa-solid fa-bell"></i>
-                                <span id="navbarUnreadBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size:0.6rem;">0</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'logout' %}">Logout ({{ user.username }})</a>
-                        </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">Login</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'register' %}">Register</a>
-                        </li>
-                    {% endif %}
-                    <li class="nav-item d-flex align-items-center ms-lg-3">
-                        <button id="theme-toggle" class="btn btn-sm btn-outline-secondary rounded-circle">
-                            <i class="fa-solid fa-moon"></i>
+                    <a class="sd-icon-btn" href="{% url 'notification_list' %}" aria-label="Notifications">
+                        <i class="fa-regular fa-bell"></i>
+                        <span id="navbarUnreadBadge" class="sd-dot-badge" style="display:none;">0</span>
+                    </a>
+                    <button id="theme-toggle" class="sd-icon-btn" type="button" aria-label="Toggle color theme">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+
+                    <div class="dropdown ms-1">
+                        <button class="sd-user-menu" type="button" data-bs-toggle="dropdown"
+                                aria-expanded="false" aria-label="Account menu">
+                            <span class="sd-avatar">{{ user.username|slice:":2"|upper }}</span>
+                            <span class="d-none d-md-block">
+                                <span class="sd-user-name d-block">{{ user.username }}</span>
+                                <span class="sd-user-role">{{ user.role|lower }}</span>
+                            </span>
+                            <i class="fa-solid fa-chevron-down fa-xs text-muted d-none d-md-block"></i>
                         </button>
-                    </li>
-                </ul>
+                        <ul class="dropdown-menu dropdown-menu-end sd-dropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'dashboard_router' %}">
+                                    <i class="fa-solid fa-gauge-high"></i> Dashboard
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{% url 'logout' %}">
+                                    <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Flash toasts -->
+            <div id="flashToasts" aria-live="polite">
+                {% for message in messages %}
+                <div class="flash-toast" data-tag="{{ message.tags|default:'info' }}" role="status">
+                    <i class="ft-icon fa-solid fa-circle-info"></i>
+                    <span>{{ message }}</span>
+                    <button type="button" class="ft-close" aria-label="Dismiss notification"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Page content -->
+            <main class="sd-content" id="sd-main-content">
+    {% else %}
+    <!-- ======================= Guest shell ======================= -->
+    <nav class="marketing-nav py-2">
+        <div class="container d-flex align-items-center justify-content-between">
+            <a class="d-flex align-items-center gap-2 text-decoration-none" href="{% url 'home' %}">
+                <span class="sd-brand-mark"><i class="fa-solid fa-leaf"></i></span>
+                <span class="fs-5 fw-bold gradient-text">Sadhana</span>
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                <button id="theme-toggle" class="sd-icon-btn" type="button" aria-label="Toggle color theme">
+                    <i class="fa-solid fa-moon"></i>
+                </button>
+                <a class="btn btn-outline-secondary btn-sm px-3" href="{% url 'login' %}">Login</a>
+                <a class="btn btn-gradient btn-sm px-3" href="{% url 'register' %}">Get Started</a>
             </div>
         </div>
     </nav>
 
-    <div class="container">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm text-center">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-        
-        {% block content %}{% endblock %}
+    <div id="flashToasts" aria-live="polite">
+        {% for message in messages %}
+        <div class="flash-toast" data-tag="{{ message.tags|default:'info' }}" role="status">
+            <i class="ft-icon fa-solid fa-circle-info"></i>
+            <span>{{ message }}</span>
+            <button type="button" class="ft-close" aria-label="Dismiss notification"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        {% endfor %}
     </div>
+
+    <main id="sd-main-content">
+    {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+    {% if user.is_authenticated %}
+        </div><!-- /.sd-main -->
+    </div><!-- /.sd-app -->
+    {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const themeToggle = document.getElementById('theme-toggle');
         const themeIcon = themeToggle.querySelector('i');
         const htmlElement = document.documentElement;
-        let currentTheme = localStorage.getItem('theme') || 'dark';
+        let currentTheme = htmlElement.getAttribute('data-bs-theme') || 'dark';
         setTheme(currentTheme);
 
         themeToggle.addEventListener('click', () => {
@@ -147,17 +253,20 @@
         setInterval(updateNotificationBadge, 10000);
 
         function updateChatBadge() {
-            const badge = document.getElementById('navbarChatBadge');
-            if (!badge) return;
+            const navbarBadge = document.getElementById('navbarChatBadge');
+            const sidebarBadge = document.getElementById('sidebarChatBadge');
             fetch('/chat/api/unread-count/')
                 .then(r => r.json())
                 .then(data => {
-                    if (data.unread_count > 0) {
-                        badge.textContent = data.unread_count;
-                        badge.style.display = 'inline';
-                    } else {
-                        badge.style.display = 'none';
-                    }
+                    [navbarBadge, sidebarBadge].forEach(badge => {
+                        if (!badge) return;
+                        if (data.unread_count > 0) {
+                            badge.textContent = data.unread_count;
+                            badge.style.display = 'inline';
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    });
                 })
                 .catch(() => {});
         }
@@ -166,6 +275,59 @@
             updateChatBadge();
             setInterval(updateChatBadge, 15000);
         }
+
+        // ---- Shell behaviour ----
+        const sidebar = document.getElementById('sdSidebar');
+        const backdrop = document.getElementById('sdBackdrop');
+        const mobileToggle = document.getElementById('sdMobileToggle');
+
+        if (mobileToggle && sidebar && backdrop) {
+            const closeDrawer = () => {
+                sidebar.classList.remove('mobile-open');
+                backdrop.classList.remove('show');
+                mobileToggle.setAttribute('aria-expanded', 'false');
+            };
+            mobileToggle.addEventListener('click', () => {
+                const open = !sidebar.classList.contains('mobile-open');
+                sidebar.classList.toggle('mobile-open', open);
+                backdrop.classList.toggle('show', open);
+                mobileToggle.setAttribute('aria-expanded', String(open));
+            });
+            backdrop.addEventListener('click', closeDrawer);
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+        }
+
+        const collapseToggle = document.getElementById('sdCollapseToggle');
+        if (collapseToggle) {
+            if (localStorage.getItem('sd-sidebar-collapsed') === '1') {
+                document.body.classList.add('sidebar-collapsed');
+            }
+            collapseToggle.addEventListener('click', () => {
+                const collapsed = document.body.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('sd-sidebar-collapsed', collapsed ? '1' : '0');
+            });
+        }
+
+        // ---- Flash toasts ----
+        document.querySelectorAll('.flash-toast').forEach(toast => {
+            const tag = toast.dataset.tag || 'info';
+            const icon = toast.querySelector('.ft-icon');
+            const icons = {
+                success: 'fa-circle-check',
+                error: 'fa-circle-exclamation',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info',
+                debug: 'fa-circle-info'
+            };
+            if (icons[tag] && icon) icon.className = 'ft-icon fa-solid ' + icons[tag];
+            const closeBtn = toast.querySelector('.ft-close');
+            const dismiss = () => {
+                toast.classList.add('hide-anim');
+                setTimeout(() => toast.remove(), 260);
+            };
+            if (closeBtn) closeBtn.addEventListener('click', dismiss);
+            setTimeout(dismiss, 5200);
+        });
     </script>
     {% block extra_js %}{% endblock %}
 </body>

@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
+{% block title %}Edit Whitelist Item - Admin{% endblock %}
+{% block topbar_title %}Edit Whitelist Item{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
-            <div class="card-header"><i class="fa-solid fa-pen"></i> Edit Whitelist Item: {{ item.name }}</div>
-            <div class="card-body">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title mb-3"><i class="fa-solid fa-pen"></i> Edit Whitelist Item: {{ item.name }}</h5>
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
@@ -22,13 +25,13 @@
                         <label class="form-label">URL Pattern (for websites)</label>
                         <input type="text" name="url_pattern" class="form-control" value="{{ item.url_pattern|default:'' }}" placeholder="e.g. docs.google.com">
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">App Name (for applications)</label>
                         <input type="text" name="app_name" class="form-control" value="{{ item.app_name|default:'' }}" placeholder="e.g. code.exe">
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <a href="{% url 'admin_list_whitelist' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-gradient"><i class="fa-solid fa-floppy-disk me-1"></i> Save</button>
+                        <a href="{% url 'admin_list_whitelist' %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

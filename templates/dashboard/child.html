@@ -1,79 +1,74 @@
 {% extends 'base.html' %}
-{% block content %}
-<div class="row mt-4">
-    <div class="col-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-            <div>
-                <h2 class="fw-bold">Child Dashboard</h2>
-                <p class="text-muted">Welcome, {{ request.user.username }}! Ready to start studying?</p>
-            </div>
-            <a href="{% url 'notification_list' %}" class="btn btn-outline-warning position-relative">
-                <i class="fa-solid fa-bell"></i> Notifications
-                {% if unread_notif > 0 %}
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ unread_notif }}</span>
-                {% endif %}
-            </a>
-        </div>
-        <hr>
-    </div>
+{% block title %}My Dashboard - Sadhana{% endblock %}
+{% block topbar_title %}Child Dashboard{% endblock %}
 
-    <div class="col-md-5 mb-4">
-        <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-body">
-                <h5 class="fw-bold mb-3">
-                    <i class="fa-solid fa-id-card text-primary me-2"></i>My Connection Info
-                </h5>
-                <p>Your unique Child ID to share with your parents:</p>
-                <div class="bg-light text-dark p-3 rounded-3 text-center fs-3 fw-bold mb-2" style="font-family: monospace;">
-                    {{ request.user.child_id }}
-                </div>
-                <p class="small text-muted text-center">
-                    <i class="fa-solid fa-circle-info"></i> Parents need this ID to connect.
+{% block content %}
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-graduation-cap"></i></span> Child Dashboard</h2>
+        <p class="sd-page-subtitle">Welcome, {{ request.user.username }}! Ready to start studying?</p>
+    </div>
+    <div class="sd-page-actions">
+        <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary position-relative">
+            <i class="fa-regular fa-bell me-1"></i> Notifications
+            {% if unread_notif > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ unread_notif }}</span>
+            {% endif %}
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- LEFT COLUMN -->
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title"><i class="fa-solid fa-id-card"></i> My Connection Info</h5>
+                <p class="text-muted small mb-3">Your unique Child ID to share with your parents:</p>
+                <div class="child-id-display">{{ request.user.child_id }}</div>
+                <p class="small text-muted text-center mt-3 mb-0">
+                    <i class="fa-solid fa-circle-info me-1"></i> Parents need this ID to connect.
                 </p>
             </div>
         </div>
 
         {% if parents %}
-            <div class="card shadow-sm border-0 rounded-4 mt-4 bg-success bg-opacity-10 border-success">
-                <div class="card-body text-center">
-                    <h5 class="fw-bold text-success">
-                        <i class="fa-solid fa-link"></i> Linked Parents
-                    </h5>
-                    {% for p in parents %}
-                        <p class="mb-1 mt-2 fs-5">{{ p.username }}</p>
-                    {% endfor %}
-                    <p class="small text-muted">Your data is being shared with these parents.</p>
-                    {% if parents %}
-                    <a href="{% url 'chat:chat_page' %}?to={{ parents.0.id }}" class="btn btn-sm btn-outline-success rounded-pill">
-                        <i class="fa-solid fa-comments me-1"></i> Chat with {{ parents.0.username }}
-                    </a>
-                    {% endif %}
-                </div>
+        <div class="card mt-4 border-success" style="border-color: rgba(34,197,139,.35) !important;">
+            <div class="card-body text-center">
+                <h5 class="fw-bold text-good mb-3">
+                    <i class="fa-solid fa-link me-1"></i> Linked Parents
+                </h5>
+                {% for p in parents %}
+                    <p class="mb-1 fs-5 fw-semibold">{{ p.username }}</p>
+                {% endfor %}
+                <p class="small text-muted">Your data is being shared with these parents.</p>
+                <a href="{% url 'chat:chat_page' %}?to={{ parents.0.id }}" class="btn btn-sm btn-success rounded-pill px-3">
+                    <i class="fa-solid fa-comments me-1"></i> Chat with {{ parents.0.username }}
+                </a>
             </div>
+        </div>
         {% endif %}
 
-        <div class="card shadow-sm border-0 rounded-4 mt-4 border-warning">
+        <div class="card mt-4">
             <div class="card-body">
-                <h5 class="fw-bold mb-3">
-                    <i class="fa-solid fa-bell text-warning me-2"></i>Pending Requests
-                </h5>
+                <h5 class="sd-card-title"><i class="fa-solid fa-bell" style="color: var(--sd-warning);"></i> Pending Requests</h5>
                 {% if pending_requests %}
                     <ul class="list-group list-group-flush">
                         {% for req in pending_requests %}
                             <li class="list-group-item bg-transparent px-0 border-0 mb-2">
-                                <div class="d-flex justify-content-between align-items-center bg-secondary bg-opacity-25 p-3 rounded-3">
+                                <div class="d-flex justify-content-between align-items-center gap-2 surface-2 p-3 rounded-3 border-token border">
                                     <div>
                                         <strong>{{ req.parent.username }}</strong>
-                                        <div class="small">wants to connect</div>
+                                        <div class="small text-muted">wants to connect</div>
                                     </div>
                                     <div class="d-flex gap-2">
                                         <form action="{% url 'respond_request' req.id 'accept' %}" method="POST">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-success"><i class="fa-solid fa-check"></i></button>
+                                            <button type="submit" class="btn btn-sm btn-success btn-action" aria-label="Accept connection request from {{ req.parent.username }}"><i class="fa-solid fa-check"></i></button>
                                         </form>
                                         <form action="{% url 'respond_request' req.id 'reject' %}" method="POST">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-danger"><i class="fa-solid fa-xmark"></i></button>
+                                            <button type="submit" class="btn btn-sm btn-danger btn-action" aria-label="Reject connection request from {{ req.parent.username }}"><i class="fa-solid fa-xmark"></i></button>
                                         </form>
                                     </div>
                                 </div>
@@ -81,112 +76,117 @@
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <p class="text-muted small text-center py-4">No pending requests right now.</p>
+                    <div class="empty-state compact">
+                        <span class="es-icon"><i class="fa-solid fa-inbox"></i></span>
+                        <p class="es-text mb-0">No pending requests right now.</p>
+                    </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <div class="col-md-7 mb-4">
-        <div class="card bg-primary bg-opacity-10 border-0 rounded-4 mb-4 shadow text-center">
-            <div class="card-body py-4">
-                <i class="fa-solid fa-brain fa-3x text-primary mb-3 mt-2"></i>
-                <h4 class="fw-bold mb-3">Ready for a Session?</h4>
-                <a href="{% url 'focus_session' %}" class="btn btn-lg btn-primary rounded-pill px-5 shadow fw-bold">Start Studying <i class="fa-solid fa-play ms-2"></i></a>
-            </div>
+    <!-- RIGHT COLUMN -->
+    <div class="col-lg-7">
+        <!-- Hero CTA -->
+        <div class="sd-hero-panel text-center mb-4">
+            <i class="fa-solid fa-brain fa-2x mb-3 d-block opacity-75"></i>
+            <h4 class="fw-bold mb-3">Ready for a Session?</h4>
+            <a href="{% url 'focus_session' %}" class="btn btn-light btn-lg rounded-pill px-5 fw-semibold">
+                Start Studying <i class="fa-solid fa-play ms-2"></i>
+            </a>
         </div>
 
-        <div class="card bg-warning bg-opacity-10 border-0 rounded-4 mb-4 shadow">
+        <!-- Rewards -->
+        <div class="card mb-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-star text-warning me-2"></i>My Rewards</h5>
-                    <a href="{% url 'reward_leaderboard' %}" class="btn btn-sm btn-outline-warning">Leaderboard <i class="fa-solid fa-trophy ms-1"></i></a>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <h5 class="sd-card-title mb-0"><i class="fa-solid fa-star" style="color: var(--sd-warning);"></i> My Rewards</h5>
+                    <a href="{% url 'reward_leaderboard' %}" class="btn btn-sm btn-outline-secondary">Leaderboard <i class="fa-solid fa-trophy ms-1"></i></a>
                 </div>
-                <div class="row g-2 align-items-center">
-                    <div class="col-md-4 text-center">
-                        <span class="fs-1">Lv.{{ reward_profile.level }}</span>
-                        <div class="progress mt-1" style="height:6px;">
+                <div class="row align-items-center g-3">
+                    <div class="col-md-4 reward-stat">
+                        <div class="rs-value gradient-text">Lv.{{ reward_profile.level }}</div>
+                        <div class="progress progress-thin mt-2">
                             <div class="progress-bar bg-warning" style="width:{{ reward_profile.level_progress }}%"></div>
                         </div>
-                        <small class="text-muted">{{ reward_profile.xp_in_current_level }} / {{ reward_profile.xp_for_next_level }} XP</small>
+                        <small class="text-muted mt-1 d-block tabular">{{ reward_profile.xp_in_current_level }} / {{ reward_profile.xp_for_next_level }} XP</small>
                     </div>
-                    <div class="col-md-4 text-center">
-                        <span class="fs-3 fw-bold">{{ reward_profile.xp }}</span>
-                        <span class="text-muted small d-block">⚡ XP</span>
+                    <div class="col-md-4 reward-stat">
+                        <div class="rs-value"><i class="fa-solid fa-bolt" style="color: var(--sd-info);"></i> {{ reward_profile.xp }}</div>
+                        <div class="rs-label">XP</div>
                     </div>
-                    <div class="col-md-4 text-center">
-                        <span class="fs-3 fw-bold text-warning">{{ reward_profile.coins }}</span>
-                        <span class="text-muted small d-block">🪙 Coins</span>
+                    <div class="col-md-4 reward-stat">
+                        <div class="rs-value" style="color: var(--sd-warning);"><i class="fa-solid fa-coins"></i> {{ reward_profile.coins }}</div>
+                        <div class="rs-label">Coins</div>
                     </div>
                 </div>
-                <div class="d-flex flex-wrap gap-1 mt-3 justify-content-center">
+                <div class="d-flex flex-wrap gap-2 mt-3 justify-content-center badge-tiles-row">
                     {% for b in reward_badges|slice:":8" %}
-                        <span title="{{ b.badge.name }}{% if not b.earned %} (locked){% endif %}">{% if b.earned %}{{ b.badge.icon }}{% else %}🔒{% endif %}</span>
+                        <span class="badge-tile {% if b.earned %}earned{% else %}locked{% endif %}" style="min-width:64px; padding:.55rem .35rem;" title="{{ b.badge.name }}{% if not b.earned %} (locked){% endif %}">
+                            <div class="bt-icon">{% if b.earned %}{{ b.badge.icon }}{% else %}<i class="fa-solid fa-lock"></i>{% endif %}</div>
+                            <div class="bt-name">{{ b.badge.name|truncatechars:12 }}</div>
+                        </span>
                     {% endfor %}
                     {% if reward_badges|length > 8 %}
-                        <span class="small text-muted">+{{ reward_badges|length|add:"-8" }} more</span>
+                        <span class="pill-tag align-self-center">+{{ reward_badges|length|add:"-8" }} more</span>
                     {% endif %}
                 </div>
             </div>
         </div>
 
+        <!-- Stat trio -->
         <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="card shadow-sm border-0 rounded-4 h-100 bg-secondary bg-opacity-10">
-                    <div class="card-body text-center p-3">
-                        <i class="fa-solid fa-book-open text-primary mb-2"></i>
-                        <h6 class="small text-muted text-uppercase">Today's Study</h6>
-                        <h4 class="fw-bold m-0">{{ today_study_time }} <span class="fs-6 text-muted">m</span></h4>
-                    </div>
+            <div class="col-md-4 col-4">
+                <div class="stat-card tint-primary text-center py-3">
+                    <span class="stat-icon mx-auto"><i class="fa-solid fa-book-open"></i></span>
+                    <div class="stat-label">Today's Study</div>
+                    <div class="stat-value">{{ today_study_time }}<small>m</small></div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card shadow-sm border-0 rounded-4 h-100 bg-secondary bg-opacity-10">
-                    <div class="card-body text-center p-3">
-                        <i class="fa-solid fa-triangle-exclamation text-danger mb-2"></i>
-                        <h6 class="small text-muted text-uppercase">Distraction</h6>
-                        <h4 class="fw-bold m-0">{{ today_distraction }} <span class="fs-6 text-muted">s</span></h4>
-                    </div>
+            <div class="col-md-4 col-4">
+                <div class="stat-card tint-danger text-center py-3">
+                    <span class="stat-icon mx-auto"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                    <div class="stat-label">Distraction</div>
+                    <div class="stat-value">{{ today_distraction }}<small>s</small></div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card shadow-sm border-0 rounded-4 h-100 bg-secondary bg-opacity-10">
-                    <div class="card-body text-center p-3">
-                        <i class="fa-solid fa-bullseye text-success mb-2"></i>
-                        <h6 class="small text-muted text-uppercase">Avg Focus</h6>
-                        <h4 class="fw-bold m-0">{{ avg_focus }}<span class="fs-6 text-muted">%</span></h4>
-                    </div>
+            <div class="col-md-4 col-4">
+                <div class="stat-card tint-success text-center py-3">
+                    <span class="stat-icon mx-auto"><i class="fa-solid fa-bullseye"></i></span>
+                    <div class="stat-label">Avg Focus</div>
+                    <div class="stat-value">{{ avg_focus }}<small>%</small></div>
                 </div>
             </div>
         </div>
 
-        <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <!-- Today's tasks -->
+        <div class="card mb-4">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-list-check text-success me-2"></i>Today's Tasks</h5>
-                    <a href="{% url 'todo_dashboard' %}" class="btn btn-sm btn-outline-primary">Manage <i class="fa-solid fa-arrow-right ms-1"></i></a>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="sd-card-title mb-0"><i class="fa-solid fa-list-check" style="color: var(--sd-success);"></i> Today's Tasks</h5>
+                    <a href="{% url 'todo_dashboard' %}" class="btn btn-sm btn-outline-secondary">Manage <i class="fa-solid fa-arrow-right ms-1"></i></a>
                 </div>
                 {% if today_tasks %}
-                    <div class="d-flex justify-content-between small text-muted mt-3 mb-2">
+                    <div class="d-flex justify-content-between small text-muted mt-3 mb-2 tabular">
                         <span>{{ today_completed }}/{{ today_total }} completed</span>
                         <span class="fw-bold">{{ today_pct }}%</span>
                     </div>
-                    <div class="progress mb-3" style="height:8px;">
-                        <div class="progress-bar bg-success" role="progressbar" style="width:{{ today_pct }}%"></div>
+                    <div class="progress progress-thin mb-3">
+                        <div class="progress-bar bg-success" role="progressbar" style="width:{{ today_pct }}%" aria-valuenow="{{ today_pct }}" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for task in today_tasks|slice:":5" %}
-                            <li class="list-group-item bg-transparent px-0 border-bottom d-flex justify-content-between align-items-center">
-                                <div>
+                            <li class="list-group-item bg-transparent px-0 d-flex justify-content-between align-items-center border-token">
+                                <div class="me-2">
                                     {% if task.status %}
-                                        <span class="text-decoration-line-through text-muted">{{ task.task_name }}</span>
+                                        <span class="task-done-text">{{ task.task_name }}</span>
                                     {% else %}
                                         <span>{{ task.task_name }}</span>
                                     {% endif %}
-                                    <span class="badge {% if task.priority == 'HIGH' %}bg-danger{% elif task.priority == 'MEDIUM' %}bg-warning text-dark{% else %}bg-secondary{% endif %} ms-1" style="font-size:0.6rem;">{{ task.get_priority_display }}</span>
+                                    <span class="badge priority-{{ task.priority }} ms-1">{{ task.get_priority_display }}</span>
                                 </div>
-                                <span class="small {% if task.status %}text-success{% else %}text-danger{% endif %}">
-                                    {% if task.status %}<i class="fa-solid fa-check-circle"></i>{% else %}<i class="fa-regular fa-circle"></i>{% endif %}
+                                <span class="{% if task.status %}text-good{% else %}text-bad{% endif %}">
+                                    {% if task.status %}<i class="fa-solid fa-circle-check"></i>{% else %}<i class="fa-regular fa-circle"></i>{% endif %}
                                 </span>
                             </li>
                         {% endfor %}
@@ -197,23 +197,28 @@
                         </div>
                     {% endif %}
                 {% else %}
-                    <p class="text-muted small text-center py-3 mb-0">No tasks for today.</p>
+                    <div class="empty-state compact">
+                        <span class="es-icon"><i class="fa-solid fa-clipboard-list"></i></span>
+                        <p class="es-text mb-0">No tasks for today.</p>
+                    </div>
                 {% endif %}
             </div>
         </div>
 
-        <div class="card shadow border-0 rounded-4 mb-4" id="approvedAppsCard" style="display:none;">
+        <!-- Approved apps (populated by JS) -->
+        <div class="card mb-4" id="approvedAppsCard" style="display:none;">
             <div class="card-body">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-thumbs-up text-info me-2"></i>Parent Approved Apps</h5>
+                <h5 class="sd-card-title"><i class="fa-solid fa-thumbs-up" style="color: var(--sd-info);"></i> Parent Approved Apps</h5>
                 <p class="small text-muted">Click a website to open it. Access expires automatically.</p>
-                <div id="approvedAppsContainer" class="d-flex flex-wrap gap-2"></div>
+                <div id="approvedAppsContainer" class="d-flex flex-wrap"></div>
             </div>
         </div>
 
-        <div class="card shadow border-0 rounded-4">
+        <!-- Chart -->
+        <div class="card">
             <div class="card-body">
-                <h5 class="fw-bold mb-4">Focus Trend (Today)</h5>
-                <canvas id="childFocusChart" height="120"></canvas>
+                <h5 class="sd-card-title">Focus Trend (Today)</h5>
+                <div class="chart-box"><canvas id="childFocusChart" height="120"></canvas></div>
             </div>
         </div>
     </div>

@@ -1,8 +1,15 @@
 {% extends 'base.html' %}
+{% block title %}Sessions - Admin{% endblock %}
+{% block topbar_title %}Sessions{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4><i class="fa-solid fa-clock"></i> Sessions</h4>
-    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon" style="background:rgba(56,189,248,.13);color:var(--sd-info);"><i class="fa-solid fa-clock"></i></span> Sessions</h2>
+    </div>
+    <div class="sd-page-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">Back</a>
+    </div>
 </div>
 
 <form method="get" class="row g-2 mb-3">
@@ -19,51 +26,59 @@
     </div>
 </form>
 
-<div class="table-responsive">
-    <table class="table table-dark table-hover">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Type</th>
-                <th>Child</th>
-                <th>Planned</th>
-                <th>Focus</th>
-                <th>Distracted</th>
-                <th>Status</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for s in sessions %}
-            <tr>
-                <td>{{ s.id }}</td>
-                <td><span class="badge bg-{% if s.session_type == 'FOCUS' %}info{% else %}secondary{% endif %}">{{ s.get_session_type_display }}</span></td>
-                <td>{{ s.child.username }}</td>
-                <td>{{ s.planned_duration }} min</td>
-                <td>{{ s.actual_focus_seconds }}s ({{ s.focus_score }}%)</td>
-                <td>{{ s.distraction_seconds }}s</td>
-                <td>
-                    <span class="badge bg-{% if s.status == 'COMPLETED' %}success{% elif s.status == 'ACTIVE' %}primary{% elif s.status == 'INTERRUPTED' %}warning text-dark{% else %}secondary{% endif %}">
-                        {{ s.status }}
-                    </span>
-                </td>
-                <td>{{ s.start_time|date:"M d, H:i" }}</td>
-                <td>{{ s.end_time|date:"M d, H:i"|default:"—" }}</td>
-                <td>
-                    <a href="{% url 'admin_delete_session' s.id %}" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="10" class="text-center text-muted">No sessions found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="sd-table-wrap">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Child</th>
+                    <th>Planned</th>
+                    <th>Focus</th>
+                    <th>Distracted</th>
+                    <th>Status</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td class="text-muted tabular">{{ s.id }}</td>
+                    <td><span class="badge soft-{% if s.session_type == 'FOCUS' %}info{% else %}neutral{% endif %}">{{ s.get_session_type_display }}</span></td>
+                    <td>{{ s.child.username }}</td>
+                    <td class="tabular">{{ s.planned_duration }} min</td>
+                    <td class="tabular">{{ s.actual_focus_seconds }}s ({{ s.focus_score }}%)</td>
+                    <td class="tabular">{{ s.distraction_seconds }}s</td>
+                    <td>
+                        {% if s.status == 'COMPLETED' %}
+                            <span class="badge soft-success">{{ s.status }}</span>
+                        {% elif s.status == 'ACTIVE' %}
+                            <span class="badge soft-primary">{{ s.status }}</span>
+                        {% elif s.status == 'INTERRUPTED' %}
+                            <span class="badge soft-warning">{{ s.status }}</span>
+                        {% else %}
+                            <span class="badge soft-neutral">{{ s.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small tabular">{{ s.start_time|date:"M d, H:i" }}</td>
+                    <td class="text-muted small tabular">{{ s.end_time|date:"M d, H:i"|default:"—" }}</td>
+                    <td>
+                        <a href="{% url 'admin_delete_session' s.id %}" class="btn btn-action btn-outline-danger" title="Delete"><i class="fa-solid fa-trash-can"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="10" class="text-center text-muted py-4">No sessions found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 {% if sessions.has_other_pages %}
-<nav>
+<nav class="mt-3">
     <ul class="pagination pagination-sm justify-content-center">
         {% if sessions.has_previous %}
         <li class="page-item"><a class="page-link" href="?page={{ sessions.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if child_search %}&child={{ child_search }}{% endif %}">Previous</a></li>

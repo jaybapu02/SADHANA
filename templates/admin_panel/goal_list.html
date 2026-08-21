@@ -1,37 +1,46 @@
 {% extends 'base.html' %}
+{% block title %}Goals - Admin{% endblock %}
+{% block topbar_title %}Goals{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4><i class="fa-solid fa-bullseye"></i> Goals</h4>
-    <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">Back</a>
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon" style="background:rgba(245,183,61,.15);color:var(--sd-warning);"><i class="fa-solid fa-bullseye"></i></span> Goals</h2>
+    </div>
+    <div class="sd-page-actions">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">Back</a>
+    </div>
 </div>
 
-<div class="table-responsive">
-    <table class="table table-dark table-hover">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Child</th>
-                <th>Daily Goal</th>
-                <th>Weekly Goal</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for g in goals %}
-            <tr>
-                <td>{{ g.id }}</td>
-                <td>{{ g.child.username }}</td>
-                <td>{{ g.daily_goal }} min</td>
-                <td>{{ g.weekly_goal }} min</td>
-                <td>
-                    <a href="{% url 'admin_edit_goal' g.id %}" class="btn btn-sm btn-outline-info" title="Edit"><i class="fa-solid fa-pen"></i></a>
-                    <a href="{% url 'admin_delete_goal' g.id %}" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fa-solid fa-trash"></i></a>
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="5" class="text-center text-muted">No goals found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="sd-table-wrap">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Child</th>
+                    <th>Daily Goal</th>
+                    <th>Weekly Goal</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for g in goals %}
+                <tr>
+                    <td class="text-muted tabular">{{ g.id }}</td>
+                    <td class="fw-medium">{{ g.child.username }}</td>
+                    <td class="tabular">{{ g.daily_goal }} min</td>
+                    <td class="tabular">{{ g.weekly_goal }} min</td>
+                    <td>
+                        <a href="{% url 'admin_edit_goal' g.id %}" class="btn btn-action btn-outline-secondary" title="Edit"><i class="fa-solid fa-pen"></i></a>
+                        <a href="{% url 'admin_delete_goal' g.id %}" class="btn btn-action btn-outline-danger" title="Delete"><i class="fa-solid fa-trash-can"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">No goals found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

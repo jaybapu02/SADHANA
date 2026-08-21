@@ -1,274 +1,218 @@
 {% extends 'base.html' %}
-{% block content %}
-<style>
-    .dna-card { transition: transform 0.2s ease, box-shadow 0.2s ease; border: none; }
-    .dna-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
-    .rec-card { border-left: 4px solid; transition: all 0.2s; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: rgba(108,117,125,0.05); }
-    .rec-card:hover { background: rgba(102,126,234,0.08); }
-</style>
+{% block title %}{{ child.username }}'s DNA - Sadhana{% endblock %}
+{% block topbar_title %}{{ child.username }}'s DNA{% endblock %}
 
-<div class="row mt-2 mb-2 align-items-center">
-    <div class="col">
-        <div class="d-flex align-items-center gap-2">
-            <a href="{% url 'parent_dashboard' %}" class="btn btn-sm btn-outline-secondary rounded-circle" style="font-size:0.7rem;padding:0.2rem 0.5rem;">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <h5 class="fw-bold mb-0"><i class="fa-solid fa-dna text-primary me-2"></i>{{ child.username }}'s DNA</h5>
-        </div>
+{% block content %}
+<a href="{% url 'parent_dashboard' %}" class="sd-breadcrumb"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-dna"></i></span> {{ child.username }}'s DNA</h2>
+        <p class="sd-page-subtitle">Learning intelligence report</p>
     </div>
-    <div class="col-auto">
-        <a href="{% url 'studydna_parent' child.id %}" class="btn btn-outline-primary btn-sm rounded-pill" style="font-size:0.7rem;">
+    <div class="sd-page-actions">
+        <a href="{% url 'studydna_parent' child.id %}" class="btn btn-outline-secondary">
             <i class="fa-solid fa-rotate me-1"></i> Refresh
         </a>
     </div>
 </div>
 
 {% if profile.data_points == 0 %}
-<div class="alert alert-info text-center rounded-3 border-0 py-2 mb-2" role="alert" style="font-size:0.8rem;">
-    <i class="fa-solid fa-dna me-1"></i> {{ child.username }} needs more data for analysis.
+<div class="alert alert-info d-flex align-items-center" role="alert">
+    <i class="fa-solid fa-dna me-2 fs-5"></i>
+    <div>{{ child.username }} needs more data for analysis.</div>
 </div>
 {% endif %}
 
-<div class="row g-2 mb-2">
+<div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
-        <div class="card dna-card shadow-sm rounded-3 h-100 bg-primary bg-opacity-10 border-0 text-center p-2">
-            <div class="card-body p-1">
-                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;" class="text-primary">Productivity</div>
-                <div style="font-size:1.4rem;font-weight:700;" class="text-primary">{{ productivity_score|floatformat:0 }}%</div>
-                <div class="progress mt-1" style="height:3px;background:rgba(13,110,253,0.15);">
-                    <div class="progress-bar bg-primary" style="width:{{ productivity_score }}%;"></div>
-                </div>
-            </div>
+        <div class="stat-card tint-primary">
+            <div class="stat-label">Productivity</div>
+            <div class="stat-value">{{ productivity_score|floatformat:0 }}<small>%</small></div>
+            <div class="progress progress-thin mt-2"><div class="progress-bar bg-primary" style="width:{{ productivity_score }}%;"></div></div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card dna-card shadow-sm rounded-3 h-100 bg-success bg-opacity-10 border-0 text-center p-2">
-            <div class="card-body p-1">
-                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;" class="text-success">Consistency</div>
-                <div style="font-size:1.4rem;font-weight:700;" class="text-success">{{ consistency_score|floatformat:0 }}%</div>
-                <div class="progress mt-1" style="height:3px;background:rgba(25,135,84,0.15);">
-                    <div class="progress-bar bg-success" style="width:{{ consistency_score }}%;"></div>
-                </div>
-            </div>
+        <div class="stat-card tint-success">
+            <div class="stat-label">Consistency</div>
+            <div class="stat-value">{{ consistency_score|floatformat:0 }}<small>%</small></div>
+            <div class="progress progress-thin mt-2"><div class="progress-bar bg-success" style="width:{{ consistency_score }}%;"></div></div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card dna-card shadow-sm rounded-3 h-100 bg-warning bg-opacity-10 border-0 text-center p-2">
-            <div class="card-body p-1">
-                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;" class="text-warning">Streak</div>
-                <div style="font-size:1.4rem;font-weight:700;" class="text-warning">{{ streak }} <small style="font-size:0.7rem;">days</small></div>
-                <div style="font-size:0.6rem;" class="text-muted mt-1">Best: {{ longest_streak }}</div>
-            </div>
+        <div class="stat-card tint-warning">
+            <div class="stat-label">Streak</div>
+            <div class="stat-value">{{ streak }}<small> days</small></div>
+            <div class="text-subtle small mt-1 tabular">Best: {{ longest_streak }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card dna-card shadow-sm rounded-3 h-100 bg-info bg-opacity-10 border-0 text-center p-2">
-            <div class="card-body p-1">
-                <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;" class="text-info">Improvement</div>
-                <div style="font-size:1.4rem;font-weight:700;" class="text-info">
-                    {% if consistency_improvement != 0 %}{{ consistency_improvement|floatformat:0 }}<small style="font-size:0.7rem;">%</small>{% else %}&mdash;{% endif %}
+        <div class="stat-card tint-info">
+            <div class="stat-label">Improvement</div>
+            <div class="stat-value">
+                {% if consistency_improvement != 0 %}{{ consistency_improvement|floatformat:0 }}<small>%</small>{% else %}&mdash;{% endif %}
+            </div>
+            {% if consistency_improvement != 0 %}
+            <div class="small mt-1 {% if consistency_improvement > 0 %}text-good{% else %}text-bad{% endif %}">
+                <i class="fa-solid fa-arrow-{% if consistency_improvement > 0 %}up{% else %}down{% endif %}"></i> vs last month
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="sd-card-title mb-3"><i class="fa-solid fa-fingerprint"></i> Learning Profile</h6>
+        <div class="row g-3 row-cols-2 row-cols-md-3 row-cols-xl-6">
+            <div class="col"><div><div class="dna-mini-label mb-1">Best Time</div><span class="fw-750 small">{% if best_study_time %}{{ best_study_time|truncatechars:35 }}{% else %}&mdash;{% endif %}</span></div></div>
+            <div class="col"><div><div class="dna-mini-label mb-1">Favorite</div><span class="fw-750 small">{% if favorite_subject and favorite_subject != 'No subject data' %}{{ favorite_subject }}{% else %}&mdash;{% endif %}</span></div></div>
+            <div class="col"><div><div class="dna-mini-label mb-1">Weakest</div><span class="fw-750 small">{% if weakest_subject and weakest_subject != 'No subject data' and weakest_subject != favorite_subject %}{{ weakest_subject }}{% else %}&mdash;{% endif %}</span></div></div>
+            <div class="col"><div><div class="dna-mini-label mb-1">Best Day</div><span class="fw-750 small">{% if most_productive_day and most_productive_day != 'Insufficient data' %}{{ most_productive_day }}{% else %}&mdash;{% endif %}</span></div></div>
+            <div class="col"><div><div class="dna-mini-label mb-1">Least Prod.</div><span class="fw-750 small">{% if least_productive_day and least_productive_day != 'Insufficient data' %}{{ least_productive_day }}{% else %}&mdash;{% endif %}</span></div></div>
+            <div class="col"><div><div class="dna-mini-label mb-1">Avg Focus</div><span class="fw-750 small tabular">{{ avg_focus_duration }} min</span></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="sd-card-title"><i class="fa-solid fa-bullseye"></i> Goal Progress</h6>
+                {% if goal_progress %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small mb-1 tabular"><span>Weekly</span><span class="fw-bold">{{ goal_progress.weekly_focus_minutes|floatformat:0 }}/{{ goal_progress.weekly_goal_minutes }}m</span></div>
+                    {% if goal_progress.weekly_goal_minutes > 0 %}
+                    {% widthratio goal_progress.weekly_focus_minutes goal_progress.weekly_goal_minutes 100 as weekly_pct %}
+                    <div class="progress progress-thin"><div class="progress-bar bg-warning" style="width:{% if weekly_pct > 100 %}100{% else %}{{ weekly_pct }}{% endif %}%;"></div></div>
+                    {% endif %}
                 </div>
-                {% if consistency_improvement != 0 %}
-                <div style="font-size:0.6rem;" class="mt-1 {% if consistency_improvement > 0 %}text-success{% else %}text-danger{% endif %}">
-                    <i class="fa-solid fa-arrow-{% if consistency_improvement > 0 %}up{% else %}down{% endif %}"></i> vs last month
-                </div>
+                <div class="d-flex justify-content-between small tabular"><span class="text-muted">Monthly</span><span class="fw-medium">{{ goal_progress.monthly_focus_minutes|floatformat:0 }}m</span></div>
+                {% else %}<p class="text-muted small mb-0">No goals set yet.</p>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="sd-card-title"><i class="fa-solid fa-trophy"></i> Rewards</h6>
+                {% if reward_insights %}
+                <div class="d-flex justify-content-between small mb-1"><span class="text-muted">Level</span><span class="fw-bold">{{ reward_insights.level }}</span></div>
+                <div class="d-flex justify-content-between small mb-1"><span class="text-muted">XP</span><span class="fw-bold text-brand tabular">{{ reward_insights.total_xp_earned }}</span></div>
+                <div class="d-flex justify-content-between small"><span class="text-muted">Badges</span><span class="fw-bold text-warning tabular">{{ reward_insights.badges_earned }}/{{ reward_insights.total_badges }}</span></div>
+                {% else %}<p class="text-muted small mb-0">&mdash;</p>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="sd-card-title"><i class="fa-solid fa-shield-halved"></i> Distractions</h6>
+                {% if distraction_pattern and distraction_pattern != 'No interruptions recorded' %}
+                    <p class="small mb-0">{{ distraction_pattern|truncatechars:45 }}</p>
+                {% else %}
+                    <p class="text-muted small mb-0">None recorded</p>
                 {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<div class="row g-2 mb-2">
-    <div class="col-md-2 col-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1 text-center">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;">Best Time</div>
-                <div class="fw-bold" style="font-size:0.65rem;">{% if best_study_time %}{{ best_study_time|truncatechars:35 }}{% else %}—{% endif %}</div>
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="sd-card-title mb-3"><i class="fa-solid fa-fire"></i> Focus Mode Stats</h6>
+        {% if focus_stats %}
+        <div class="row g-2 row-cols-2 row-cols-md-4 row-cols-xl-7">
+            <div class="col"><div class="strip-stat"><div class="ss-value tabular">{{ focus_stats.total_focus_minutes|floatformat:0 }}m</div><div class="ss-label">Total Focus</div></div></div>
+            <div class="col"><div class="strip-stat"><div class="ss-value text-good tabular">{{ focus_stats.completed_sessions }}</div><div class="ss-label">Completed</div></div></div>
+            <div class="col"><div class="strip-stat"><div class="ss-value text-warning tabular">{{ focus_stats.interrupted_sessions }}</div><div class="ss-label">Interrupted</div></div></div>
+            <div class="col"><div class="strip-stat"><div class="ss-value text-subtle tabular">{{ focus_stats.early_exits }}</div><div class="ss-label">Early Exits</div></div></div>
+            <div class="col"><div class="strip-stat"><div class="ss-value text-bad tabular">{{ focus_stats.total_blocked_attempts }}</div><div class="ss-label">Blocked</div></div></div>
+            <div class="col"><div class="strip-stat"><div class="ss-value text-good tabular">{{ focus_stats.approved_requests }}</div><div class="ss-label">Approved</div></div></div>
+            <div class="col"><div class="strip-stat"><div class="ss-value text-bad tabular">{{ focus_stats.denied_requests }}</div><div class="ss-label">Denied</div></div></div>
+        </div>
+        {% else %}<p class="text-muted small mb-0">No focus mode activity yet.</p>{% endif %}
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="sd-card-title mb-3"><i class="fa-solid fa-chart-column"></i> Weekly Focus</h6>
+                <div class="chart-box" style="height:200px;"><canvas id="weeklyFocusChart"></canvas></div>
             </div>
         </div>
     </div>
-    <div class="col-md-2 col-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1 text-center">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;">Favorite</div>
-                <div class="fw-bold" style="font-size:0.65rem;">{% if favorite_subject and favorite_subject != 'No subject data' %}{{ favorite_subject }}{% else %}—{% endif %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-2 col-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1 text-center">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;">Weakest</div>
-                <div class="fw-bold" style="font-size:0.65rem;">{% if weakest_subject and weakest_subject != 'No subject data' and weakest_subject != favorite_subject %}{{ weakest_subject }}{% else %}—{% endif %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-2 col-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1 text-center">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;">Best Day</div>
-                <div class="fw-bold" style="font-size:0.65rem;">{% if most_productive_day and most_productive_day != 'Insufficient data' %}{{ most_productive_day }}{% else %}—{% endif %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-2 col-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1 text-center">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;">Least Prod.</div>
-                <div class="fw-bold" style="font-size:0.65rem;">{% if least_productive_day and least_productive_day != 'Insufficient data' %}{{ least_productive_day }}{% else %}—{% endif %}</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-2 col-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1 text-center">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;">Avg Focus</div>
-                <div class="fw-bold" style="font-size:0.65rem;">{{ avg_focus_duration }} min</div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="sd-card-title mb-3"><i class="fa-solid fa-list-check"></i> Weekly Tasks</h6>
+                <div class="chart-box" style="height:200px;"><canvas id="weeklyTaskChart"></canvas></div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row g-2 mb-2">
-    <div class="col-md-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1" style="font-size:0.65rem;">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;"><i class="fa-solid fa-bullseye text-warning me-1"></i>Goal</div>
-                {% if goal_progress %}
-                <div class="d-flex justify-content-between"><span class="text-muted">Weekly</span><span class="fw-medium">{{ goal_progress.weekly_focus_minutes|floatformat:0 }}/{{ goal_progress.weekly_goal_minutes }}m</span></div>
-                <div class="progress mb-1" style="height:3px;background:rgba(255,193,7,0.15);">
-                    {% if goal_progress.weekly_goal_minutes > 0 %}
-                    {% widthratio goal_progress.weekly_focus_minutes goal_progress.weekly_goal_minutes 100 as weekly_pct %}
-                    <div class="progress-bar bg-warning" style="width:{% if weekly_pct > 100 %}100{% else %}{{ weekly_pct }}{% endif %}%;"></div>
-                    {% endif %}
-                </div>
-                <div class="d-flex justify-content-between"><span class="text-muted">Monthly</span><span class="fw-medium">{{ goal_progress.monthly_focus_minutes|floatformat:0 }}m</span></div>
-                {% else %}<span class="text-muted">No goals</span>{% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1" style="font-size:0.65rem;">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;"><i class="fa-solid fa-trophy text-info me-1"></i>Rewards</div>
-                {% if reward_insights %}
-                <div class="d-flex justify-content-between"><span class="text-muted">Level</span><span class="fw-medium">{{ reward_insights.level }}</span></div>
-                <div class="d-flex justify-content-between"><span class="text-muted">XP</span><span class="fw-medium text-primary">{{ reward_insights.total_xp_earned }}</span></div>
-                <div class="d-flex justify-content-between"><span class="text-muted">Badges</span><span class="fw-medium text-warning">{{ reward_insights.badges_earned }}/{{ reward_insights.total_badges }}</span></div>
-                {% else %}<span class="text-muted">—</span>{% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-1" style="font-size:0.65rem;">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;"><i class="fa-solid fa-shield-halved text-danger me-1"></i>Distractions</div>
-                {% if distraction_pattern and distraction_pattern != 'No interruptions recorded' %}{{ distraction_pattern|truncatechars:45 }}{% else %}<span class="text-muted">None recorded</span>{% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-2 mb-2">
-    <div class="col-12">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-2" style="font-size:0.65rem;">
-                <div style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;opacity:0.7;margin-bottom:0.4rem;"><i class="fa-solid fa-fire text-success me-1"></i>Focus Mode Stats</div>
-                {% if focus_stats %}
-                <div class="row g-1 text-center">
-                    <div class="col"><div class="text-muted">Total Focus</div><div class="fw-bold">{{ focus_stats.total_focus_minutes|floatformat:0 }}m</div></div>
-                    <div class="col"><div class="text-muted">Completed</div><div class="fw-bold text-success">{{ focus_stats.completed_sessions }}</div></div>
-                    <div class="col"><div class="text-muted">Interrupted</div><div class="fw-bold text-warning">{{ focus_stats.interrupted_sessions }}</div></div>
-                    <div class="col"><div class="text-muted">Early Exits</div><div class="fw-bold text-secondary">{{ focus_stats.early_exits }}</div></div>
-                    <div class="col"><div class="text-muted">Blocked</div><div class="fw-bold text-danger">{{ focus_stats.total_blocked_attempts }}</div></div>
-                    <div class="col"><div class="text-muted">Approved</div><div class="fw-bold text-success">{{ focus_stats.approved_requests }}</div></div>
-                    <div class="col"><div class="text-muted">Denied</div><div class="fw-bold text-danger">{{ focus_stats.denied_requests }}</div></div>
-                </div>
-                {% else %}<span class="text-muted">No focus mode activity yet.</span>{% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-2 mb-2">
-    <div class="col-md-8">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-2">
-                <h6 class="fw-bold mb-1" style="font-size:0.8rem;"><i class="fa-solid fa-chart-bar text-primary me-2"></i>Weekly Focus</h6>
-                <div style="position:relative;height:180px;"><canvas id="weeklyFocusChart"></canvas></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-2">
-                <h6 class="fw-bold mb-1" style="font-size:0.8rem;"><i class="fa-solid fa-list-check text-success me-2"></i>Weekly Tasks</h6>
-                <div style="position:relative;height:180px;"><canvas id="weeklyTaskChart"></canvas></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-2 mb-2">
+<div class="row g-3 mb-4">
     <div class="col-md-6">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-2">
-                <h6 class="fw-bold mb-1" style="font-size:0.8rem;"><i class="fa-solid fa-chart-line text-info me-2"></i>Monthly Focus</h6>
-                <div style="position:relative;height:160px;"><canvas id="monthlyFocusChart"></canvas></div>
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="sd-card-title mb-3"><i class="fa-solid fa-chart-line"></i> Monthly Focus</h6>
+                <div class="chart-box" style="height:180px;"><canvas id="monthlyFocusChart"></canvas></div>
             </div>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-2">
-                <h6 class="fw-bold mb-1" style="font-size:0.8rem;"><i class="fa-solid fa-percentage text-primary me-2"></i>Monthly Tasks</h6>
-                <div style="position:relative;height:160px;"><canvas id="monthlyTaskChart"></canvas></div>
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="sd-card-title mb-3"><i class="fa-solid fa-percent"></i> Monthly Tasks</h6>
+                <div class="chart-box" style="height:180px;"><canvas id="monthlyTaskChart"></canvas></div>
             </div>
         </div>
     </div>
 </div>
 
 {% if subject_data %}
-<div class="row g-2 mb-2">
-    <div class="col-12">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-2">
-                <h6 class="fw-bold mb-1" style="font-size:0.8rem;"><i class="fa-solid fa-book text-info me-2"></i>Subject-wise Performance</h6>
-                <div class="row g-1">
-                    {% for s in subject_data %}
-                    <div class="col-md-3 col-6">
-                        <div class="d-flex justify-content-between" style="font-size:0.65rem;margin-bottom:2px;">
-                            <span>{{ s.subject }}</span>
-                            <span class="fw-bold">{{ s.pct }}%</span>
-                        </div>
-                        <div class="progress" style="height:4px;background:rgba(13,202,240,0.1);">
-                            <div class="progress-bar" style="width:{{ s.pct }}%;background:hsl({{ s.pct }}, 70%, 50%);"></div>
-                        </div>
-                    </div>
-                    {% endfor %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="sd-card-title mb-3"><i class="fa-solid fa-book"></i> Subject-wise Performance</h6>
+        <div class="row g-3">
+            {% for s in subject_data %}
+            <div class="col-md-3 col-6">
+                <div class="d-flex justify-content-between small mb-1 tabular">
+                    <span>{{ s.subject }}</span>
+                    <span class="fw-bold">{{ s.pct }}%</span>
+                </div>
+                <div class="progress progress-thin">
+                    <div class="progress-bar" style="width:{{ s.pct }}%;background:hsl({{ s.pct }}, 70%, 50%);"></div>
                 </div>
             </div>
+            {% endfor %}
         </div>
     </div>
 </div>
 {% endif %}
 
 {% if missed_deadlines and missed_deadlines.missed_count > 0 or parent_tasks and parent_tasks.total > 0 %}
-<div class="row g-2 mb-2">
+<div class="row g-3 mb-4">
     {% if missed_deadlines and missed_deadlines.missed_count > 0 %}
     <div class="col-md-6">
-        <div class="card dna-card shadow-sm rounded-3 border-0 bg-danger bg-opacity-5">
-            <div class="card-body p-2" style="font-size:0.75rem;">
-                <div class="fw-bold mb-0"><i class="fa-solid fa-calendar-xmark text-danger me-1"></i>{{ missed_deadlines.missed_count }} Missed Deadline{% if missed_deadlines.missed_count > 1 %}s{% endif %}</div>
+        <div class="card border-danger-subtle h-100">
+            <div class="card-body py-3 d-flex align-items-center gap-2">
+                <i class="fa-solid fa-calendar-xmark text-bad fs-5"></i>
+                <span class="fw-bold">{{ missed_deadlines.missed_count }} Missed Deadline{% if missed_deadlines.missed_count > 1 %}s{% endif %}</span>
             </div>
         </div>
     </div>
     {% endif %}
     {% if parent_tasks and parent_tasks.total > 0 %}
     <div class="col-md-6">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-2" style="font-size:0.75rem;">
-                <div class="fw-bold mb-0"><i class="fa-solid fa-people-group text-info me-1"></i>Parent Tasks: {{ parent_tasks.pct }}% complete ({{ parent_tasks.completed }}/{{ parent_tasks.total }})</div>
+        <div class="card h-100">
+            <div class="card-body py-3 d-flex align-items-center gap-2">
+                <i class="fa-solid fa-people-group text-brand fs-5"></i>
+                <span class="fw-bold tabular">Parent Tasks: {{ parent_tasks.pct }}% complete ({{ parent_tasks.completed }}/{{ parent_tasks.total }})</span>
             </div>
         </div>
     </div>
@@ -277,24 +221,22 @@
 {% endif %}
 
 {% if recommendations %}
-<div class="row g-2 mb-2">
-    <div class="col-12">
-        <div class="card dna-card shadow-sm rounded-3 border-0">
-            <div class="card-body p-2">
-                <h6 class="fw-bold mb-1" style="font-size:0.8rem;"><i class="fa-solid fa-lightbulb text-warning me-2"></i>Support Tips</h6>
-                <div class="row g-1">
-                    {% for rec in recommendations %}
-                    <div class="col-md-6">
-                        <div class="rec-card" style="border-left-color: {% if rec.type == 'positive' %}#28a745{% elif rec.type == 'motivation' %}#ffc107{% elif rec.type == 'improvement' %}#dc3545{% elif rec.type == 'goal' %}#17a2b8{% elif rec.type == 'action' %}#6f42c1{% else %}#667eea{% endif %};">
-                            <small style="font-size:0.55rem;text-transform:uppercase;letter-spacing:0.3px;font-weight:700;color:#6c757d;">
-                                {% if rec.type == 'positive' %}Achievement{% elif rec.type == 'motivation' %}Motivation{% elif rec.type == 'improvement' %}Action Item{% elif rec.type == 'goal' %}Goal{% elif rec.type == 'action' %}Action{% else %}Strategy{% endif %}
-                            </small>
-                            <p class="mb-0" style="font-size:0.7rem;">{{ rec.text }}</p>
-                        </div>
+<div class="card">
+    <div class="card-body">
+        <h6 class="sd-card-title mb-3"><i class="fa-solid fa-lightbulb"></i> Support Tips</h6>
+        <div class="row g-3">
+            {% for rec in recommendations %}
+            <div class="col-lg-6">
+                <div class="rec-card"
+                     style="border-left-color: {% if rec.type == 'positive' %}var(--sd-success){% elif rec.type == 'motivation' %}var(--sd-warning){% elif rec.type == 'improvement' %}var(--sd-danger){% elif rec.type == 'goal' %}var(--sd-info){% elif rec.type == 'action' %}#a78bfa{% else %}var(--sd-primary){% endif %};">
+                    <div class="dna-mini-label"
+                         style="color: {% if rec.type == 'positive' %}var(--sd-success){% elif rec.type == 'motivation' %}var(--sd-warning){% elif rec.type == 'improvement' %}var(--sd-danger){% elif rec.type == 'goal' %}var(--sd-info){% elif rec.type == 'action' %}#a78bfa{% else %}var(--sd-primary){% endif %};">
+                        {% if rec.type == 'positive' %}Achievement{% elif rec.type == 'motivation' %}Motivation{% elif rec.type == 'improvement' %}Action Item{% elif rec.type == 'goal' %}Goal{% elif rec.type == 'action' %}Action{% else %}Strategy{% endif %}
                     </div>
-                    {% endfor %}
+                    <p class="mb-0 small mt-1">{{ rec.text }}</p>
                 </div>
             </div>
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -306,7 +248,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     Chart.defaults.font.family = 'Inter, sans-serif';
-    Chart.defaults.color = '#adb5bd';
+    Chart.defaults.color = (getComputedStyle(document.body).getPropertyValue('--sd-text-faint') || '').trim() || '#adb5bd';
 
     function initCharts() {
         {% if weekly_focus %}
@@ -319,10 +261,10 @@
                     datasets: [{
                         label: 'Focus (min)',
                         data: wf.map(function(d) { return d.minutes; }),
-                        backgroundColor: 'rgba(102,126,234,0.6)',
-                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(90,103,242,0.65)',
+                        borderColor: '#5a67f2',
                         borderWidth: 1,
-                        borderRadius: 4
+                        borderRadius: 6
                     }]
                 },
                 options: {
@@ -341,7 +283,7 @@
                 type: 'doughnut',
                 data: {
                     labels: wt.map(function(d) { return d.day; }),
-                    datasets: [{                         data: wt.map(function(d) { return d.completed; }), backgroundColor: ['rgba(40,167,69,0.7)','rgba(102,126,234,0.7)','rgba(255,193,7,0.7)','rgba(220,53,69,0.7)','rgba(23,162,184,0.7)','rgba(232,62,140,0.7)','rgba(108,117,125,0.7)'], borderWidth: 0 }]
+                    datasets: [{                         data: wt.map(function(d) { return d.completed; }), backgroundColor: ['rgba(34,197,139,0.75)','rgba(90,103,242,0.75)','rgba(245,183,61,0.75)','rgba(240,100,122,0.75)','rgba(56,189,248,0.75)','rgba(232,121,249,0.75)','rgba(154,163,181,0.75)'], borderWidth: 0 }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
@@ -360,8 +302,8 @@
                     labels: mf.map(function(d) { return d.label; }),
                     datasets: [{
                         label: 'Focus Hours', data: mf.map(function(d) { return Math.round(d.minutes / 6) / 10; }),
-                        borderColor: '#17a2b8', backgroundColor: 'rgba(23,162,184,0.1)', fill: true, tension: 0.4,
-                        pointBackgroundColor: '#17a2b8', pointRadius: 3
+                        borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.1)', fill: true, tension: 0.4,
+                        pointBackgroundColor: '#22d3ee', pointRadius: 3
                     }]
                 },
                 options: {
@@ -382,8 +324,8 @@
                     labels: mt.map(function(d) { return d.label; }),
                     datasets: [{
                         label: 'Completion %', data: mt.map(function(d) { return d.pct; }),
-                        borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', fill: true, tension: 0.4,
-                        pointBackgroundColor: '#667eea', pointRadius: 3
+                        borderColor: '#5a67f2', backgroundColor: 'rgba(90,103,242,0.1)', fill: true, tension: 0.4,
+                        pointBackgroundColor: '#5a67f2', pointRadius: 3
                     }]
                 },
                 options: {

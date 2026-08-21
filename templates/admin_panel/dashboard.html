@@ -1,128 +1,126 @@
 {% extends 'base.html' %}
+{% block title %}Admin Panel - Sadhana{% endblock %}
+{% block topbar_title %}Admin Panel{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fa-solid fa-shield-halved"></i> Admin Panel</h2>
-    <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm">Back to App</a>
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon" style="background:rgba(90,103,242,.15);color:var(--sd-primary);"><i class="fa-solid fa-shield-halved"></i></span> Admin Panel</h2>
+        <p class="sd-page-subtitle">System overview and moderation tools</p>
+    </div>
+    <div class="sd-page-actions">
+        <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary">Back to App</a>
+    </div>
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card border-primary h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-primary"><i class="fa-solid fa-users"></i> Users</h5>
-                <p class="display-6 fw-bold">{{ total_users }}</p>
-                <small class="text-muted">{{ total_children }} Children · {{ total_parents }} Parents</small>
-                <div class="mt-2"><a href="{% url 'admin_list_users' %}" class="btn btn-sm btn-outline-primary">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-primary h-100 py-4">
+            <span class="stat-icon tint-primary mx-auto mb-2"><i class="fa-solid fa-users"></i></span>
+            <div class="stat-label">Users</div>
+            <div class="stat-value">{{ total_users }}</div>
+            <small class="text-muted d-block mt-1">{{ total_children }} Children &middot; {{ total_parents }} Parents</small>
+            <a href="{% url 'admin_list_users' %}" class="btn btn-outline-primary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-success h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-success"><i class="fa-solid fa-clock"></i> Sessions</h5>
-                <p class="display-6 fw-bold">{{ total_sessions }}</p>
-                <small class="text-muted">{{ active_sessions }} active now</small>
-                <div class="mt-2"><a href="{% url 'admin_list_sessions' %}" class="btn btn-sm btn-outline-success">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-info h-100 py-4">
+            <span class="stat-icon tint-info mx-auto mb-2"><i class="fa-solid fa-clock"></i></span>
+            <div class="stat-label">Sessions</div>
+            <div class="stat-value">{{ total_sessions }}</div>
+            <small class="text-muted d-block mt-1 tabular">{{ active_sessions }} active now</small>
+            <a href="{% url 'admin_list_sessions' %}" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-warning h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-warning"><i class="fa-solid fa-bell"></i> Notifications</h5>
-                <p class="display-6 fw-bold">{{ total_notifications }}</p>
-                <small class="text-muted">System notifications</small>
-                <div class="mt-2"><a href="{% url 'admin_list_notifications' %}" class="btn btn-sm btn-outline-warning">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-warning h-100 py-4">
+            <span class="stat-icon tint-warning mx-auto mb-2"><i class="fa-solid fa-bell"></i></span>
+            <div class="stat-label">Notifications</div>
+            <div class="stat-value">{{ total_notifications }}</div>
+            <small class="text-muted d-block mt-1">System notifications</small>
+            <a href="{% url 'admin_list_notifications' %}" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-secondary h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-secondary"><i class="fa-solid fa-list-check"></i> Tasks</h5>
-                <p class="display-6 fw-bold">{{ total_tasks }}</p>
-                <small class="text-muted">To-do items</small>
-                <div class="mt-2"><a href="{% url 'admin_list_tasks' %}" class="btn btn-sm btn-outline-secondary">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-neutral h-100 py-4">
+            <span class="stat-icon tint-neutral mx-auto mb-2"><i class="fa-solid fa-list-check"></i></span>
+            <div class="stat-label">Tasks</div>
+            <div class="stat-value">{{ total_tasks }}</div>
+            <small class="text-muted d-block mt-1">To-do items</small>
+            <a href="{% url 'admin_list_tasks' %}" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-info h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-info"><i class="fa-solid fa-handshake"></i> Connections</h5>
-                <p class="display-6 fw-bold">{{ total_connections }}</p>
-                <small class="text-muted">{{ pending_connections }} pending</small>
-                <div class="mt-2"><a href="{% url 'admin_list_connections' %}" class="btn btn-sm btn-outline-info">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-info h-100 py-4">
+            <span class="stat-icon tint-info mx-auto mb-2"><i class="fa-solid fa-handshake"></i></span>
+            <div class="stat-label">Connections</div>
+            <div class="stat-value">{{ total_connections }}</div>
+            <small class="text-muted d-block mt-1 tabular">{{ pending_connections }} pending</small>
+            <a href="{% url 'admin_list_connections' %}" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-warning h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-warning"><i class="fa-solid fa-bullseye"></i> Goals</h5>
-                <p class="display-6 fw-bold">{{ total_goals|default:"0" }}</p>
-                <small class="text-muted">Study targets</small>
-                <div class="mt-2"><a href="{% url 'admin_list_goals' %}" class="btn btn-sm btn-outline-warning">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-warning h-100 py-4">
+            <span class="stat-icon tint-warning mx-auto mb-2"><i class="fa-solid fa-bullseye"></i></span>
+            <div class="stat-label">Goals</div>
+            <div class="stat-value">{{ total_goals|default:"0" }}</div>
+            <small class="text-muted d-block mt-1">Study targets</small>
+            <a href="{% url 'admin_list_goals' %}" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-success h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-success"><i class="fa-solid fa-check-circle"></i> Whitelist</h5>
-                <p class="display-6 fw-bold">{{ total_whitelist }}</p>
-                <small class="text-muted">Allowed apps</small>
-                <div class="mt-2"><a href="{% url 'admin_list_whitelist' %}" class="btn btn-sm btn-outline-success">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-success h-100 py-4">
+            <span class="stat-icon tint-success mx-auto mb-2"><i class="fa-solid fa-circle-check"></i></span>
+            <div class="stat-label">Whitelist</div>
+            <div class="stat-value">{{ total_whitelist }}</div>
+            <small class="text-muted d-block mt-1">Allowed apps</small>
+            <a href="{% url 'admin_list_whitelist' %}" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-danger h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-danger"><i class="fa-solid fa-ban"></i> Blacklist</h5>
-                <p class="display-6 fw-bold">{{ total_blacklist }}</p>
-                <small class="text-muted">Restricted apps</small>
-                <div class="mt-2"><a href="{% url 'admin_list_blacklist' %}" class="btn btn-sm btn-outline-danger">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-danger h-100 py-4">
+            <span class="stat-icon tint-danger mx-auto mb-2"><i class="fa-solid fa-ban"></i></span>
+            <div class="stat-label">Blacklist</div>
+            <div class="stat-value">{{ total_blacklist }}</div>
+            <small class="text-muted d-block mt-1">Restricted apps</small>
+            <a href="{% url 'admin_list_blacklist' %}" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-warning h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-warning"><i class="fa-solid fa-paper-plane"></i> Access Requests</h5>
-                <p class="display-6 fw-bold">{{ total_access_requests }}</p>
-                <small class="text-muted">{{ pending_access_requests }} pending</small>
-                <div class="mt-2"><a href="{% url 'admin_list_access_requests' %}" class="btn btn-sm btn-outline-warning">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-warning h-100 py-4">
+            <span class="stat-icon tint-warning mx-auto mb-2"><i class="fa-solid fa-paper-plane"></i></span>
+            <div class="stat-label">Access Requests</div>
+            <div class="stat-value">{{ total_access_requests }}</div>
+            <small class="text-muted d-block mt-1 tabular">{{ pending_access_requests }} pending</small>
+            <a href="{% url 'admin_list_access_requests' %}" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card border-info h-100">
-            <div class="card-body text-center">
-                <h5 class="card-title text-info"><i class="fa-solid fa-star"></i> Rewards</h5>
-                <p class="display-6 fw-bold">{{ total_reward_profiles }}</p>
-                <small class="text-muted">{{ total_badges }} badges · {{ total_badge_awards }} awards</small>
-                <div class="mt-2"><a href="/admin/rewards/" class="btn btn-sm btn-outline-info">Manage</a></div>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center tint-info h-100 py-4">
+            <span class="stat-icon tint-info mx-auto mb-2"><i class="fa-solid fa-star"></i></span>
+            <div class="stat-label">Rewards</div>
+            <div class="stat-value">{{ total_reward_profiles }}</div>
+            <small class="text-muted d-block mt-1 tabular">{{ total_badges }} badges &middot; {{ total_badge_awards }} awards</small>
+            <a href="/admin/rewards/" class="btn btn-outline-secondary btn-sm mt-3">Manage</a>
         </div>
     </div>
 </div>
 
 <div class="row g-3 mb-4">
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6 class="text-warning"><i class="fa-solid fa-bolt"></i> XP Economy</h6>
-                <p class="display-6 fw-bold text-warning">{{ total_xp_awarded }}</p>
+        <div class="card h-100">
+            <div class="card-body text-center py-4">
+                <h6 class="sd-card-title justify-content-center" style="color: var(--sd-warning);"><i class="fa-solid fa-bolt"></i> XP Economy</h6>
+                <div class="stat-value mb-1" style="color: var(--sd-warning);">{{ total_xp_awarded }}</div>
                 <small class="text-muted">Total XP awarded</small>
             </div>
         </div>
     </div>
     <div class="col-md-6">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6 class="text-warning"><i class="fa-solid fa-coins"></i> Coin Economy</h6>
-                <p class="display-6 fw-bold text-warning">{{ total_coins_awarded }}</p>
+        <div class="card h-100">
+            <div class="card-body text-center py-4">
+                <h6 class="sd-card-title justify-content-center" style="color: var(--sd-warning);"><i class="fa-solid fa-coins"></i> Coin Economy</h6>
+                <div class="stat-value mb-1" style="color: var(--sd-warning);">{{ total_coins_awarded }}</div>
                 <small class="text-muted">Total coins awarded</small>
             </div>
         </div>
@@ -130,13 +128,13 @@
 </div>
 
 {% if recent_sessions %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fa-solid fa-clock-rotate-left"></i> Recent Sessions</span>
-        <a href="{% url 'admin_list_sessions' %}" class="btn btn-sm btn-outline-success">View All</a>
+<div class="sd-table-wrap">
+    <div class="d-flex justify-content-between align-items-center p-3 pb-0 flex-wrap gap-2">
+        <h5 class="sd-card-title mb-0"><i class="fa-solid fa-clock-rotate-left"></i> Recent Sessions</h5>
+        <a href="{% url 'admin_list_sessions' %}" class="btn btn-outline-secondary btn-sm">View All</a>
     </div>
-    <div class="card-body p-0">
-        <table class="table table-dark table-striped mb-0">
+    <div class="table-responsive mt-2">
+        <table class="table table-striped table-hover align-middle mb-0">
             <thead>
                 <tr>
                     <th>Type</th>
@@ -151,17 +149,23 @@
             <tbody>
                 {% for s in recent_sessions %}
                 <tr>
-                    <td><span class="badge bg-{% if s.session_type == 'FOCUS' %}info{% else %}secondary{% endif %}">{{ s.get_session_type_display }}</span></td>
+                    <td><span class="badge soft-{% if s.session_type == 'FOCUS' %}info{% else %}neutral{% endif %}">{{ s.get_session_type_display }}</span></td>
                     <td>{{ s.child.username }}</td>
-                    <td>{{ s.planned_duration }} min</td>
-                    <td>{{ s.actual_focus_seconds }}s ({{ s.focus_score }}%)</td>
-                    <td>{{ s.distraction_seconds }}s</td>
+                    <td class="tabular">{{ s.planned_duration }} min</td>
+                    <td class="tabular">{{ s.actual_focus_seconds }}s ({{ s.focus_score }}%)</td>
+                    <td class="tabular">{{ s.distraction_seconds }}s</td>
                     <td>
-                        <span class="badge bg-{% if s.status == 'COMPLETED' %}success{% elif s.status == 'ACTIVE' %}primary{% elif s.status == 'INTERRUPTED' %}warning text-dark{% else %}secondary{% endif %}">
-                            {{ s.status }}
-                        </span>
+                        {% if s.status == 'COMPLETED' %}
+                            <span class="badge soft-success">{{ s.status }}</span>
+                        {% elif s.status == 'ACTIVE' %}
+                            <span class="badge soft-primary">{{ s.status }}</span>
+                        {% elif s.status == 'INTERRUPTED' %}
+                            <span class="badge soft-warning">{{ s.status }}</span>
+                        {% else %}
+                            <span class="badge soft-neutral">{{ s.status }}</span>
+                        {% endif %}
                     </td>
-                    <td>{{ s.start_time|date:"M d, H:i" }}</td>
+                    <td class="text-muted small tabular">{{ s.start_time|date:"M d, H:i" }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

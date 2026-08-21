@@ -1,23 +1,12 @@
 {% extends 'base.html' %}
-{% block content %}
-<style>
-    .request-card { transition: all 0.2s ease; }
-    .request-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-    .nav-pills .nav-link.active { background-color: var(--bs-primary); }
-    .stat-card { border-radius: 12px; padding: 1rem; text-align: center; }
-    .list-item-enter { animation: slideIn 0.3s ease; }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-</style>
+{% block title %}Focus Monitor - Sadhana{% endblock %}
+{% block topbar_title %}Focus Mode Control{% endblock %}
 
-<div class="row mt-4">
-    <div class="col-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-            <div>
-                <h2 class="fw-bold"><i class="fa-solid fa-bullseye text-primary me-2"></i>Focus Mode Control</h2>
-                <p class="text-muted">Manage access requests and focus settings for your children.</p>
-            </div>
-        </div>
-        <hr>
+{% block content %}
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-bullseye"></i></span> Focus Mode Control</h2>
+        <p class="sd-page-subtitle">Manage access requests and focus settings for your children.</p>
     </div>
 </div>
 
@@ -82,7 +71,6 @@
                     <button class="btn btn-sm btn-outline-secondary" onclick="autoExpire()"><i class="fa-solid fa-hourglass-end me-1"></i> Auto-Expire Old</button>
                 </div>
 
-                {% if pending_requests %}
                 <div class="row g-3" id="pendingRequestsContainer">
                     {% for req in pending_requests %}
                     <div class="col-md-6 request-card" id="req-{{ req.id }}">
@@ -93,7 +81,7 @@
                                         <h6 class="fw-bold mb-0">{{ req.blacklist_item.name }}</h6>
                                         <small class="text-muted">{{ req.child.username }}</small>
                                     </div>
-                                    <span class="badge bg-warning text-dark"><i class="fa-solid fa-hourglass-half me-1"></i>{{ req.requested_at|timesince }} ago</span>
+                                    <span class="badge soft-warning"><i class="fa-solid fa-hourglass-half me-1"></i>{{ req.requested_at|timesince }} ago</span>
                                 </div>
                                 <p class="small text-muted mb-2">
                                     <i class="fa-solid fa-clock me-1"></i>During {{ req.session.planned_duration }}min focus session
@@ -119,10 +107,10 @@
                     </div>
                     {% endfor %}
                 </div>
-                {% else %}
-                <div class="text-center py-5">
-                    <i class="fa-solid fa-check-circle text-success fa-3x mb-3"></i>
-                    <p class="text-muted mb-0">No pending requests. Your children are focused!</p>
+                {% if not pending_requests %}
+                <div class="empty-state compact">
+                    <span class="es-icon"><i class="fa-solid fa-circle-check"></i></span>
+                    <p class="es-text mb-0">No pending requests. Your children are focused!</p>
                 </div>
                 {% endif %}
             </div>

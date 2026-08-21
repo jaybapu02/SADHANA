@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
+{% block title %}Edit User - Admin{% endblock %}
+{% block topbar_title %}Edit User{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
-            <div class="card-header"><i class="fa-solid fa-pen"></i> Edit User: {{ user_obj.username }}</div>
-            <div class="card-body">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title mb-3"><i class="fa-solid fa-pen"></i> Edit User: {{ user_obj.username }}</h5>
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
@@ -23,17 +26,17 @@
                             <option value="ADMIN" {% if user_obj.role == 'ADMIN' %}selected{% endif %}>Admin</option>
                         </select>
                     </div>
-                    <div class="form-check mb-3">
-                        <input type="checkbox" name="is_active" class="form-check-input" id="id_active" {% if user_obj.is_active %}checked{% endif %}>
+                    <div class="form-check form-switch mb-2">
+                        <input type="checkbox" name="is_active" class="form-check-input" role="switch" id="id_active" {% if user_obj.is_active %}checked{% endif %}>
                         <label class="form-check-label" for="id_active">Active</label>
                     </div>
-                    <div class="form-check mb-3">
-                        <input type="checkbox" name="is_staff" class="form-check-input" id="id_staff" {% if user_obj.is_staff %}checked{% endif %}>
+                    <div class="form-check form-switch mb-4">
+                        <input type="checkbox" name="is_staff" class="form-check-input" role="switch" id="id_staff" {% if user_obj.is_staff %}checked{% endif %}>
                         <label class="form-check-label" for="id_staff">Staff (Django admin access)</label>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <a href="{% url 'admin_list_users' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-gradient"><i class="fa-solid fa-floppy-disk me-1"></i> Save</button>
+                        <a href="{% url 'admin_list_users' %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

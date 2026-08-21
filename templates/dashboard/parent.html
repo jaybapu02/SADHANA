@@ -1,55 +1,62 @@
 {% extends 'base.html' %}
-{% block content %}
-<div class="row mt-4">
-    <div class="col-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap">
-            <div>
-                <h2 class="fw-bold">Parent Dashboard</h2>
-                <p class="text-muted">Welcome, {{ request.user.username }}! You are monitoring your child's progress.</p>
-            </div>
-            <a href="{% url 'notification_list' %}" class="btn btn-outline-warning position-relative">
-                <i class="fa-solid fa-bell"></i> Notifications
-                {% if unread_count > 0 %}
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ unread_count }}</span>
-                {% endif %}
-            </a>
-        </div>
-        <hr>
-    </div>
+{% block title %}Parent Dashboard - Sadhana{% endblock %}
+{% block topbar_title %}Parent Dashboard{% endblock %}
 
-    <div class="col-md-5 mb-4">
-        <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-body">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-link text-primary me-2"></i>Connect with Child</h5>
+{% block content %}
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-users-viewfinder"></i></span> Parent Dashboard</h2>
+        <p class="sd-page-subtitle">Welcome, {{ request.user.username }}! You are monitoring your child's progress.</p>
+    </div>
+    <div class="sd-page-actions">
+        <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary position-relative">
+            <i class="fa-regular fa-bell me-1"></i> Notifications
+            {% if unread_count > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ unread_count }}</span>
+            {% endif %}
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- LEFT COLUMN -->
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title"><i class="fa-solid fa-link"></i> Connect with Child</h5>
                 <form action="{% url 'send_request' %}" method="POST">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="child_id" class="form-label text-muted small">Enter Child ID</label>
-                        <input type="text" class="form-control" id="child_id" name="child_id" placeholder="e.g. 8A4F9C21" required>
+                        <label for="child_id" class="form-label">Enter Child ID</label>
+                        <input type="text" class="form-control text-uppercase" id="child_id" name="child_id"
+                               placeholder="e.g. 8A4F9C21" required
+                               style="font-family:'JetBrains Mono',monospace; letter-spacing:.18em;">
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Send Request</button>
+                    <button type="submit" class="btn btn-gradient w-100">
+                        <i class="fa-solid fa-paper-plane me-1"></i> Send Request
+                    </button>
                 </form>
             </div>
         </div>
 
-        <div class="card shadow-sm border-0 rounded-4 mt-4">
+        <div class="card mt-4">
             <div class="card-body">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-clock-rotate-left text-warning me-2"></i>Connection Status</h5>
+                <h5 class="sd-card-title"><i class="fa-solid fa-clock-rotate-left" style="color: var(--sd-warning);"></i> Connection Status</h5>
                 {% if sent_requests %}
                     <ul class="list-group list-group-flush">
                         {% for req in sent_requests %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0">
+                            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent px-0 border-token">
                                 <div>
                                     <strong>{{ req.child.username }}</strong>
-                                    <div class="small text-muted">ID: {{ req.child.child_id }}</div>
+                                    <div class="small text-muted tabular">ID: {{ req.child.child_id }}</div>
                                 </div>
                                 <div>
                                     {% if req.status == 'PENDING' %}
-                                        <span class="badge bg-warning text-dark"><i class="fa-solid fa-hourglass-half"></i> Pending</span>
+                                        <span class="badge soft-warning"><i class="fa-solid fa-hourglass-half"></i> Pending</span>
                                     {% elif req.status == 'ACCEPTED' %}
-                                        <span class="badge bg-success"><i class="fa-solid fa-check"></i> Connected</span>
+                                        <span class="badge soft-success"><i class="fa-solid fa-check"></i> Connected</span>
                                     {% elif req.status == 'REJECTED' %}
-                                        <span class="badge bg-danger"><i class="fa-solid fa-xmark"></i> Rejected</span>
+                                        <span class="badge soft-danger"><i class="fa-solid fa-xmark"></i> Rejected</span>
                                     {% endif %}
                                 </div>
                             </li>
@@ -62,56 +69,53 @@
         </div>
     </div>
 
-    <div class="col-md-7 mb-4">
-        <div class="card shadow border-0 rounded-4 h-100">
-            <div class="card-body">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-children text-success me-2"></i>My Children</h5>
+    <!-- RIGHT COLUMN -->
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title"><i class="fa-solid fa-children" style="color: var(--sd-success);"></i> My Children</h5>
 
                 {% if connected_children %}
-                    <div class="row g-3">
+                    <div class="row g-4">
                         {% for child in connected_children %}
                             <div class="col-md-6">
-                                <div class="card bg-secondary bg-opacity-10 border-0 h-100 rounded-3">
-                                    <div class="card-body text-center">
-                                        <div class="mb-3">
-                                            <i class="fa-solid fa-user-graduate fa-3x text-primary"></i>
-                                        </div>
-                                        <h5 class="fw-bold">{{ child.username }}</h5>
-                                        <div class="d-grid gap-1 mt-2">
-                                            <a href="{% url 'chat:chat_page' %}?to={{ child.id }}" class="btn btn-sm btn-outline-warning"><i class="fa-solid fa-comments"></i> Chat</a>
-                                            <a href="{% url 'parent_child_stats' child.id %}" class="btn btn-sm btn-outline-primary">Study Stats</a>
-                                            <a href="{% url 'parent_child_todo' child.id %}" class="btn btn-sm btn-outline-success">To-Do Progress</a>
-                                            <a href="{% url 'studydna_parent' child.id %}" class="btn btn-sm btn-outline-info"><i class="fa-solid fa-dna"></i> Study DNA</a>
-                                        </div>
-
-                                        {% for ct in children_todo %}
-                                            {% if ct.child.id == child.id %}
-                                                <hr class="my-2">
-                                                <div class="small text-start px-2">
-                                                    <div class="d-flex justify-content-between">
-                                                        <span class="text-muted">Today's Tasks:</span>
-                                                        <span class="fw-bold">{{ ct.today_completed }}/{{ ct.today_total }}</span>
-                                                    </div>
-                                                    <div class="progress mt-1" style="height:6px;">
-                                                        <div class="progress-bar bg-success" style="width:{{ ct.today_pct }}%"></div>
-                                                    </div>
-                                                    <div class="d-flex justify-content-between mt-1">
-                                                        <span class="text-muted">Week:</span>
-                                                        <span class="fw-bold">{{ ct.week_pct }}%</span>
-                                                    </div>
-                                                </div>
-                                            {% endif %}
-                                        {% endfor %}
+                                <div class="child-mini-card">
+                                    <span class="cmc-avatar"><i class="fa-solid fa-user-graduate"></i></span>
+                                    <h5 class="cmc-name">{{ child.username }}</h5>
+                                    <div class="d-grid gap-2 mt-3 px-2">
+                                        <a href="{% url 'chat:chat_page' %}?to={{ child.id }}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-comments me-1"></i> Chat</a>
+                                        <a href="{% url 'parent_child_stats' child.id %}" class="btn btn-sm btn-outline-primary">Study Stats</a>
+                                        <a href="{% url 'parent_child_todo' child.id %}" class="btn btn-sm btn-outline-success">To-Do Progress</a>
+                                        <a href="{% url 'studydna_parent' child.id %}" class="btn btn-sm btn-outline-info"><i class="fa-solid fa-dna me-1"></i> Study DNA</a>
                                     </div>
+
+                                    {% for ct in children_todo %}
+                                        {% if ct.child.id == child.id %}
+                                            <hr class="my-3 border-token">
+                                            <div class="small text-start px-2 tabular">
+                                                <div class="d-flex justify-content-between">
+                                                    <span class="text-muted">Today's Tasks:</span>
+                                                    <span class="fw-bold">{{ ct.today_completed }}/{{ ct.today_total }}</span>
+                                                </div>
+                                                <div class="progress progress-thin mt-1">
+                                                    <div class="progress-bar bg-success" style="width:{{ ct.today_pct }}%"></div>
+                                                </div>
+                                                <div class="d-flex justify-content-between mt-2">
+                                                    <span class="text-muted">Week:</span>
+                                                    <span class="fw-bold">{{ ct.week_pct }}%</span>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
                                 </div>
                             </div>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
-                        <i class="fa-solid fa-magnifying-glass text-muted fa-3x mb-3"></i>
-                        <p class="text-muted">You are not connected to any children yet.</p>
-                        <p class="small">Use the form on the left to send a connection request using their Child ID.</p>
+                    <div class="empty-state">
+                        <span class="es-icon"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <div class="es-title">No children connected yet</div>
+                        <p class="es-text">Use the form on the left to send a connection request using their Child ID.</p>
                     </div>
                 {% endif %}
             </div>

@@ -1,40 +1,42 @@
 {% extends 'base.html' %}
-{% block content %}
-<div class="row mt-4">
-    <div class="col-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h2 class="fw-bold"><i class="fa-solid fa-bell text-warning me-2"></i>Notifications</h2>
-            <div>
-                <button id="markAllReadBtn" class="btn btn-outline-primary btn-sm" style="display:none;">
-                    <i class="fa-solid fa-check-double me-1"></i> Mark All Read
-                </button>
-                <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm ms-2">
-                    <i class="fa-solid fa-arrow-left me-1"></i> Back
-                </a>
-            </div>
-        </div>
-        <hr>
-    </div>
+{% block title %}Notifications - Sadhana{% endblock %}
+{% block topbar_title %}Notifications{% endblock %}
 
-    <div class="col-md-8 mx-auto">
-        <div class="card shadow-sm border-0 rounded-4">
-            <div class="card-body">
-                <div id="unreadAlert" class="alert alert-info d-flex align-items-center" style="display:none;">
+{% block content %}
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon" style="background:rgba(245,183,61,.15);color:var(--sd-warning);"><i class="fa-solid fa-bell"></i></span> Notifications</h2>
+    </div>
+    <div class="sd-page-actions">
+        <button id="markAllReadBtn" class="btn btn-gradient" style="display:none;">
+            <i class="fa-solid fa-check-double me-1"></i> Mark All Read
+        </button>
+        <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-1"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-body p-2 p-md-3">
+                <div id="unreadAlert" class="alert alert-info d-flex align-items-center mx-1 mt-1" style="display:none;">
                     <i class="fa-solid fa-circle-info me-2"></i>
-                    You have <strong id="unreadCountDisplay">0</strong> unread notification(s).
+                    <div>You have <strong id="unreadCountDisplay">0</strong> unread notification(s).</div>
                 </div>
 
-                <div id="notificationList" class="list-group list-group-flush">
-                    <div class="text-center py-5" id="loadingState">
+                <div id="notificationList">
+                    <div class="loading-state" id="loadingState">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="text-center py-5" id="emptyState" style="display:none;">
-                    <i class="fa-solid fa-bell-slash text-muted fa-4x mb-3"></i>
-                    <p class="text-muted">No notifications yet.</p>
+                <div class="empty-state" id="emptyState" style="display:none;">
+                    <span class="es-icon"><i class="fa-solid fa-bell-slash"></i></span>
+                    <p class="es-text">No notifications yet.</p>
                 </div>
             </div>
         </div>
@@ -82,22 +84,23 @@ function fetchNotifications() {
             let html = '';
             data.notifications.forEach(n => {
                 const timeAgo = timeSince(n.timestamp);
-                const unreadClass = n.is_read ? '' : 'border-start border-4 border-primary ps-2';
-                const badgeHtml = n.is_read ? '' : '<span class="badge bg-primary rounded-pill">New</span>';
+                const unreadClass = n.is_read ? '' : 'unread';
+                const badgeHtml = n.is_read ? '' : '<span class="badge soft-primary">New</span>';
 
                 html += `
-                    <div class="list-group-item bg-transparent px-0 border-bottom d-flex justify-content-between align-items-start ${unreadClass}" data-id="${n.id}">
-                        <div class="flex-grow-1">
-                            <div class="d-flex align-items-center gap-2 mb-1">
+                    <div class="notif-row ${unreadClass}" data-id="${n.id}">
+                        <span class="notif-icon"><i class="fa-solid fa-bell"></i></span>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                                 ${badgeHtml}
                                 <small class="text-muted">${timeAgo} ago</small>
-                                <span class="badge bg-info bg-opacity-25 text-info">${escapeHtml(n.notification_type.replace(/_/g, ' '))}</span>
+                                <span class="badge soft-info text-capitalize">${escapeHtml(n.notification_type.replace(/_/g, ' '))}</span>
                             </div>
-                            <p class="mb-1">${escapeHtml(n.message)}</p>
+                            <p class="mb-0 small">${escapeHtml(n.message)}</p>
                         </div>
-                        <div class="d-flex gap-1 ms-3">
-                            ${n.is_read ? '' : `<button class="btn btn-sm btn-outline-primary mark-read-btn" data-id="${n.id}" title="Mark as read"><i class="fa-solid fa-check"></i></button>`}
-                            <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${n.id}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                        <div class="d-flex gap-1">
+                            ${n.is_read ? '' : `<button class="btn btn-action btn-outline-secondary mark-read-btn" data-id="${n.id}" title="Mark as read"><i class="fa-solid fa-check"></i></button>`}
+                            <button class="btn btn-action btn-outline-danger delete-btn" data-id="${n.id}" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
                         </div>
                     </div>
                 `;

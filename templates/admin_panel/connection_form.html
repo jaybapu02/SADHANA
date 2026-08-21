@@ -1,13 +1,17 @@
 {% extends 'base.html' %}
+{% block title %}Edit Connection - Admin{% endblock %}
+{% block topbar_title %}Edit Connection{% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-md-8 col-lg-6">
         <div class="card">
-            <div class="card-header"><i class="fa-solid fa-pen"></i> Edit Connection: {{ conn.parent.username }} ↔ {{ conn.child.username }}</div>
-            <div class="card-body">
+            <div class="card-body p-4">
+                <h5 class="sd-card-title mb-1"><i class="fa-solid fa-handshake"></i> Edit Connection</h5>
+                <p class="text-muted small">{{ conn.parent.username }} &harr; {{ conn.child.username }}</p>
                 <form method="post">
                     {% csrf_token %}
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">Status</label>
                         <select name="status" class="form-select">
                             <option value="PENDING" {% if conn.status == 'PENDING' %}selected{% endif %}>Pending</option>
@@ -16,8 +20,8 @@
                         </select>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <a href="{% url 'admin_list_connections' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-gradient"><i class="fa-solid fa-floppy-disk me-1"></i> Save</button>
+                        <a href="{% url 'admin_list_connections' %}" class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </form>
             </div>

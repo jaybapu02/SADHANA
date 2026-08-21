@@ -1,370 +1,186 @@
 {% extends 'base.html' %}
 
+{% block title %}Sadhana - Study Focus &amp; Discipline{% endblock %}
+
 {% block content %}
 <style>
     .hero-section {
-        min-height: calc(100vh - 100px);
+        min-height: calc(100vh - 65px);
         display: flex;
         align-items: center;
         position: relative;
-        overflow: hidden;
-    }
-    .hero-section::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -20%;
-        width: 600px;
-        height: 600px;
-        background: radial-gradient(circle, rgba(255,193,7,0.08) 0%, transparent 70%);
-        border-radius: 50%;
-        pointer-events: none;
-    }
-    .hero-section::after {
-        content: '';
-        position: absolute;
-        bottom: -30%;
-        left: -10%;
-        width: 400px;
-        height: 400px;
-        background: radial-gradient(circle, rgba(13,202,240,0.06) 0%, transparent 70%);
-        border-radius: 50%;
-        pointer-events: none;
     }
     .hero-badge {
-        display: inline-block;
-        padding: 6px 18px;
-        border-radius: 50px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        background: rgba(255,193,7,0.12);
-        color: #ffc107;
-        border: 1px solid rgba(255,193,7,0.2);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.42rem 1rem;
+        border-radius: var(--rd-pill);
+        font-size: 0.8rem;
+        font-weight: 650;
+        letter-spacing: 0.02em;
+        background: var(--sd-primary-soft);
+        color: var(--sd-primary);
+        border: 1px solid rgba(90, 103, 242, 0.25);
         margin-bottom: 1.5rem;
     }
-    .hero-illustration {
-        height: 480px;
-        background: linear-gradient(135deg, #1a3a42 0%, #2a5a66 50%, #1a3a42 100%);
-        border-radius: 24px;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-        transition: transform 0.4s ease, box-shadow 0.4s ease;
-    }
-    .hero-illustration:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 35px 60px -12px rgba(0,0,0,0.6);
-    }
-    .hero-illustration img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        padding: 2rem;
-        position: relative;
-        z-index: 1;
-    }
-    .hero-illustration::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="rgba(255,255,255,0.03)" d="M0,96L48,112C96,128,192,160,288,186.7C384,213,480,235,576,213.3C672,192,768,128,864,128C960,128,1056,192,1152,208C1248,224,1344,192,1392,176L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"/></svg>');
-        background-size: cover;
-        background-position: bottom;
-        opacity: 0.5;
-        z-index: 0;
-    }
-    .hero-illustration .floating-icon {
-        position: absolute;
-        font-size: 1.4rem;
-        color: rgba(255,255,255,0.15);
-        z-index: 1;
-        animation: float 6s ease-in-out infinite;
-    }
-    .hero-illustration .floating-icon:nth-child(2) { top: 10%; left: 8%; animation-delay: 0s; }
-    .hero-illustration .floating-icon:nth-child(3) { top: 70%; left: 12%; animation-delay: 2s; }
-    .hero-illustration .floating-icon:nth-child(4) { top: 20%; right: 10%; animation-delay: 4s; }
-    .hero-illustration .floating-icon:nth-child(5) { bottom: 15%; right: 15%; animation-delay: 1s; }
-
-    @keyframes float {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(-12px) rotate(3deg); }
-    }
-    .feature-card {
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 16px;
-        padding: 2rem 1.5rem;
-        background: rgba(255,255,255,0.03);
-        backdrop-filter: blur(4px);
-        transition: all 0.35s ease;
-        height: 100%;
-        position: relative;
-        overflow: hidden;
-    }
-    .feature-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, #0dcaf0, #0d6efd, #6610f2);
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.4s ease;
-    }
-    .feature-card:hover::before {
-        transform: scaleX(1);
-    }
-    .feature-card:hover {
-        transform: translateY(-6px);
-        border-color: rgba(255,255,255,0.12);
-        box-shadow: 0 20px 40px -12px rgba(0,0,0,0.4);
-        background: rgba(255,255,255,0.06);
-    }
-    .feature-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        margin-bottom: 1.25rem;
-        transition: transform 0.3s ease;
-    }
-    .feature-card:hover .feature-icon {
-        transform: scale(1.1);
-    }
-    .feature-icon.blue { background: rgba(13,110,253,0.15); color: #6ea8fe; }
-    .feature-icon.teal { background: rgba(13,202,240,0.15); color: #6edff6; }
-    .feature-icon.amber { background: rgba(255,193,7,0.15); color: #ffda6a; }
-    .feature-icon.green { background: rgba(25,135,84,0.15); color: #75b798; }
-    .feature-icon.purple { background: rgba(111,66,193,0.15); color: #bda0ea; }
-    .feature-icon.orange { background: rgba(253,126,20,0.15); color: #feb272; }
-
-    .stats-section {
-        border-radius: 20px;
-        background: linear-gradient(135deg, rgba(13,110,253,0.06) 0%, rgba(13,202,240,0.06) 100%);
-        border: 1px solid rgba(255,255,255,0.05);
-        padding: 3rem 2rem;
-        margin-top: 3rem;
-    }
-    .stat-item {
-        text-align: center;
-        padding: 1rem;
-    }
+    [data-bs-theme="dark"] .hero-badge { color: #a5adff; }
     .stat-number {
-        font-size: 2.5rem;
+        font-size: clamp(2rem, 4vw, 2.6rem);
         font-weight: 800;
-        background: linear-gradient(135deg, #0dcaf0, #0d6efd);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    .stat-label {
-        font-size: 0.9rem;
-        color: var(--bs-secondary-color);
-        font-weight: 500;
-        letter-spacing: 0.3px;
-        margin-top: 0.25rem;
-    }
-    .cta-section {
-        border-radius: 20px;
-        background: linear-gradient(135deg, #1a3a42 0%, #0d2137 100%);
-        border: 1px solid rgba(255,255,255,0.06);
-        padding: 3.5rem 2rem;
-        text-align: center;
-        position: relative;
-        overflow: hidden;
-        margin-top: 3rem;
-    }
-    .cta-section::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 600px;
-        height: 600px;
-        background: radial-gradient(circle, rgba(255,193,7,0.06) 0%, transparent 60%);
-        border-radius: 50%;
-        pointer-events: none;
-    }
-    .gradient-text {
-        background: linear-gradient(135deg, #0dcaf0, #0d6efd);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        line-height: 1;
     }
 </style>
 
-<div class="hero-section">
-    <div class="row align-items-center g-5 w-100">
-        <!-- LEFT CONTENT -->
-        <div class="col-lg-6">
-            <div class="hero-badge">
-                <i class="fa-solid fa-sparkles me-1"></i> Study Smarter, Not Harder
+<div class="container py-5">
+    <!-- HERO -->
+    <div class="hero-section hero-glow">
+        <div class="row align-items-center g-5 w-100">
+            <div class="col-lg-6 position-relative" style="z-index: 1;">
+                <div class="hero-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> Study Smarter, Not Harder</div>
+                <h1 class="display-4 fw-bolder lh-1 mb-3">
+                    Focus Your<span class="gradient-text"> Mind.</span>
+                </h1>
+                <h1 class="display-4 fw-bolder lh-1 mb-4">
+                    Master Your<span class="gradient-text"> Time.</span>
+                </h1>
+                <p class="lead text-muted mb-4" style="max-width: 500px;">
+                    Sadhana isn't just a timer app. It's a complete discipline and productivity ecosystem designed to help you stay focused during study time.
+                </p>
+                <div class="d-flex flex-wrap gap-3 mb-4">
+                    <a href="{% url 'register' %}" class="btn btn-gradient btn-lg px-4">
+                        <i class="fa-solid fa-rocket me-2"></i>Get Started Free
+                    </a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg px-4">
+                        <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Login
+                    </a>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-4 mt-2 text-muted small">
+                    <span><i class="fa-solid fa-circle-check text-good me-1"></i> Free to use</span>
+                    <span><i class="fa-solid fa-circle-check text-good me-1"></i> No credit card</span>
+                    <span><i class="fa-solid fa-circle-check text-good me-1"></i> Privacy first</span>
+                </div>
+                <div class="mt-4 pt-3 border-top border-token">
+                    <h6 class="fw-semibold mb-0 text-muted">
+                        <i class="fa-solid fa-quote-left me-2 opacity-50"></i>
+                        Effort + Commitment = Daily Progress
+                        <i class="fa-solid fa-quote-right ms-2 opacity-50"></i>
+                    </h6>
+                </div>
             </div>
-            <h1 class="display-3 fw-bold lh-1 mb-3">
-                Focus Your<span class="gradient-text"> Mind.</span>
-            </h1>
-            <h1 class="display-3 fw-bold lh-1 mb-4">
-                Master Your<span class="gradient-text"> Time.</span>
-            </h1>
-            <p class="lead mb-4" style="color: var(--bs-secondary-color); max-width: 500px;">
-                Sadhana isn't just a timer app. It's a complete discipline and productivity ecosystem designed to help you stay focused during study time.
+
+            <div class="col-lg-6 position-relative" style="z-index: 1;">
+                <div class="marketing-hero-img position-relative">
+                    <img src="https://illustrations.popsy.co/gray/studying.svg" alt="Study illustration"
+                         style="max-height: 420px;">
+                </div>
+                <span class="float-icon" style="top: 6%; left: 2%;"><i class="fa-solid fa-book-open"></i></span>
+                <span class="float-icon" style="bottom: 10%; right: 4%; animation-delay: 2s;"><i class="fa-solid fa-brain"></i></span>
+                <span class="float-icon" style="top: 18%; right: -6px; animation-delay: 4s;"><i class="fa-solid fa-clock"></i></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- FEATURES -->
+    <div class="mt-5 pt-5">
+        <div class="text-center mb-5">
+            <span class="hero-badge"><i class="fa-solid fa-layer-group"></i> Features</span>
+            <h2 class="display-6 fw-bold">Everything You Need to <span class="gradient-text">Excel</span></h2>
+            <p class="text-muted mx-auto" style="max-width: 550px;">
+                A complete ecosystem built for serious students who want to build discipline and track progress.
             </p>
-            <div class="d-flex flex-wrap gap-3 mb-4">
-                <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-5 shadow-sm">
-                    <i class="fa-solid fa-rocket me-2"></i>Get Started Free
-                </a>
-                <a href="{% url 'login' %}" class="btn btn-outline-secondary btn-lg px-5">
-                    <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>Login
-                </a>
-            </div>
-            <div class="d-flex align-items-center gap-4 mt-4">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex">
-                        <i class="fa-solid fa-check-circle text-success me-1"></i>
-                        <span class="small" style="color: var(--bs-secondary-color);">Free to use</span>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center">
-                    <div class="d-flex">
-                        <i class="fa-solid fa-check-circle text-success me-1"></i>
-                        <span class="small" style="color: var(--bs-secondary-color);">No credit card</span>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center">
-                    <div class="d-flex">
-                        <i class="fa-solid fa-check-circle text-success me-1"></i>
-                        <span class="small" style="color: var(--bs-secondary-color);">Privacy first</span>
-                    </div>
-                </div>
-            </div>
-            <!-- Tagline -->
-            <div class="mt-4 pt-2 border-top border-secondary border-opacity-25">
-                <h5 class="fw-semibold mb-0" style="color: var(--bs-secondary-color);">
-                    <i class="fa-solid fa-quote-left text-primary me-2 opacity-50"></i>
-                    Effort + Commitment = Daily Progress
-                    <i class="fa-solid fa-quote-right text-primary ms-2 opacity-50"></i>
-                </h5>
-            </div>
         </div>
 
-        <!-- RIGHT ILLUSTRATION -->
-        <div class="col-lg-6">
-            <div class="hero-illustration">
-                <div class="floating-icon"><i class="fa-solid fa-book-open"></i></div>
-                <div class="floating-icon"><i class="fa-solid fa-brain"></i></div>
-                <div class="floating-icon"><i class="fa-solid fa-clock"></i></div>
-                <div class="floating-icon"><i class="fa-solid fa-chart-line"></i></div>
-                <img src="https://illustrations.popsy.co/gray/studying.svg" alt="Study illustration">
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon teal"><i class="fa-solid fa-clock"></i></div>
+                    <h5 class="fw-bold mb-2">Study Sessions</h5>
+                    <p class="mb-0 small text-muted">Track every session with precision timers. Know exactly how much time you invest in each subject.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon amber"><i class="fa-solid fa-chart-simple"></i></div>
+                    <h5 class="fw-bold mb-2">Smart Analytics</h5>
+                    <p class="mb-0 small text-muted">Visual insights into your study patterns. Identify peak productivity hours and optimize your schedule.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon blue"><i class="fa-solid fa-list-check"></i></div>
+                    <h5 class="fw-bold mb-2">Task Manager</h5>
+                    <p class="mb-0 small text-muted">Organize assignments, set priorities, and track completion. Never miss a deadline again.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon green"><i class="fa-solid fa-bell"></i></div>
+                    <h5 class="fw-bold mb-2">Smart Reminders</h5>
+                    <p class="mb-0 small text-muted">Stay on track with intelligent notifications. Get reminded when it's time to study or take breaks.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon purple"><i class="fa-solid fa-people-arrows"></i></div>
+                    <h5 class="fw-bold mb-2">Parent-Child Connect</h5>
+                    <p class="mb-0 small text-muted">Parents can monitor progress and stay involved. Build accountability and transparency together.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4">
+                <div class="feature-card">
+                    <div class="feature-icon orange"><i class="fa-solid fa-gauge-high"></i></div>
+                    <h5 class="fw-bold mb-2">Personal Dashboard</h5>
+                    <p class="mb-0 small text-muted">Your command center. View streaks, daily stats, and long-term progress all in one place.</p>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- FEATURES SECTION -->
-<div class="mt-5 pt-4">
-    <div class="text-center mb-5">
-        <span class="hero-badge"><i class="fa-solid fa-layer-group me-1"></i> Features</span>
-        <h2 class="display-5 fw-bold">Everything You Need to <span class="gradient-text">Excel</span></h2>
-        <p class="lead" style="color: var(--bs-secondary-color); max-width: 550px; margin: 0 auto;">
-            A complete ecosystem built for serious students who want to build discipline and track progress.
+    <!-- STATS BAND -->
+    <div class="stats-band mt-5">
+        <div class="row g-4">
+            <div class="col-6 col-lg-3 text-center">
+                <div class="stat-number gradient-text">100%</div>
+                <div class="text-muted mt-2">Free &amp; Open</div>
+            </div>
+            <div class="col-6 col-lg-3 text-center">
+                <div class="stat-number gradient-text">24/7</div>
+                <div class="text-muted mt-2">Study Tracking</div>
+            </div>
+            <div class="col-6 col-lg-3 text-center">
+                <div class="stat-number gradient-text">Smart</div>
+                <div class="text-muted mt-2">AI-Powered Insights</div>
+            </div>
+            <div class="col-6 col-lg-3 text-center">
+                <div class="stat-number gradient-text">100%</div>
+                <div class="text-muted mt-2">Privacy Guaranteed</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-band mt-5">
+        <div class="position-relative" style="z-index: 1;">
+            <h2 class="display-6 fw-bold mb-3">Ready to Transform <span style="text-decoration: underline 3px rgba(255,255,255,.35); text-underline-offset: 6px;">Your Study Habit?</span></h2>
+            <p class="mb-4 mx-auto opacity-90" style="max-width: 550px;">
+                Join Sadhana today and start building the discipline that will last a lifetime.
+            </p>
+            <div class="d-flex flex-wrap gap-3 justify-content-center mt-4">
+                <a href="{% url 'register' %}" class="btn btn-light btn-lg px-4 fw-semibold">
+                    <i class="fa-solid fa-rocket me-2"></i>Start Your Journey
+                </a>
+                <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-4">
+                    <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>I Already Have an Account
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center my-5 pt-3">
+        <p class="small text-subtle mb-0">
+            <i class="fa-solid fa-leaf text-brand me-1"></i> Sadhana — Effort + Commitment = Daily Progress
         </p>
     </div>
-
-    <div class="row g-4">
-        <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-                <div class="feature-icon teal"><i class="fa-solid fa-clock"></i></div>
-                <h5 class="fw-bold mb-2">Study Sessions</h5>
-                <p class="mb-0 small" style="color: var(--bs-secondary-color);">Track every session with precision timers. Know exactly how much time you invest in each subject.</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-                <div class="feature-icon amber"><i class="fa-solid fa-chart-simple"></i></div>
-                <h5 class="fw-bold mb-2">Smart Analytics</h5>
-                <p class="mb-0 small" style="color: var(--bs-secondary-color);">Visual insights into your study patterns. Identify peak productivity hours and optimize your schedule.</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-                <div class="feature-icon blue"><i class="fa-solid fa-list-check"></i></div>
-                <h5 class="fw-bold mb-2">Task Manager</h5>
-                <p class="mb-0 small" style="color: var(--bs-secondary-color);">Organize assignments, set priorities, and track completion. Never miss a deadline again.</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-                <div class="feature-icon green"><i class="fa-solid fa-bell"></i></div>
-                <h5 class="fw-bold mb-2">Smart Reminders</h5>
-                <p class="mb-0 small" style="color: var(--bs-secondary-color);">Stay on track with intelligent notifications. Get reminded when it's time to study or take breaks.</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-                <div class="feature-icon purple"><i class="fa-solid fa-people-arrows"></i></div>
-                <h5 class="fw-bold mb-2">Parent-Child Connect</h5>
-                <p class="mb-0 small" style="color: var(--bs-secondary-color);">Parents can monitor progress and stay involved. Build accountability and transparency together.</p>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-                <div class="feature-icon orange"><i class="fa-solid fa-gauge-high"></i></div>
-                <h5 class="fw-bold mb-2">Personal Dashboard</h5>
-                <p class="mb-0 small" style="color: var(--bs-secondary-color);">Your command center. View streaks, daily stats, and long-term progress all in one place.</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- STATS SECTION -->
-<div class="stats-section">
-    <div class="row g-4">
-        <div class="col-6 col-lg-3 stat-item">
-            <div class="stat-number">100%</div>
-            <div class="stat-label">Free & Open</div>
-        </div>
-        <div class="col-6 col-lg-3 stat-item">
-            <div class="stat-number">24/7</div>
-            <div class="stat-label">Study Tracking</div>
-        </div>
-        <div class="col-6 col-lg-3 stat-item">
-            <div class="stat-number">Smart</div>
-            <div class="stat-label">AI-Powered Insights</div>
-        </div>
-        <div class="col-6 col-lg-3 stat-item">
-            <div class="stat-number">100%</div>
-            <div class="stat-label">Privacy Guaranteed</div>
-        </div>
-    </div>
-</div>
-
-<!-- CTA SECTION -->
-<div class="cta-section">
-    <div class="position-relative" style="z-index: 1;">
-        <h2 class="display-5 fw-bold mb-3">Ready to Transform <span class="gradient-text">Your Study Habit?</span></h2>
-        <p class="lead mb-4" style="color: var(--bs-secondary-color); max-width: 550px; margin: 0 auto;">
-            Join Sadhana today and start building the discipline that will last a lifetime.
-        </p>
-        <div class="d-flex flex-wrap gap-3 justify-content-center mt-4">
-            <a href="{% url 'register' %}" class="btn btn-primary btn-lg px-5 shadow-sm">
-                <i class="fa-solid fa-rocket me-2"></i>Start Your Journey
-            </a>
-            <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-5">
-                <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>I Already Have an Account
-            </a>
-        </div>
-    </div>
-</div>
-
-<div class="text-center my-5 pt-3">
-    <p class="small" style="color: var(--bs-secondary-color);">
-        <i class="fa-solid fa-leaf text-primary me-1"></i> Sadhana — Effort + Commitment = Daily Progress
-    </p>
 </div>
 {% endblock %}

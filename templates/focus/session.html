@@ -1,87 +1,15 @@
 {% extends 'base.html' %}
+{% block title %}Focus Mode - Sadhana{% endblock %}
+{% block topbar_title %}Study &amp; Focus Mode{% endblock %}
+
 {% block content %}
-<style>
-    .focus-timer {
-        font-size: 5rem;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 2px;
-    }
-    .focus-timer.active { color: var(--bs-success); }
-    .focus-timer.interrupted { color: var(--bs-danger); }
-    .focus-timer.completed { color: var(--bs-info); }
-    .app-badge {
-        display: inline-block;
-        padding: 0.35rem 0.75rem;
-        margin: 0.2rem;
-        border-radius: 50px;
-        font-size: 0.85rem;
-        font-weight: 500;
-    }
-    .app-badge.whitelist { background: rgba(25, 135, 84, 0.15); color: var(--bs-success); border: 1px solid rgba(25, 135, 84, 0.3); }
-    .app-badge.blacklist { background: rgba(220, 53, 69, 0.15); color: var(--bs-danger); border: 1px solid rgba(220, 53, 69, 0.3); }
-    .duration-btn {
-        min-width: 80px;
-        transition: all 0.2s ease;
-    }
-    .duration-btn.selected {
-        transform: scale(1.05);
-        box-shadow: 0 0 0 3px var(--bs-primary);
-    }
-    #accessResultToast {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 9999;
-        min-width: 300px;
-    }
-    .session-stats-card {
-        background: rgba(var(--bs-secondary-rgb), 0.05);
-        border-radius: 12px;
-        padding: 1rem;
-        text-align: center;
-    }
-    .approved-app-tile {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.6rem 1.2rem;
-        border-radius: 12px;
-        border: 2px solid rgba(13, 202, 240, 0.3);
-        background: rgba(13, 202, 240, 0.08);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-weight: 500;
-        font-size: 0.9rem;
-    }
-    .approved-app-tile:hover {
-        border-color: rgba(13, 202, 240, 0.7);
-        background: rgba(13, 202, 240, 0.15);
-        transform: translateY(-2px);
-    }
-    .approved-app-tile.in-use {
-        border-color: #198754;
-        background: rgba(25, 135, 84, 0.15);
-        color: var(--bs-success);
-        box-shadow: 0 0 12px rgba(25, 135, 84, 0.3);
-    }
-    .approved-app-tile .fa-solid {
-        font-size: 1.2rem;
-    }
-    .approved-app-tile .in-use-badge {
-        font-size: 0.65rem;
-        padding: 0.15rem 0.4rem;
-    }
-
-</style>
-
-<div class="row mt-4">
-    <div class="col-12 mb-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h2 class="fw-bold"><i class="fa-solid fa-brain text-primary me-2"></i>Study & Focus Mode</h2>
-            <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
-        </div>
-        <hr>
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-brain"></i></span> Study &amp; Focus Mode</h2>
+        <p class="sd-page-subtitle">Start a distraction-free session and earn rewards.</p>
+    </div>
+    <div class="sd-page-actions">
+        <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
     </div>
 </div>
 
@@ -179,35 +107,35 @@
                 </div>
 
                 <!-- Session Stats -->
-                <div class="row g-2 mt-3">
-                    <div class="col-3">
+                <div class="row g-2 mt-3 row-cols-2 row-cols-md-5">
+                    <div class="col">
                         <div class="session-stats-card">
                             <h6 class="text-muted small mb-1">Focus Time</h6>
                             <h4 class="fw-bold mb-0" id="focusDisplay">0s</h4>
                         </div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="session-stats-card">
                             <h6 class="text-muted small mb-1">Distracted</h6>
-                            <h4 class="fw-bold mb-0 text-danger" id="distractionDisplay">0s</h4>
+                            <h4 class="fw-bold mb-0 text-bad" id="distractionDisplay">0s</h4>
                         </div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="session-stats-card">
                             <h6 class="text-muted small mb-1">Progress</h6>
                             <h4 class="fw-bold mb-0" id="progressDisplay">0%</h4>
                         </div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="session-stats-card">
                             <h6 class="text-muted small mb-1">Remaining</h6>
                             <h4 class="fw-bold mb-0" id="remainingDisplay">--</h4>
                         </div>
                     </div>
-                    <div class="col-3">
+                    <div class="col">
                         <div class="session-stats-card">
                             <h6 class="text-muted small mb-1">Blocked</h6>
-                            <h4 class="fw-bold mb-0 text-secondary" id="blockedDisplay">0</h4>
+                            <h4 class="fw-bold mb-0 text-subtle" id="blockedDisplay">0</h4>
                         </div>
                     </div>
                 </div>

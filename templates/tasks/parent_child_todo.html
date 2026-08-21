@@ -1,85 +1,79 @@
 {% extends 'base.html' %}
+{% block title %}{{ child.username }}'s Tasks - Sadhana{% endblock %}
+{% block topbar_title %}{{ child.username }}'s Tasks{% endblock %}
+
 {% block content %}
-<div class="row mt-4 mb-4 align-items-center">
-    <div class="col-md-8">
-        <h2 class="fw-bold"><i class="fa-solid fa-list-check text-primary me-2"></i> {{ child.username }}'s Tasks</h2>
-        <p class="text-muted">Monitor task progress and assign new tasks.</p>
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-list-check"></i></span> {{ child.username }}'s Tasks</h2>
+        <p class="sd-page-subtitle">Monitor task progress and assign new tasks.</p>
     </div>
-    <div class="col-md-4 text-end">
-        <a href="{% url 'parent_dashboard' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
-        <a href="{% url 'parent_assign_task' child.id %}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i> Assign Task</a>
-        <a href="{% url 'parent_send_appreciation' child.id %}" class="btn btn-success btn-sm"><i class="fa-solid fa-heart me-1"></i> Appreciate</a>
-        <a href="{% url 'chat:chat_page' %}?to={{ child.id }}" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-comments me-1"></i> Chat</a>
+    <div class="sd-page-actions">
+        <a href="{% url 'parent_dashboard' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+        <a href="{% url 'parent_assign_task' child.id %}" class="btn btn-gradient"><i class="fa-solid fa-plus me-1"></i> Assign Task</a>
+        <a href="{% url 'parent_send_appreciation' child.id %}" class="btn btn-success"><i class="fa-solid fa-heart me-1"></i> Appreciate</a>
+        <a href="{% url 'chat:chat_page' %}?to={{ child.id }}" class="btn btn-outline-secondary"><i class="fa-solid fa-comments me-1"></i> Chat</a>
     </div>
 </div>
-<hr>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card bg-secondary bg-opacity-10 border-0 rounded-4 text-center h-100 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted small text-uppercase">Total Tasks</h6>
-                <h2 class="fw-bold mb-0">{{ today_total }}</h2>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center py-3 tint-primary">
+            <div class="stat-label">Total Tasks</div>
+            <div class="stat-value">{{ today_total }}</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-success bg-opacity-10 border-0 rounded-4 text-center h-100 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted small text-uppercase">Completed</h6>
-                <h2 class="fw-bold mb-0 text-success">{{ today_completed }}</h2>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center py-3 tint-success">
+            <div class="stat-label">Completed</div>
+            <div class="stat-value">{{ today_completed }}</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-danger bg-opacity-10 border-0 rounded-4 text-center h-100 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted small text-uppercase">Pending</h6>
-                <h2 class="fw-bold mb-0 text-danger">{{ today_pending }}</h2>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center py-3 tint-danger">
+            <div class="stat-label">Pending</div>
+            <div class="stat-value">{{ today_pending }}</div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-primary bg-opacity-10 border-0 rounded-4 text-center h-100 shadow-sm">
-            <div class="card-body">
-                <h6 class="text-muted small text-uppercase">Completion Rate</h6>
-                <h2 class="fw-bold mb-0 text-primary">{{ today_pct }}%</h2>
-            </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card text-center py-3 tint-info">
+            <div class="stat-label">Completion Rate</div>
+            <div class="stat-value">{{ today_pct }}<small>%</small></div>
         </div>
     </div>
 </div>
 
 <div class="row g-4 mb-4">
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-4 h-100">
+        <div class="card h-100">
             <div class="card-body">
-                <h6 class="fw-bold mb-3"><i class="fa-regular fa-calendar text-primary me-2"></i>Daily Progress</h6>
-                <div class="progress mb-2" style="height:20px;">
-                    <div class="progress-bar bg-success" role="progressbar" style="width:{{ today_pct }}%">{{ today_pct }}%</div>
+                <h6 class="sd-card-title"><i class="fa-regular fa-calendar"></i> Daily Progress</h6>
+                <div class="progress mb-2" style="height:18px;">
+                    <div class="progress-bar bg-success" role="progressbar" style="width:{{ today_pct }}%" aria-valuenow="{{ today_pct }}" aria-valuemin="0" aria-valuemax="100">{{ today_pct }}%</div>
                 </div>
-                <small class="text-muted">{{ today_completed }}/{{ today_total }} tasks</small>
+                <small class="text-muted tabular">{{ today_completed }}/{{ today_total }} tasks</small>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-4 h-100">
+        <div class="card h-100">
             <div class="card-body">
-                <h6 class="fw-bold mb-3"><i class="fa-solid fa-calendar-week text-primary me-2"></i>Weekly Progress</h6>
-                <div class="progress mb-2" style="height:20px;">
-                    <div class="progress-bar bg-primary" role="progressbar" style="width:{{ week_pct }}%">{{ week_pct }}%</div>
+                <h6 class="sd-card-title"><i class="fa-solid fa-calendar-week"></i> Weekly Progress</h6>
+                <div class="progress mb-2" style="height:18px;">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width:{{ week_pct }}%" aria-valuenow="{{ week_pct }}" aria-valuemin="0" aria-valuemax="100">{{ week_pct }}%</div>
                 </div>
-                <small class="text-muted">{{ week_completed }}/{{ week_total }} tasks</small>
+                <small class="text-muted tabular">{{ week_completed }}/{{ week_total }} tasks</small>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 rounded-4 h-100">
+        <div class="card h-100">
             <div class="card-body">
-                <h6 class="fw-bold mb-3"><i class="fa-solid fa-calendar-alt text-primary me-2"></i>Monthly Progress</h6>
-                <div class="progress mb-2" style="height:20px;">
-                    <div class="progress-bar bg-info" role="progressbar" style="width:{{ month_pct }}%">{{ month_pct }}%</div>
+                <h6 class="sd-card-title"><i class="fa-solid fa-calendar-days"></i> Monthly Progress</h6>
+                <div class="progress mb-2" style="height:18px;">
+                    <div class="progress-bar bg-info" role="progressbar" style="width:{{ month_pct }}%" aria-valuenow="{{ month_pct }}" aria-valuemin="0" aria-valuemax="100">{{ month_pct }}%</div>
                 </div>
-                <small class="text-muted">{{ month_completed }}/{{ month_total }} tasks</small>
+                <small class="text-muted tabular">{{ month_completed }}/{{ month_total }} tasks</small>
             </div>
         </div>
     </div>
@@ -87,79 +81,76 @@
 
 {% if incomplete_high > 0 %}
 <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
-    <i class="fa-solid fa-exclamation-triangle me-2 fs-5"></i>
+    <i class="fa-solid fa-triangle-exclamation me-2 fs-5"></i>
     <div><strong>{{ incomplete_high }}</strong> high priority task(s) still pending!</div>
 </div>
 {% endif %}
 
-<div class="card shadow-sm border-0 rounded-4">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>All Tasks</h5>
-            <span class="badge bg-secondary">{{ all_tasks|length }} total</span>
-        </div>
-        {% if all_tasks %}
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Status</th>
-                            <th>Task</th>
-                            <th>Priority</th>
-                            <th>Date</th>
-                            <th>Due</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for task in all_tasks %}
-                            <tr>
-                                <td>
-                                    {% if task.status %}
-                                        <span class="badge bg-success"><i class="fa-solid fa-check"></i></span>
-                                    {% else %}
-                                        <span class="badge bg-danger"><i class="fa-solid fa-xmark"></i></span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {{ task.task_name }}
-                                    {% if task.parent %}
-                                        <span class="badge bg-info bg-opacity-25 text-info ms-1" title="Parent-assigned"><i class="fa-solid fa-user-tie"></i></span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <span class="badge {% if task.priority == 'HIGH' %}bg-danger{% elif task.priority == 'MEDIUM' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                                        {{ task.get_priority_display }}
-                                    </span>
-                                </td>
-                                <td class="text-muted small">{{ task.date|date:"M d" }}</td>
-                                <td>
-                                    {% if task.due_date %}
-                                        <span class="small {% if not task.status and task.due_date < today %}text-danger fw-bold{% else %}text-muted{% endif %}">
-                                            {{ task.due_date|date:"M d" }}
-                                        </span>
-                                    {% else %}
-                                        <span class="text-muted small">--</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if task.parent == request.user %}
-                                        <a href="{% url 'parent_edit_task' task.id %}" class="btn btn-sm btn-outline-primary" title="Edit">
-                                            <i class="fa-solid fa-pen"></i>
-                                        </a>
-                                        <a href="{% url 'parent_remove_task' task.id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this task?')">
-                                            <i class="fa-solid fa-trash-can"></i>
-                                        </a>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% else %}
-            <p class="text-muted text-center py-3 mb-0">No tasks found.</p>
-        {% endif %}
+<div class="sd-table-wrap">
+    <div class="p-3 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h5 class="sd-card-title mb-0"><i class="fa-solid fa-clock-rotate-left"></i> All Tasks</h5>
+        <span class="badge soft-neutral tabular">{{ all_tasks|length }} total</span>
     </div>
+    {% if all_tasks %}
+        <div class="table-responsive mt-2">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Task</th>
+                        <th>Priority</th>
+                        <th>Date</th>
+                        <th>Due</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in all_tasks %}
+                        <tr>
+                            <td>
+                                {% if task.status %}
+                                    <span class="badge soft-success"><i class="fa-solid fa-check"></i></span>
+                                {% else %}
+                                    <span class="badge soft-danger"><i class="fa-solid fa-xmark"></i></span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ task.task_name }}
+                                {% if task.parent %}
+                                    <span class="badge soft-info ms-1" title="Parent-assigned"><i class="fa-solid fa-user-tie"></i></span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge priority-{{ task.priority }}">{{ task.get_priority_display }}</span></td>
+                            <td class="text-muted small tabular">{{ task.date|date:"M d" }}</td>
+                            <td>
+                                {% if task.due_date %}
+                                    <span class="small tabular {% if not task.status and task.due_date < today %}text-bad fw-bold{% else %}text-muted{% endif %}">
+                                        {{ task.due_date|date:"M d" }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted small">--</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if task.parent == request.user %}
+                                    <a href="{% url 'parent_edit_task' task.id %}" class="btn btn-action btn-outline-secondary" title="Edit" aria-label="Edit {{ task.task_name }}">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                    <a href="{% url 'parent_remove_task' task.id %}" class="btn btn-action btn-outline-danger" onclick="return confirm('Remove this task?')" title="Remove" aria-label="Remove {{ task.task_name }}">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state compact">
+            <span class="es-icon"><i class="fa-solid fa-inbox"></i></span>
+            <p class="es-text mb-0">No tasks found.</p>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}
