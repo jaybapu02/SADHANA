@@ -49,7 +49,7 @@
                     <td class="text-muted small tabular">{{ n.timestamp|date:"M d, H:i" }}</td>
                     <td>{% if n.is_read %}<span class="badge soft-success">Read</span>{% else %}<span class="badge soft-warning">Unread</span>{% endif %}</td>
                     <td>
-                        <a href="{% url 'admin_delete_notification' n.id %}" class="btn btn-action btn-outline-danger" title="Delete"><i class="fa-solid fa-trash-can"></i></a>
+                        <button type="button" class="btn btn-action btn-outline-danger admin-delete-btn" data-id="{{ n.id }}" data-url="{% url 'admin_delete_notification' n.id %}" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
                     </td>
                 </tr>
                 {% empty %}
@@ -75,4 +75,59 @@
     </ul>
 </nav>
 {% endif %}
+
+<form method="post" style="display:none;">{% csrf_token %}</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCSRF() {
+    const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (input) return input.value;
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        document.cookie.split(';').forEach(c => {
+            const trimmed = c.trim();
+            if (trimmed.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+            }
+        });
+    }
+    return cookieValue;
+}
+
+document.querySelectorAll('.admin-delete-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        if (!confirm('Delete this notification? This cannot be undone.')) return;
+        const button = this;
+        const row = button.closest('tr');
+        button.disabled = true;
+
+        fetch(button.dataset.url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRF(),
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(r => r.json().then(data => ({ ok: r.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok) throw new Error(data.message || 'Failed to delete notification.');
+                row.style.transition = 'opacity .25s ease, transform .25s ease';
+                row.style.opacity = '0';
+                setTimeout(() => {
+                    row.remove();
+                    const remaining = document.querySelectorAll('.admin-delete-btn');
+                    if (remaining.length === 0) location.reload(); // Re-render empty state / pagination.
+                }, 250);
+                showToast('Notification deleted.', 'success');
+            })
+            .catch(err => {
+                button.disabled = false;
+                showToast(err.message || 'Failed to delete notification.', 'error');
+            });
+    });
+});
+</script>
 {% endblock %}

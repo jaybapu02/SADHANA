@@ -47,6 +47,36 @@
 {% block extra_js %}
 <script>
 let currentUserId = {{ request.user.id }};
+let currentUnread = 0;
+const deletingIds = new Set();
+
+function setUnreadBadge(count) {
+    const badge = document.getElementById('navbarUnreadBadge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function renderUnreadState(unread) {
+    currentUnread = unread;
+    const unreadAlert = document.getElementById('unreadAlert');
+    const unreadCountDisplay = document.getElementById('unreadCountDisplay');
+    const markAllBtn = document.getElementById('markAllReadBtn');
+
+    if (unread > 0) {
+        unreadAlert.style.display = 'flex';
+        unreadCountDisplay.textContent = unread;
+        markAllBtn.style.display = 'inline-block';
+    } else {
+        unreadAlert.style.display = 'none';
+        markAllBtn.style.display = 'none';
+    }
+    setUnreadBadge(unread);
+}
 
 function fetchNotifications() {
     fetch('{% url "api_notifications" %}')
@@ -55,34 +85,24 @@ function fetchNotifications() {
             const container = document.getElementById('notificationList');
             const emptyState = document.getElementById('emptyState');
             const loadingState = document.getElementById('loadingState');
-            const unreadAlert = document.getElementById('unreadAlert');
-            const unreadCountDisplay = document.getElementById('unreadCountDisplay');
-            const markAllBtn = document.getElementById('markAllReadBtn');
 
-            if (data.count === 0) {
+            const visible = data.notifications.filter(n => !deletingIds.has(String(n.id)));
+
+            if (data.count === 0 || (visible.length === 0 && deletingIds.size === 0)) {
                 loadingState.style.display = 'none';
                 container.innerHTML = '';
                 emptyState.style.display = 'block';
-                unreadAlert.style.display = 'none';
-                markAllBtn.style.display = 'none';
+                renderUnreadState(0);
                 return;
             }
 
             emptyState.style.display = 'none';
             loadingState.style.display = 'none';
 
-            const unread = data.notifications.filter(n => !n.is_read).length;
-            if (unread > 0) {
-                unreadAlert.style.display = 'flex';
-                unreadCountDisplay.textContent = unread;
-                markAllBtn.style.display = 'inline-block';
-            } else {
-                unreadAlert.style.display = 'none';
-                markAllBtn.style.display = 'none';
-            }
+            renderUnreadState(visible.filter(n => !n.is_read).length);
 
             let html = '';
-            data.notifications.forEach(n => {
+            visible.forEach(n => {
                 const timeAgo = timeSince(n.timestamp);
                 const unreadClass = n.is_read ? '' : 'unread';
                 const badgeHtml = n.is_read ? '' : '<span class="badge soft-primary">New</span>';
@@ -106,29 +126,122 @@ function fetchNotifications() {
                 `;
             });
             container.innerHTML = html;
+        })
+        .catch(() => {
+            showToast('Could not load notifications.', 'error');
+        });
+}
 
-            document.querySelectorAll('.mark-read-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = this.dataset.id;
-                    fetch(`/notifications/api/mark-read/${id}/`, { method: 'POST', headers: {'X-CSRFToken': getCSRF()} })
-                        .then(() => fetchNotifications());
-                });
-            });
+// ---- Event delegation (attached once; survives list re-renders) ----
 
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = this.dataset.id;
-                    fetch(`/notifications/api/delete/${id}/`, { method: 'DELETE', headers: {'X-CSRFToken': getCSRF()} })
-                        .then(() => fetchNotifications());
-                });
-            });
+document.getElementById('notificationList').addEventListener('click', function(e) {
+    const deleteBtn = e.target.closest('.delete-btn');
+    if (deleteBtn) {
+        deleteNotification(deleteBtn);
+        return;
+    }
+    const markReadBtn = e.target.closest('.mark-read-btn');
+    if (markReadBtn) {
+        markNotificationRead(markReadBtn);
+    }
+});
+
+function deleteNotification(btn) {
+    const id = String(btn.dataset.id);
+    const row = btn.closest('.notif-row');
+    if (deletingIds.has(id)) return;
+    deletingIds.add(id);
+
+    // Optimistic UI: fade the row out immediately.
+    if (row) {
+        row.style.transition = 'opacity .2s ease, transform .2s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(16px)';
+        setTimeout(() => row.remove(), 200);
+    }
+
+    // Instantly reflect the count change if this was an unread notification.
+    if (row && row.classList.contains('unread')) {
+        renderUnreadState(Math.max(0, currentUnread - 1));
+    }
+
+    fetch(`/notifications/api/delete/${id}/`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': getCSRF(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            deletingIds.delete(id);
+            if (!ok) throw new Error(data.message || 'Failed to delete notification.');
+            // Sync every unread counter with the authoritative backend value.
+            renderUnreadState(data.unread_count);
+            showToast('Notification deleted.', 'success');
+            maybeShowEmptyState();
+        })
+        .catch(err => {
+            deletingIds.delete(id);
+            showToast(err.message || 'Failed to delete notification.', 'error');
+            fetchNotifications(); // Restore the row / resync with backend state.
+        });
+}
+
+function markNotificationRead(btn) {
+    const id = btn.dataset.id;
+    btn.disabled = true;
+    fetch(`/notifications/api/mark-read/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRF(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok) throw new Error(data.message || 'Failed to mark as read.');
+            renderUnreadState(data.unread_count);
+            fetchNotifications();
+        })
+        .catch(err => {
+            btn.disabled = false;
+            showToast(err.message || 'Failed to mark as read.', 'error');
         });
 }
 
 document.getElementById('markAllReadBtn').addEventListener('click', function() {
-    fetch('{% url "api_mark_all_read" %}', { method: 'POST', headers: {'X-CSRFToken': getCSRF()} })
-        .then(() => fetchNotifications());
+    const btn = this;
+    btn.disabled = true;
+    fetch('{% url "api_mark_all_read" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCSRF(),
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+            btn.disabled = false;
+            if (!ok) throw new Error(data.message || 'Failed to mark all as read.');
+            renderUnreadState(data.unread_count);
+            fetchNotifications();
+            showToast('All notifications marked as read.', 'success');
+        })
+        .catch(err => {
+            btn.disabled = false;
+            showToast(err.message || 'Failed to mark all as read.', 'error');
+        });
 });
+
+function maybeShowEmptyState() {
+    const container = document.getElementById('notificationList');
+    const rows = container.querySelectorAll('.notif-row');
+    if (rows.length === 0 && deletingIds.size === 0) {
+        container.innerHTML = '';
+        document.getElementById('emptyState').style.display = 'block';
+    }
+}
 
 function timeSince(isoString) {
     const now = new Date();

@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.db.models import Count, Sum, Q
@@ -226,6 +227,8 @@ def delete_notification(request, notif_id):
     notif = get_object_or_404(Notification, id=notif_id)
     if request.method == 'POST':
         notif.delete()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'ok', 'deleted_id': notif_id})
         messages.success(request, 'Notification deleted.')
         return redirect('admin_list_notifications')
     return render(request, 'admin_panel/confirm_delete.html', {'obj': notif, 'label': 'Notification'})

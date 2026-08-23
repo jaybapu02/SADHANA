@@ -309,17 +309,19 @@
         }
 
         // ---- Flash toasts ----
+        const toastIcons = {
+            success: 'fa-circle-check',
+            error: 'fa-circle-exclamation',
+            warning: 'fa-triangle-exclamation',
+            info: 'fa-circle-info',
+            debug: 'fa-circle-info'
+        };
+
         document.querySelectorAll('.flash-toast').forEach(toast => {
             const tag = toast.dataset.tag || 'info';
+            toast.classList.add('t-' + tag);
             const icon = toast.querySelector('.ft-icon');
-            const icons = {
-                success: 'fa-circle-check',
-                error: 'fa-circle-exclamation',
-                warning: 'fa-triangle-exclamation',
-                info: 'fa-circle-info',
-                debug: 'fa-circle-info'
-            };
-            if (icons[tag] && icon) icon.className = 'ft-icon fa-solid ' + icons[tag];
+            if (toastIcons[tag] && icon) icon.className = 'ft-icon fa-solid ' + toastIcons[tag];
             const closeBtn = toast.querySelector('.ft-close');
             const dismiss = () => {
                 toast.classList.add('hide-anim');
@@ -328,6 +330,29 @@
             if (closeBtn) closeBtn.addEventListener('click', dismiss);
             setTimeout(dismiss, 5200);
         });
+
+        // Global helper so AJAX actions can show feedback without a page reload.
+        window.showToast = function (message, tag) {
+            tag = toastIcons[tag] ? tag : 'info';
+            const container = document.getElementById('flashToasts');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'flash-toast t-' + tag;
+            toast.setAttribute('role', 'status');
+            toast.innerHTML =
+                '<i class="ft-icon fa-solid ' + toastIcons[tag] + '"></i>' +
+                '<span></span>' +
+                '<button type="button" class="ft-close" aria-label="Dismiss notification"><i class="fa-solid fa-xmark"></i></button>';
+            toast.querySelector('span').textContent = message;
+            container.appendChild(toast);
+            const dismiss = () => {
+                if (!toast.isConnected) return;
+                toast.classList.add('hide-anim');
+                setTimeout(() => toast.remove(), 260);
+            };
+            toast.querySelector('.ft-close').addEventListener('click', dismiss);
+            setTimeout(dismiss, 5200);
+        };
     </script>
     {% block extra_js %}{% endblock %}
 </body>
