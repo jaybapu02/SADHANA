@@ -1,5 +1,5 @@
 from django.http import JsonResponse
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -48,11 +48,23 @@ def api_unread_count(request):
 @require_http_methods(['POST'])
 @csrf_exempt
 def api_mark_read(request, notif_id):
-    notif = get_object_or_404(Notification, id=notif_id, recipient=request.user)
-    if not notif.is_read:
+    try:
+        notif = Notification.objects.get(id=notif_id, recipient=request.user)
+    except Notification.DoesNotExist:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Notification not found.', 'unread_count': _unread_count(request.user)},
+            status=404,
+        )
+    was_unread = not notif.is_read
+    if was_unread:
         notif.is_read = True
         notif.save(update_fields=['is_read'])
-    return JsonResponse({'status': 'ok', 'unread_count': _unread_count(request.user)})
+    return JsonResponse({
+        'status': 'ok',
+        'marked_id': notif.id,
+        'was_unread': was_unread,
+        'unread_count': _unread_count(request.user),
+    })
 
 
 @login_required

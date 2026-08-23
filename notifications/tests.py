@@ -97,14 +97,71 @@ class MarkReadAPITests(NotificationAPITestBase):
         self.login(self.parent)
         resp = self.client.post(reverse('api_mark_read', args=[self.notif_unread.id]))
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json()['unread_count'], 0)
+        data = resp.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertTrue(data['was_unread'])
+        self.assertEqual(data['unread_count'], 0)
         self.notif_unread.refresh_from_db()
         self.assertTrue(self.notif_unread.is_read)
+
+    def test_mark_read_is_idempotent(self):
+        self.login(self.parent)
+        first = self.client.post(reverse('api_mark_read', args=[self.notif_unread.id]))
+        second = self.client.post(reverse('api_mark_read', args=[self.notif_unread.id]))
+        self.assertEqual(first.json()['was_unread'], True)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.json()['was_unread'], False)  # already read
+        self.assertEqual(second.json()['unread_count'], 0)
+
+    def test_mark_read_missing_returns_404_json(self):
+        self.login(self.parent)
+        resp = self.client.post(reverse('api_mark_read', args=[99999]))
+        self.assertEqual(resp.status_code, 404)
+        data = resp.json()
+        self.assertEqual(data['status'], 'error')
+        self.assertIn('unread_count', data)
+
+    def test_mark_read_other_users_notification_404_json(self):
+        self.login(self.child)
+        resp = self.client.post(reverse('api_mark_read', args=[self.notif_unread.id]))
+        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.json()['status'], 'error')
+        # Must remain untouched and unread.
+        self.notif_unread.refresh_from_db()
+        self.assertFalse(self.notif_unread.is_read)
+
+    def test_full_mark_read_flow_end_to_end(self):
+        """Unread -> Mark as Read -> backend persisted -> list API reflects it."""
+        extra = Notification.objects.create(
+            recipient=self.parent, sender=self.child, sender_name='child1',
+            notification_type='APPRECIATION', message='Second unread',
+        )
+        self.login(self.parent)
+
+        # 1. Mark one as read.
+        resp = self.client.post(reverse('api_mark_read', args=[self.notif_unread.id]))
+        data = resp.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertEqual(data['unread_count'], 1)  # only `extra` remains unread
+
+        # 2. List API reflects the change immediately (what fetchNotifications polls).
+        listing = self.client.get(reverse('api_notifications')).json()
+        by_id = {n['id']: n for n in listing['notifications']}
+        self.assertTrue(by_id[self.notif_unread.id]['is_read'])
+        self.assertFalse(by_id[extra.id]['is_read'])
+
+        # 3. Persisted in the database.
+        self.notif_unread.refresh_from_db()
+        self.assertTrue(self.notif_unread.is_read)
+
+        # 4. Unread count endpoint agrees.
+        self.assertEqual(self.client.get(reverse('api_unread_count')).json()['unread_count'], 1)
 
     def test_mark_all_read(self):
         self.login(self.parent)
         resp = self.client.post(reverse('api_mark_all_read'))
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['status'], 'ok')
         self.assertEqual(resp.json()['unread_count'], 0)
 
 

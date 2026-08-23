@@ -80,7 +80,19 @@ function renderUnreadState(unread) {
 
 function fetchNotifications() {
     fetch('{% url "api_notifications" %}')
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) {
+                const err = new Error('List API returned HTTP ' + r.status);
+                err.isLoadError = true;
+                throw err;
+            }
+            // Non-JSON body (e.g. login redirect HTML or server error page).
+            return r.json().catch(() => {
+                const err = new Error('List API returned a non-JSON response.');
+                err.isLoadError = true;
+                throw err;
+            });
+        })
         .then(data => {
             const container = document.getElementById('notificationList');
             const emptyState = document.getElementById('emptyState');
@@ -127,8 +139,15 @@ function fetchNotifications() {
             });
             container.innerHTML = html;
         })
-        .catch(() => {
-            showToast('Could not load notifications.', 'error');
+        .catch(err => {
+            if (err && err.isLoadError) {
+                // Genuine failure of the list API only — surface it accurately.
+                console.error('[notifications] load failed:', err.message);
+                showToast('Could not load notifications.', 'error');
+            } else {
+                // Rendering bug or unexpected shape — log it, never mask it as a load error.
+                console.error('[notifications] unexpected error while rendering list:', err);
+            }
         });
 }
 
@@ -188,9 +207,21 @@ function deleteNotification(btn) {
         });
 }
 
+function applyReadState(row) {
+    // Make the row look exactly like a freshly rendered read notification.
+    row.classList.remove('unread');
+    const newBadge = row.querySelector('.badge.soft-primary');
+    if (newBadge) newBadge.remove();
+    const markBtn = row.querySelector('.mark-read-btn');
+    if (markBtn) markBtn.remove();
+}
+
 function markNotificationRead(btn) {
     const id = btn.dataset.id;
+    const row = btn.closest('.notif-row');
+    if (!id || !row || btn.disabled) return;
     btn.disabled = true;
+
     fetch(`/notifications/api/mark-read/${id}/`, {
         method: 'POST',
         headers: {
@@ -198,14 +229,20 @@ function markNotificationRead(btn) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(r => r.json()
+            .then(data => ({ ok: r.ok, data }))
+            .catch(() => ({ ok: false, data: null })))
         .then(({ ok, data }) => {
-            if (!ok) throw new Error(data.message || 'Failed to mark as read.');
+            if (!ok || !data || data.status !== 'ok') {
+                throw new Error((data && data.message) || 'Failed to mark as read.');
+            }
+            // Update this row in place — no list reload needed.
+            applyReadState(row);
             renderUnreadState(data.unread_count);
-            fetchNotifications();
         })
         .catch(err => {
             btn.disabled = false;
+            console.error('[notifications] mark-read failed for id', id + ':', err.message);
             showToast(err.message || 'Failed to mark as read.', 'error');
         });
 }
@@ -220,16 +257,20 @@ document.getElementById('markAllReadBtn').addEventListener('click', function() {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(r => r.json()
+            .then(data => ({ ok: r.ok, data }))
+            .catch(() => ({ ok: false, data: null })))
         .then(({ ok, data }) => {
-            btn.disabled = false;
-            if (!ok) throw new Error(data.message || 'Failed to mark all as read.');
+            if (!ok || !data || data.status !== 'ok') {
+                throw new Error((data && data.message) || 'Failed to mark all as read.');
+            }
+            document.querySelectorAll('#notificationList .notif-row').forEach(applyReadState);
             renderUnreadState(data.unread_count);
-            fetchNotifications();
             showToast('All notifications marked as read.', 'success');
         })
         .catch(err => {
             btn.disabled = false;
+            console.error('[notifications] mark-all-read failed:', err.message);
             showToast(err.message || 'Failed to mark all as read.', 'error');
         });
 });
