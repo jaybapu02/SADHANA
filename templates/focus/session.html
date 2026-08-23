@@ -192,63 +192,95 @@
 </div>
 
 <!-- ═══════════════════ FOCUS STAGE (active session) ═══════════════════
-     Full-screen "Super Power Saving" environment. Nothing from the site is
-     reachable here - just the task, the timer and sanctioned app icons. -->
-<div id="focusStage" style="display:none;">
-    <div class="fs-topbar">
-        <span class="fs-lock-badge" id="fsLockBadge"><i class="fa-solid fa-lock"></i> SUPER POWER LOCK ACTIVE</span>
-        <span class="fs-task" id="fsTaskName"><i class="fa-solid fa-list-check me-2"></i>Free focus</span>
-        <span class="fs-counters">
-            <span class="fs-counter" title="Blocked attempts"><i class="fa-solid fa-ban me-1"></i><b id="fsBlockedCount">0</b></span>
-            <span class="fs-counter warn" title="Lock violations reported to your parent"><i class="fa-solid fa-triangle-exclamation me-1"></i><b id="fsViolationCount">0</b></span>
-        </span>
-    </div>
+     Full-screen, distraction-free environment: task + timer + sanctioned
+     app sections. Styled entirely by the Focus Stage block in style.css. -->
+<div id="focusStage" style="display:none;" aria-label="Active focus session">
+    <div class="fs-shell">
 
-    <div class="fs-center">
-        <div class="focus-timer fs-timer active" id="fsTimerDisplay">00:00</div>
-        <div class="fs-status" id="fsStatusLine">Stay focused!</div>
+        <header class="fs-topline">
+            <span class="fs-chip fs-chip-lock" id="fsLockBadge" hidden>
+                <i class="fa-solid fa-lock"></i> Super Power Lock
+            </span>
+            <span class="fs-monitor">
+                <i class="fa-solid fa-eye"></i>
+                Parent sees this session live<b id="fsAlertNote" hidden></b>
+            </span>
+        </header>
 
-        <div class="fs-progress">
-            <div class="fs-progress-bar" id="fsProgressBar"></div>
-        </div>
-
-        <!-- Approved-for-this-session strip: appears only when a parent approves -->
-        <div id="fsApprovedSection" style="display:none;" class="mt-4 w-100">
-            <div class="fs-section-title text-info">
-                <i class="fa-solid fa-thumbs-up me-2"></i>Parent approved — click to use (timer pauses, no penalty)
+        <!-- Hero: timer / task / progress / stats -->
+        <section class="fs-hero">
+            <div class="fs-kicker"><i class="fa-solid fa-bullseye"></i> Focus Session</div>
+            <div class="fs-timer" id="fsTimerDisplay">00:00</div>
+            <div class="fs-task">
+                <i class="fa-solid fa-list-check"></i>
+                <span id="fsTaskNameText">Free focus</span>
             </div>
-            <div class="approved-strip" id="fsApprovedGrid"></div>
-        </div>
+            <div class="fs-status" id="fsStatusLine">Stay focused!</div>
 
-        <!-- Active usage banner while an approved app is open -->
-        <div id="fsUsingBanner" style="display:none;" class="fs-using-banner mt-3">
-            <i class="fa-brands fa-youtube me-2" id="fsUsingIcon"></i>
-            <div class="flex-grow-1 text-start">
-                <div class="fw-bold" id="fsUsingName">YouTube</div>
-                <div class="small opacity-75">Focus timer paused &mdash; time left: <b id="fsUsingCountdown">--:--</b></div>
+            <div class="fs-progress">
+                <div class="fs-progress-track">
+                    <div class="fs-progress-bar" id="fsProgressBar"></div>
+                </div>
+                <div class="fs-progress-meta">
+                    <span id="fsProgressPct">0%</span>
+                    <span><i class="fa-regular fa-clock me-1"></i><b id="fsRemainingChip">&ndash;&ndash;:&ndash;&ndash;</b> left</span>
+                </div>
             </div>
-            <button class="btn btn-light btn-sm fw-bold" id="fsReturnBtn"><i class="fa-solid fa-arrow-left me-1"></i> Return to Focus Mode</button>
-        </div>
-    </div>
 
-    <div class="fs-bottom">
-        <div class="w-100">
-            <div class="fs-section-title text-success">
-                <i class="fa-solid fa-circle-check me-2"></i>Allowed apps — click to open through Sadhana
+            <div class="fs-stats">
+                <div class="fs-stat"><span>Focused</span><b id="fsFocusedStat">00:00</b></div>
+                <div class="fs-stat"><span>Distracted</span><b id="fsDistractedStat" class="is-bad">00:00</b></div>
+                <div class="fs-stat"><span>Blocked</span><b id="fsBlockedCount">0</b></div>
             </div>
-            <div class="app-grid" id="fsAllowedGrid"></div>
-        </div>
-        <div class="w-100 mt-3">
-            <div class="fs-section-title text-danger">
-                <i class="fa-solid fa-lock me-2"></i>Restricted — ask your parent for access
+        </section>
+
+        <!-- While an approved app is open: clear paused status -->
+        <section class="fs-using" id="fsUsingBanner" hidden>
+            <span class="fs-using-icon" id="fsUsingIcon"><i class="fa-brands fa-youtube"></i></span>
+            <div class="fs-using-body">
+                <strong id="fsUsingName">YouTube</strong>
+                <span>Focus timer paused &mdash; approved time left: <b id="fsUsingCountdown">&ndash;&ndash;:&ndash;&ndash;</b></span>
             </div>
-            <div class="app-grid" id="fsRestrictedGrid"></div>
-        </div>
-        <div class="d-flex justify-content-center align-items-center gap-3 mt-4 flex-wrap">
-            <button id="fsPauseBtn" class="btn fs-btn-warning" style="display:none;"><i class="fa-solid fa-pause me-2"></i>Pause</button>
-            <button id="fsEndBtn" class="btn fs-btn-danger"><i class="fa-solid fa-stop me-2"></i>End Session</button>
-        </div>
-        <div class="fs-footnote" id="fsFootnote">Your parent sees this session live.</div>
+            <button class="fs-btn fs-btn-light" id="fsReturnBtn">
+                <i class="fa-solid fa-arrow-rotate-left"></i> Return to Focus
+            </button>
+        </section>
+
+        <!-- Allowed apps -->
+        <section class="fs-section" id="fsAllowedSection">
+            <h2 class="fs-heading is-ok">
+                <i class="fa-solid fa-circle-check"></i> Allowed Apps
+                <small>open through Sadhana &mdash; no penalty</small>
+            </h2>
+            <div class="fs-tiles" id="fsAllowedGrid"></div>
+        </section>
+
+        <!-- Parent-approved apps (visible only while approvals exist) -->
+        <section class="fs-section" id="fsApprovedSection" hidden>
+            <h2 class="fs-heading is-info">
+                <i class="fa-solid fa-thumbs-up"></i> Parent Approved
+                <small>click Open &mdash; the focus timer pauses</small>
+            </h2>
+            <div class="fs-tiles" id="fsApprovedGrid"></div>
+        </section>
+
+        <!-- Restricted apps -->
+        <section class="fs-section" id="fsRestrictedSection">
+            <h2 class="fs-heading is-bad">
+                <i class="fa-solid fa-lock"></i> Restricted Apps
+                <small>parent approval required</small>
+            </h2>
+            <div class="fs-tiles" id="fsRestrictedGrid"></div>
+        </section>
+
+        <footer class="fs-controls">
+            <button id="fsPauseBtn" class="fs-btn fs-btn-warn" hidden>
+                <i class="fa-solid fa-pause"></i> Pause
+            </button>
+            <button id="fsEndBtn" class="fs-btn fs-btn-danger">
+                <i class="fa-solid fa-stop"></i> End Session
+            </button>
+        </footer>
     </div>
 </div>
 {% endblock %}
@@ -309,9 +341,10 @@
 
     function formatTime(sec) {
         sec = Math.max(0, Math.floor(sec));
-        const m = String(Math.floor(sec / 60)).padStart(2, '0');
+        const h = Math.floor(sec / 3600);
+        const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
         const s = String(sec % 60).padStart(2, '0');
-        return `${m}:${s}`;
+        return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
     }
 
     function escapeHtml(text) {
@@ -320,22 +353,34 @@
         return div.innerHTML;
     }
 
+    // App icon resolver: returns {style, name} so Font Awesome always gets a
+    // valid combination (no raw/blank glyph boxes).
+    const BRAND_ICONS = ['instagram', 'facebook', 'youtube', 'whatsapp', 'discord',
+        'telegram', 'netflix', 'steam', 'chrome', 'spotify', 'twitter', 'x-twitter',
+        'linkedin', 'github', 'reddit', 'tiktok', 'snapchat', 'pinterest'];
+    const SOLID_ICONS = [
+        ['vs code', 'laptop-code'], ['pycharm', 'laptop-code'], ['code', 'laptop-code'],
+        ['calculator', 'calculator'], ['pdf', 'file-pdf'], ['docs', 'file-word'],
+        ['word', 'file-word'], ['notes', 'note-sticky'], ['notion', 'note-sticky'],
+        ['sadhana', 'seedling'], ['excel', 'file-excel'],
+    ];
     function getAppIcon(name) {
-        const iconMap = {
-            'instagram': 'instagram', 'facebook': 'facebook', 'youtube': 'youtube',
-            'whatsapp': 'whatsapp', 'discord': 'discord', 'telegram': 'telegram',
-            'netflix': 'netflix', 'steam': 'steam', 'chrome': 'chrome',
-            'spotify': 'spotify', 'twitter': 'twitter', 'x-twitter': 'x-twitter',
-            'linkedin': 'linkedin', 'github': 'github', 'reddit': 'reddit',
-            'tiktok': 'tiktok', 'snapchat': 'snapchat', 'pinterest': 'pinterest',
-            'vs code': 'laptop-code', 'code': 'code', 'calculator': 'calculator',
-            'pdf': 'file-pdf', 'sadhana': 'seedling', 'docs': 'file-word',
-        };
         const lower = (name || '').toLowerCase();
-        for (const [key, icon] of Object.entries(iconMap)) {
-            if (lower.includes(key)) return icon;
+        for (const [key, icon] of SOLID_ICONS) {
+            if (lower.includes(key)) return { style: 'fa-solid', name: icon };
         }
-        return 'window-restore';
+        for (const key of BRAND_ICONS) {
+            if (lower.includes(key)) return { style: 'fa-brands', name: key };
+        }
+        return null;
+    }
+    function appIconHtml(name, category) {
+        const found = getAppIcon(name);
+        if (found) return `<i class="${found.style} fa-${found.name}"></i>`;
+        // Sensible defaults per category so nothing renders as a blank box.
+        return category === 'WEBSITE'
+            ? '<i class="fa-solid fa-globe"></i>'
+            : '<i class="fa-solid fa-window-restore"></i>';
     }
 
     // ─── Display loop ───
@@ -352,9 +397,19 @@
     function renderTimer() {
         const shown = liveFocusSeconds();
         document.getElementById('fsTimerDisplay').textContent = formatTime(shown);
+        document.getElementById('fsFocusedStat').textContent = formatTime(shown);
+        document.getElementById('fsDistractedStat').textContent = formatTime(distractionSeconds);
         if (plannedDuration > 0) {
-            const pct = Math.min(100, Math.round((shown / (plannedDuration * 60)) * 100));
+            const planned = plannedDuration * 60;
+            const pct = Math.min(100, Math.round((shown / planned) * 100));
             document.getElementById('fsProgressBar').style.width = `${pct}%`;
+            document.getElementById('fsProgressPct').textContent = `${pct}% complete`;
+            document.getElementById('fsRemainingChip').textContent =
+                formatTime(Math.max(0, planned - shown));
+        } else {
+            document.getElementById('fsProgressBar').style.width = '100%';
+            document.getElementById('fsProgressPct').textContent = 'Free session';
+            document.getElementById('fsRemainingChip').textContent = '--:--';
         }
         if (usingApproval) {
             document.getElementById('fsUsingCountdown').textContent = formatTime(usingApproval.remaining);
@@ -378,7 +433,11 @@
         lastSyncMs = Date.now();
         sessionPaused = !!d.paused;
         document.getElementById('fsBlockedCount').textContent = d.blocked_attempts ?? 0;
-        document.getElementById('fsViolationCount').textContent = d.lock_violations ?? 0;
+
+        const alertNote = document.getElementById('fsAlertNote');
+        const violations = d.lock_violations ?? 0;
+        alertNote.hidden = !violations;
+        alertNote.textContent = violations ? ` \u00b7 ${violations} alert${violations === 1 ? '' : 's'} sent` : '';
 
         renderApprovedApps(d.approved || []);
 
@@ -387,9 +446,9 @@
         else if (!active && usingApproval) exitUsingMode(false);
 
         if (sessionPaused && usingApproval) {
-            setStatus(`Using "${usingApproval.name}" — focus timer paused`, 'text-info');
+            setStatus(`Using "${usingApproval.name}" — focus timer paused`, 'is-info');
         } else if (document.hidden) {
-            setStatus('You moved away — distraction tracking active', 'text-bad');
+            setStatus('You moved away — distraction tracking active', 'is-bad');
         } else if (!manualPaused) {
             setStatus('Stay focused!', '');
         }
@@ -445,8 +504,8 @@
         document.body.classList.add('focus-stage-open');
         const stage = document.getElementById('focusStage');
         stage.style.display = 'flex';
-        document.getElementById('fsPauseBtn').style.display = lockEnabled ? 'none' : 'inline-block';
-        document.getElementById('fsLockBadge').style.visibility = lockEnabled ? 'visible' : 'hidden';
+        document.getElementById('fsPauseBtn').hidden = lockEnabled;
+        document.getElementById('fsLockBadge').hidden = !lockEnabled;
         buildAppGrids();
     }
 
@@ -461,15 +520,21 @@
         const allowedGrid = document.getElementById('fsAllowedGrid');
         allowedGrid.innerHTML = '';
         ALLOWED_ITEMS.forEach(item => {
-            const tile = document.createElement('button');
-            tile.type = 'button';
-            tile.className = 'app-tile allowed';
+            const tile = document.createElement('div');
+            tile.className = 'fs-app allowed';
             tile.title = item.category === 'WEBSITE' ? 'Open website' : 'Launch via Desktop Agent';
-            tile.innerHTML = `<i class="fa-${item.category === 'WEBSITE' ? 'brands' : 'solid'} fa-${getAppIcon(item.app_name || item.name)}"></i><span>${escapeHtml(item.name)}</span>`;
-            tile.addEventListener('click', () => launchAllowed(item));
+            tile.innerHTML = `
+                <span class="fs-app-icon">${appIconHtml(item.app_name || item.name, item.category)}</span>
+                <span class="fs-app-name">${escapeHtml(item.name)}</span>
+                <button type="button" class="fs-btn-mini">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
+                </button>`;
+            tile.querySelector('.fs-btn-mini').addEventListener('click', () => launchAllowed(item));
             allowedGrid.appendChild(tile);
         });
-        if (!ALLOWED_ITEMS.length) allowedGrid.innerHTML = '<span class="text-secondary small">No allowed apps configured.</span>';
+        if (!ALLOWED_ITEMS.length) {
+            allowedGrid.innerHTML = '<p class="fs-empty">No allowed apps configured yet.</p>';
+        }
 
         renderRestrictedGrid();
     }
@@ -478,15 +543,24 @@
         const grid = document.getElementById('fsRestrictedGrid');
         grid.innerHTML = '';
         RESTRICTED_ITEMS.forEach(item => {
-            const tile = document.createElement('button');
-            tile.type = 'button';
-            tile.className = 'app-tile locked';
+            const requested = pendingRequests.has(item.id);
+            const tile = document.createElement('div');
+            tile.className = `fs-app restricted${requested ? ' requested' : ''}`;
             tile.dataset.itemId = item.id;
-            tile.innerHTML = `<i class="fa-${item.category === 'WEBSITE' ? 'brands' : 'solid'} fa-${getAppIcon(item.app_name || item.name)}"></i><span>${escapeHtml(item.name)}</span><small class="fs-tile-hint">${pendingRequests.has(item.id) ? '<i class="fa-solid fa-hourglass-half me-1"></i>Awaiting approval' : 'Click to request'}</small>`;
-            tile.addEventListener('click', () => requestAccess(item, tile));
+            tile.innerHTML = `
+                <span class="fs-app-icon">${appIconHtml(item.app_name || item.name, item.category)}</span>
+                <span class="fs-app-name">${escapeHtml(item.name)}</span>
+                <button type="button" class="fs-btn-request" ${requested ? 'disabled' : ''}>
+                    ${requested
+                        ? '<i class="fa-solid fa-hourglass-half"></i> Requested'
+                        : '<i class="fa-solid fa-paper-plane"></i> Request Access'}
+                </button>`;
+            tile.querySelector('.fs-btn-request').addEventListener('click', () => requestAccess(item));
             grid.appendChild(tile);
         });
-        if (!RESTRICTED_ITEMS.length) grid.innerHTML = '<span class="text-secondary small">No restricted apps configured.</span>';
+        if (!RESTRICTED_ITEMS.length) {
+            grid.innerHTML = '<p class="fs-empty">Nothing restricted right now.</p>';
+        }
     }
 
     function requestAccess(item, tile) {
@@ -535,25 +609,29 @@
         const section = document.getElementById('fsApprovedSection');
         const grid = document.getElementById('fsApprovedGrid');
         if (!list.length) {
-            section.style.display = 'none';
+            section.hidden = true;
             grid.innerHTML = '';
             return;
         }
-        section.style.display = 'block';
+        section.hidden = false;
         grid.innerHTML = '';
         list.forEach(app => {
             const inUse = usingApproval && usingApproval.id === app.id;
-            const tile = document.createElement('button');
-            tile.type = 'button';
-            tile.className = 'approved-tile' + (inUse ? ' active' : '');
+            const tile = document.createElement('div');
+            tile.className = `fs-app approved${inUse ? ' in-use' : ''}`;
             const remaining = inUse ? usingApproval.remaining
                 : Math.max(0, Math.floor((new Date(app.granted_until) - Date.now()) / 1000));
             tile.innerHTML = `
-                <i class="fa-${app.category === 'WEBSITE' ? 'brands' : 'solid'} fa-${getAppIcon(app.app_name)}"></i>
-                <span>${escapeHtml(app.app_name)}</span>
-                <b class="approved-countdown">${formatTime(remaining)}</b>`;
-            tile.title = inUse ? 'Using now — timer paused' : 'Click to use (pauses focus timer)';
-            tile.addEventListener('click', () => startApprovedUse(app));
+                <span class="fs-app-icon">${appIconHtml(app.app_name, app.category)}</span>
+                <span class="fs-app-name">${escapeHtml(app.app_name)}</span>
+                <b class="fs-app-countdown">${formatTime(remaining)}</b>
+                <button type="button" class="fs-btn-mini is-open" ${inUse ? 'disabled' : ''}>
+                    ${inUse
+                        ? '<i class="fa-solid fa-circle-play"></i> Using'
+                        : '<i class="fa-solid fa-arrow-up-right-from-square"></i> Open'}
+                </button>`;
+            tile.title = inUse ? 'Using now — focus timer paused' : 'Open — pauses the focus timer';
+            tile.querySelector('.fs-btn-mini').addEventListener('click', () => startApprovedUse(app));
             grid.appendChild(tile);
         });
     }
@@ -600,12 +678,12 @@
             remaining: approval.remaining_seconds || approval.remaining || 0,
             startedAt: Date.now(),
         };
-        document.getElementById('fsUsingBanner').style.display = 'flex';
+        document.getElementById('fsUsingBanner').hidden = false;
         document.getElementById('fsUsingName').textContent = usingApproval.name;
-        const iconEl = document.getElementById('fsUsingIcon');
-        iconEl.className = `me-2 fa-${usingApproval.category === 'WEBSITE' ? 'brands' : 'solid'} fa-${getAppIcon(usingApproval.name)}`;
-        setStatus(`Using "${usingApproval.name}" — focus timer paused`, 'text-info');
-        document.querySelectorAll('.app-grid').forEach(g => g.classList.add('dimmed'));
+        document.getElementById('fsUsingIcon').innerHTML =
+            appIconHtml(usingApproval.name, usingApproval.category);
+        setStatus(`Using "${usingApproval.name}" — focus timer paused`, 'is-info');
+        document.querySelectorAll('.fs-section').forEach(s => s.classList.add('dimmed'));
         renderTimer();
     }
 
@@ -614,12 +692,12 @@
         const name = usingApproval.name;
         const id = usingApproval.id;
         usingApproval = null;
-        document.getElementById('fsUsingBanner').style.display = 'none';
-        document.querySelectorAll('.app-grid').forEach(g => g.classList.remove('dimmed'));
+        document.getElementById('fsUsingBanner').hidden = true;
+        document.querySelectorAll('.fs-section').forEach(s => s.classList.remove('dimmed'));
         lastSyncMs = Date.now(); // resume exactly where the timer froze
-        setStatus('Welcome back to Focus Mode!', 'text-success');
+        setStatus('Welcome back to Focus Mode!', 'is-ok');
         setTimeout(() => { if (!usingApproval && currentSessionId) setStatus('Stay focused!', ''); }, 4000);
-        if (showToastMsg) showToast('Focus Resumed', `Back to "${document.getElementById('fsTaskName').textContent.trim() || 'Focus Mode'}". Timer resumed.`, 'success');
+        if (showToastMsg) showToast('Focus Resumed', `Back to "${document.getElementById('fsTaskNameText').textContent.trim() || 'Focus Mode'}". Timer resumed.`, 'success');
         postJSON(`/focus/api/approved-app/${id}/release/`).then(() => pollState()).catch(() => {});
     }
 
@@ -632,7 +710,7 @@
             exitUsingMode(false);
         } else {
             renderTimer();
-            if (usingApproval.remaining <= 60) setStatus(`Hurry back — ${usingApproval.remaining}s of approved time left`, 'text-warn');
+            if (usingApproval.remaining <= 60) setStatus(`Hurry back — ${usingApproval.remaining}s of approved time left`, 'is-warn');
         }
     }, 1000);
 
@@ -668,8 +746,7 @@
         usingApproval = null;
         pendingRequests.clear();
 
-        document.getElementById('fsTaskName').innerHTML =
-            `<i class="fa-solid fa-list-check me-2"></i>${escapeHtml(taskName || 'Free focus')}`;
+        document.getElementById('fsTaskNameText').textContent = taskName || 'Free focus';
         document.getElementById('fsEndBtn').disabled = false;
         showStage();
         startLoops();
@@ -727,11 +804,11 @@
         manualPaused = !manualPaused;
         const btn = document.getElementById('fsPauseBtn');
         if (manualPaused) {
-            btn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Resume';
-            setStatus('Session paused', 'text-warn');
+            btn.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
+            setStatus('Session paused', 'is-warn');
             sendTick();
         } else {
-            btn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
+            btn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
             setStatus('Stay focused!', '');
             lastSyncMs = Date.now();
             sendTick();
