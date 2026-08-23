@@ -510,11 +510,14 @@
                                     <h6 class="fw-bold mb-0"><i class="fa-solid fa-circle text-success me-1"></i>${s.child_name}</h6>
                                     <span>
                                         ${s.lock_enabled ? '<span class="badge bg-danger me-1" title="Super Power Saving Mode active"><i class="fa-solid fa-lock me-1"></i>Locked</span>' : ''}
-                                        <span class="badge bg-success"><i class="fa-solid fa-fire me-1"></i>Focusing</span>
+                                        ${s.paused
+                                            ? `<span class="badge bg-info" title="Child is using a parent-approved app - the focus timer is paused, no penalty accrues"><i class="fa-solid fa-circle-play me-1"></i>Approved app</span>`
+                                            : '<span class="badge bg-success"><i class="fa-solid fa-fire me-1"></i>Focusing</span>'}
                                     </span>
                                 </div>
                                 <p class="small text-muted mb-2">
                                     <i class="fa-solid fa-list-check me-1"></i>Task: <strong>${s.task_name || 'Free focus'}</strong>
+                                    ${s.paused && s.approved_app ? `<span class="d-block text-info mt-1"><i class="fa-solid fa-thumbs-up me-1"></i>Approved use: ${s.approved_app} — timer paused (${Math.ceil((s.approved_app_remaining || 0) / 60)} min left)</span>` : ''}
                                     ${s.lock_violations ? `<span class="d-block text-danger mt-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>${s.lock_violations} lock violation(s)</span>` : ''}
                                 </p>
                                 <div class="d-flex justify-content-between small text-muted mb-1">

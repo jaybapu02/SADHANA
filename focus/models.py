@@ -39,6 +39,9 @@ class FocusSession(models.Model):
     lock_violations = models.IntegerField(default=0, help_text="Number of lock violations (tab switch / minimize / leave attempt)")
     lock_enabled = models.BooleanField(default=False, help_text="Super Power Saving Mode - OS/browser level lock is enforced")
     early_exit = models.BooleanField(default=False, help_text="Child ended the session before the planned duration")
+    last_tick_at = models.DateTimeField(null=True, blank=True, help_text="Last presence tick received from the child's focus page (server-side timing)")
+    paused_at = models.DateTimeField(null=True, blank=True, help_text="Set while an approved app is being used - focus timer is frozen")
+    pause_seconds_total = models.IntegerField(default=0, help_text="Total seconds the session was paused for approved app usage")
 
     class Meta:
         ordering = ['-start_time']
@@ -139,6 +142,15 @@ class AccessRequest(models.Model):
     responded_at = models.DateTimeField(null=True, blank=True)
     granted_until = models.DateTimeField(null=True, blank=True, help_text="If approved, access granted until this time")
     in_use = models.BooleanField(default=False, help_text="Child is currently using this approved app")
+    usage_started_at = models.DateTimeField(null=True, blank=True, help_text="When the child opened the approved app (focus timer freezes)")
+    usage_seconds = models.IntegerField(default=0, help_text="Total seconds the child actually used the approved app")
+
+    @property
+    def is_grant_active(self):
+        """True while the approval window is still open."""
+        from django.utils import timezone
+        return self.status == self.Status.APPROVED and self.granted_until is not None \
+            and self.granted_until > timezone.now()
 
     class Meta:
         ordering = ['-requested_at']
@@ -174,6 +186,48 @@ class FocusAnalytics(models.Model):
 
     def __str__(self):
         return f"{self.child.username} - {self.period} ({self.period_start})"
+
+
+class FocusDeviceCommand(models.Model):
+    """Command queue for enforcement devices. The child's focus page queues a
+    command (e.g. launch an approved/allowed desktop app through Sadhana); the
+    Desktop Agent picks it up on its next device-status poll, executes it and
+    ACKs it. This is how apps are launched *through* Focus Mode instead of the
+    child hunting for icons in the taskbar."""
+
+    class Status(models.TextChoices):
+        QUEUED = 'QUEUED', 'Queued'
+        DONE = 'DONE', 'Done'
+        FAILED = 'FAILED', 'Failed'
+
+    class CommandType(models.TextChoices):
+        LAUNCH_APP = 'LAUNCH_APP', 'Launch App'
+
+    session = models.ForeignKey(
+        FocusSession,
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='device_commands',
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='device_commands',
+    )
+    command_type = models.CharField(max_length=20, choices=CommandType.choices, default=CommandType.LAUNCH_APP)
+    app_name = models.CharField(max_length=100)
+    category = models.CharField(max_length=10, default='APP')
+    url_pattern = models.CharField(max_length=500, blank=True, default='')
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
+    detail = models.TextField(blank=True, default='', help_text="Agent result / failure reason")
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"LAUNCH {self.app_name} -> {self.requested_by.username} ({self.status})"
 
 
 class FocusDevice(models.Model):
@@ -226,6 +280,10 @@ class FocusLockEvent(models.Model):
         ACCESS_REQUESTED = 'ACCESS_REQUESTED', 'Access Requested'
         ACCESS_APPROVED = 'ACCESS_APPROVED', 'Access Approved'
         ACCESS_DENIED = 'ACCESS_DENIED', 'Access Denied'
+        APPROVED_APP_START = 'APPROVED_APP_START', 'Approved App Started'
+        APPROVED_APP_END = 'APPROVED_APP_END', 'Approved App Ended'
+        ACCESS_EXPIRED = 'ACCESS_EXPIRED', 'Approved Access Expired'
+        APP_LAUNCHED = 'APP_LAUNCHED', 'App Launched Via Sadhana'
         DEVICE_ONLINE = 'DEVICE_ONLINE', 'Device Online'
         DEVICE_OFFLINE = 'DEVICE_OFFLINE', 'Device Offline'
 
@@ -239,6 +297,10 @@ class FocusLockEvent(models.Model):
         EventType.LOCK_DEACTIVATED: Severity.INFO,
         EventType.DEVICE_ONLINE: Severity.INFO,
         EventType.ACCESS_APPROVED: Severity.INFO,
+        EventType.APPROVED_APP_START: Severity.INFO,
+        EventType.APPROVED_APP_END: Severity.INFO,
+        EventType.ACCESS_EXPIRED: Severity.WARNING,
+        EventType.APP_LAUNCHED: Severity.INFO,
         EventType.ACCESS_REQUESTED: Severity.WARNING,
         EventType.TAB_HIDE: Severity.WARNING,
         EventType.ACCESS_DENIED: Severity.CRITICAL,

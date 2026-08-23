@@ -11,7 +11,7 @@ from django.db.models import Q
 
 from .models import (
     FocusSession, WhitelistItem, BlacklistItem, AccessRequest, FocusAnalytics,
-    FocusDevice, FocusLockEvent,
+    FocusDevice, FocusDeviceCommand, FocusLockEvent,
 )
 from tasks.models import Task
 from notifications.models import Notification
@@ -68,6 +68,9 @@ def seed_default_lists():
 
 # ─── Helper ───
 
+TICK_MAX_DELTA_SECONDS = 60  # clamp per-tick accumulation (bounds drift & abuse)
+
+
 def get_connected_parents(child):
     connections = ConnectionRequest.objects.filter(
         child=child, status='ACCEPTED'
@@ -84,6 +87,104 @@ def get_device_from_request(request):
     if not token:
         return None
     return FocusDevice.objects.filter(token=token, is_active=True).first()
+
+
+def get_active_session(child):
+    return FocusSession.objects.filter(
+        child=child, status=FocusSession.Status.ACTIVE
+    ).select_related('task').first()
+
+
+def _finalize_approved_usage(access_req, expired=False):
+    """Close out an approved-app usage period: account the used seconds,
+    unfreeze the focus session and record the audit event."""
+    now = timezone.now()
+    used_delta = 0
+    if access_req.usage_started_at:
+        used_delta = max(0, int((now - access_req.usage_started_at).total_seconds()))
+        access_req.usage_seconds += used_delta
+        access_req.usage_started_at = None
+    access_req.in_use = False
+    access_req.save(update_fields=['in_use', 'usage_started_at', 'usage_seconds'])
+
+    session = access_req.session
+    if session and session.paused_at:
+        paused_delta = max(0, int((now - session.paused_at).total_seconds()))
+        session.pause_seconds_total += paused_delta
+        session.paused_at = None
+        session.save(update_fields=['pause_seconds_total', 'paused_at'])
+
+    event_type = (FocusLockEvent.EventType.ACCESS_EXPIRED if expired
+                  else FocusLockEvent.EventType.APPROVED_APP_END)
+    if session:
+        record_lock_event(
+            session, access_req.child, None,
+            event_type,
+            detail=(
+                f'Approved access to "{access_req.blacklist_item.name}" expired after '
+                f'{access_req.usage_seconds}s of use'
+                if expired else
+                f'Child returned to Focus Mode from "{access_req.blacklist_item.name}" '
+                f'(used {used_delta}s)'
+            ),
+            metadata={'request_id': access_req.id, 'used_seconds': access_req.usage_seconds},
+            notify=False,
+        )
+    return used_delta
+
+
+def sweep_approved_usage(child):
+    """Auto-revoke approvals whose grant window has ended (server-side timer,
+    not trusting the frontend). Releases any that are mid-use and unfreezes
+    the focus session so the child is sent back to Focus Mode."""
+    now = timezone.now()
+    stale_in_use = AccessRequest.objects.filter(
+        child=child,
+        status=AccessRequest.Status.APPROVED,
+        in_use=True,
+        granted_until__lt=now,
+    ).select_related('blacklist_item', 'session')
+    for req in stale_in_use:
+        _finalize_approved_usage(req, expired=True)
+    # Mark long-expired approvals so they stop showing up as "approved".
+    AccessRequest.objects.filter(
+        child=child,
+        status=AccessRequest.Status.APPROVED,
+        granted_until__lt=now - timedelta(seconds=1),
+        in_use=False,
+    ).update(status=AccessRequest.Status.EXPIRED)
+
+
+def get_active_approval(child):
+    """The approved restricted app currently being used (if any)."""
+    return AccessRequest.objects.filter(
+        child=child,
+        status=AccessRequest.Status.APPROVED,
+        in_use=True,
+        usage_started_at__isnull=False,
+    ).select_related('blacklist_item', 'session').first()
+
+
+def approval_payload(req, now=None):
+    """Serialized form of an approved restricted app for the child UI/devices."""
+    now = now or timezone.now()
+    item = req.blacklist_item
+    remaining = max(0, int((req.granted_until - now).total_seconds())) if req.granted_until else 0
+    url = ''
+    if item.category == 'WEBSITE' and item.url_pattern:
+        url = 'https://' + item.url_pattern
+    return {
+        'id': req.id,
+        'app_name': item.name,
+        'category': item.category,
+        'url_pattern': item.url_pattern or '',
+        'app_name_exe': item.app_name or '',
+        'url': url,
+        'granted_until': req.granted_until.isoformat() if req.granted_until else None,
+        'remaining_seconds': remaining,
+        'in_use': req.in_use,
+        'usage_seconds': req.usage_seconds,
+    }
 
 
 def notify_lock_event(event):
@@ -135,14 +236,30 @@ def record_lock_event(session, child, device, event_type, detail='', metadata=No
     return event
 
 
-def device_status_payload(child, session):
+def device_status_payload(child, session, device=None):
     """Shared payload returned to enforcement devices (extension / agent)."""
     now = timezone.now()
+    sweep_approved_usage(child)
+    active_approval = get_active_approval(child)
     approved = AccessRequest.objects.filter(
         child=child,
         status=AccessRequest.Status.APPROVED,
         granted_until__gte=now,
     ).select_related('blacklist_item')
+
+    commands = []
+    if device and device.device_type == FocusDevice.DeviceType.AGENT:
+        commands = [{
+            'id': c.id,
+            'command_type': c.command_type,
+            'app_name': c.app_name,
+            'category': c.category,
+            'url_pattern': c.url_pattern,
+        } for c in FocusDeviceCommand.objects.filter(
+            requested_by=child,
+            status=FocusDeviceCommand.Status.QUEUED,
+        ).order_by('created_at')[:10]]
+
     return {
         'active': session is not None and session.status == FocusSession.Status.ACTIVE,
         'lock_enabled': bool(session and session.lock_enabled),
@@ -150,6 +267,10 @@ def device_status_payload(child, session):
         'task_name': session.task.task_name if session and session.task else None,
         'planned_duration': session.planned_duration if session else 0,
         'start_time': session.start_time.isoformat() if session else None,
+        'focus_seconds': session.actual_focus_seconds if session else 0,
+        'paused': bool(session and session.paused_at),
+        'approval_active': active_approval is not None,
+        'active_approval': approval_payload(active_approval, now) if active_approval else None,
         'blocked_attempts': session.blocked_attempts if session else 0,
         'lock_violations': session.lock_violations if session else 0,
         'whitelist': [{
@@ -160,13 +281,8 @@ def device_status_payload(child, session):
             'name': b.name, 'category': b.category,
             'url_pattern': b.url_pattern, 'app_name': b.app_name,
         } for b in BlacklistItem.objects.all()],
-        'approved': [{
-            'name': r.blacklist_item.name,
-            'category': r.blacklist_item.category,
-            'url_pattern': r.blacklist_item.url_pattern,
-            'app_name': r.blacklist_item.app_name,
-            'granted_until': r.granted_until.isoformat() if r.granted_until else None,
-        } for r in approved],
+        'approved': [approval_payload(r, now) for r in approved],
+        'commands': commands,
     }
 
 
@@ -190,6 +306,10 @@ def focus_session_view(request):
     context = {
         'whitelist': whitelist,
         'blacklist': blacklist,
+        'whitelist_items': list(WhitelistItem.objects.values(
+            'id', 'name', 'category', 'url_pattern', 'app_name')),
+        'blacklist_items': list(BlacklistItem.objects.values(
+            'id', 'name', 'category', 'url_pattern', 'app_name')),
         'active_session': active_session,
         'today_tasks': today_tasks,
         'connected_parent': conn.parent if conn else None,
@@ -268,8 +388,8 @@ def api_end_session(request):
         return JsonResponse({'error': 'Only children can end focus sessions.'}, status=403)
     try:
         data = json.loads(request.body)
-        focus_seconds = int(data.get('focus_seconds', 0))
-        distraction_seconds = int(data.get('distraction_seconds', 0))
+        client_focus_seconds = int(data.get('focus_seconds', 0))
+        client_distraction_seconds = int(data.get('distraction_seconds', 0))
         break_seconds = int(data.get('break_seconds', 0))
         session_id = data.get('session_id')
     except (ValueError, TypeError, json.JSONDecodeError):
@@ -279,13 +399,48 @@ def api_end_session(request):
     if session.status != FocusSession.Status.ACTIVE:
         return JsonResponse({'error': 'Session is not active.'}, status=400)
 
-    planned_seconds = session.planned_duration * 60
-    session.actual_focus_seconds = focus_seconds
-    session.distraction_seconds = distraction_seconds
-    session.break_seconds = break_seconds
-    session.end_time = timezone.now()
+    # Finalize any approved-app usage so paused time isn't counted either way.
+    sweep_approved_usage(request.user)
+    # ...and close out anything still open when the child ends mid-use.
+    for open_req in AccessRequest.objects.filter(
+        child=request.user,
+        status=AccessRequest.Status.APPROVED,
+        in_use=True,
+        usage_started_at__isnull=False,
+    ).select_related('blacklist_item', 'session'):
+        _finalize_approved_usage(open_req)
+    # Finalization may have unfrozen the session - pick up fresh state before
+    # deciding where the trailing seconds since the last tick belong.
+    session.refresh_from_db(fields=['paused_at', 'pause_seconds_total',
+                                    'actual_focus_seconds',
+                                    'distraction_seconds'])
 
-    if focus_seconds >= planned_seconds:
+    now = timezone.now()
+    if session.last_tick_at:
+        # Server-authoritative path: trust the accumulated tick counters, and
+        # bank the short trailing window since the last tick (≤ one interval).
+        # Client-supplied numbers are ignored - they cannot be trusted.
+        trailing = int((now - session.last_tick_at).total_seconds())
+        if 0 <= trailing <= 15:
+            if session.paused_at:
+                session.pause_seconds_total += trailing
+            else:
+                session.actual_focus_seconds += trailing
+        focus_seconds = session.actual_focus_seconds
+        distraction_seconds = session.distraction_seconds
+    else:
+        # Legacy clients that never ticked: fall back to reported values.
+        focus_seconds = max(0, client_focus_seconds)
+        distraction_seconds = max(0, client_distraction_seconds)
+        session.actual_focus_seconds = focus_seconds
+        session.distraction_seconds = distraction_seconds
+
+    planned_seconds = session.planned_duration * 60
+    session.end_time = now
+    session.last_tick_at = None
+
+    # Small grace window absorbs tick-interval rounding on the completion line.
+    if session.planned_duration == 0 or focus_seconds >= max(0, planned_seconds - 10):
         session.status = FocusSession.Status.COMPLETED
         session.early_exit = False
     else:
@@ -323,8 +478,16 @@ def api_end_session(request):
     return JsonResponse({
         'status': 'success',
         'session_status': session.status,
+        'early_exit': session.early_exit,
         'actual_focus_seconds': session.actual_focus_seconds,
         'distraction_seconds': session.distraction_seconds,
+        'pause_seconds_total': session.pause_seconds_total,
+        'approved_usage': {
+            r.blacklist_item.name: r.usage_seconds
+            for r in AccessRequest.objects.filter(
+                session=session, usage_seconds__gt=0
+            ).select_related('blacklist_item')
+        },
     })
 
 
@@ -369,6 +532,341 @@ def api_active_session(request):
         'planned_duration': session.planned_duration,
         'start_time': session.start_time.isoformat(),
     })
+
+
+# ─── Child: Server-Authoritative Timing ───
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_session_tick(request):
+    """Presence tick from the focus page. The SERVER owns the clock: the child
+    page only declares what it is doing (focusing / distracted); the server
+    clamps every delta so a tampered client can't inflate focus time or hide
+    in a paused state forever."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+    try:
+        data = json.loads(request.body)
+        session_id = data.get('session_id')
+        kind = str(data.get('kind', 'FOCUS')).upper()
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid data.'}, status=400)
+
+    session = get_object_or_404(FocusSession, id=session_id, child=request.user)
+    if session.status != FocusSession.Status.ACTIVE:
+        return JsonResponse({'status': 'error', 'message': 'Session is not active.'}, status=400)
+
+    sweep_approved_usage(request.user)
+    now = timezone.now()
+    delta = 0
+    if session.last_tick_at:
+        delta = max(0, min(TICK_MAX_DELTA_SECONDS,
+                           int((now - session.last_tick_at).total_seconds())))
+
+    if delta and not session.paused_at:
+        # Approved-app usage freezes the timer completely: neither focus nor
+        # distraction accrues while the child is legitimately inside an
+        # approved app. Any other kind (e.g. explicit PAUSED) is a no-op too.
+        if kind == 'DISTRACTED':
+            session.distraction_seconds += delta
+        elif kind == 'FOCUS':
+            if session.planned_duration:
+                planned_seconds = session.planned_duration * 60
+                remaining = max(0, planned_seconds - session.actual_focus_seconds)
+                session.actual_focus_seconds += min(delta, remaining)
+            else:
+                session.actual_focus_seconds += delta
+
+    session.last_tick_at = now
+    session.save(update_fields=['last_tick_at', 'actual_focus_seconds',
+                                'distraction_seconds', 'pause_seconds_total'])
+
+    planned_seconds = session.planned_duration * 60
+    remaining_seconds = max(0, planned_seconds - session.actual_focus_seconds) \
+        if planned_seconds else None
+    return JsonResponse({
+        'status': 'success',
+        'focus_seconds': session.actual_focus_seconds,
+        'distraction_seconds': session.distraction_seconds,
+        'paused': bool(session.paused_at),
+        'remaining_seconds': remaining_seconds,
+    })
+
+
+@login_required
+def api_session_state(request):
+    """Single unified poll for the child's Focus Stage UI: server-owned timer,
+    pause state, live approvals (with countdowns), counters."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized.'}, status=403)
+    sweep_approved_usage(request.user)
+    session = get_active_session(request.user)
+    now = timezone.now()
+    if not session:
+        return JsonResponse({
+            'active': False,
+            'approved': [],
+            'server_time': now.isoformat(),
+        })
+
+    active_approval = get_active_approval(request.user)
+    approved_reqs = AccessRequest.objects.filter(
+        child=request.user,
+        session=session,
+        status=AccessRequest.Status.APPROVED,
+        granted_until__gte=now,
+    ).select_related('blacklist_item')
+
+    planned_seconds = session.planned_duration * 60
+    agent_online = FocusDevice.objects.filter(
+        child=request.user,
+        device_type=FocusDevice.DeviceType.AGENT,
+        is_active=True,
+        last_seen__gte=now - timedelta(seconds=120),
+    ).exists()
+
+    return JsonResponse({
+        'active': True,
+        'session_id': session.id,
+        'session_type': session.session_type,
+        'task_name': session.task.task_name if session.task else None,
+        'lock_enabled': session.lock_enabled,
+        'planned_duration': session.planned_duration,
+        'focus_seconds': session.actual_focus_seconds,
+        'distraction_seconds': session.distraction_seconds,
+        'remaining_seconds': max(0, planned_seconds - session.actual_focus_seconds)
+            if planned_seconds else None,
+        'paused': bool(session.paused_at),
+        'blocked_attempts': session.blocked_attempts,
+        'lock_violations': session.lock_violations,
+        'agent_online': agent_online,
+        'active_approval': approval_payload(active_approval, now) if active_approval else None,
+        'approved': [approval_payload(r, now) for r in approved_reqs],
+        'server_time': now.isoformat(),
+    })
+
+
+# ─── Child: Approved App Use (pause / resume the focus timer) ───
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_use_approved_app(request, request_id):
+    """Child opens an approved restricted app. The focus timer FREEZES for the
+    remainder of the grant window - this is sanctioned use, not distraction."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'status': 'error', 'message': 'Only children.'}, status=403)
+    access_req = get_object_or_404(
+        AccessRequest.objects.select_related('blacklist_item', 'session'),
+        id=request_id, child=request.user,
+    )
+    sweep_approved_usage(request.user)
+    access_req.refresh_from_db()
+
+    if access_req.status != AccessRequest.Status.APPROVED or not access_req.is_grant_active:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'This approval has expired. Ask your parent again.',
+        }, status=400)
+
+    session = access_req.session
+    if not session or session.status != FocusSession.Status.ACTIVE:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'No active focus session for this approval.',
+        }, status=400)
+
+    now = timezone.now()
+
+    # Only one approved app at a time: politely close any previous usage first.
+    previous = AccessRequest.objects.filter(
+        child=request.user, status=AccessRequest.Status.APPROVED,
+        in_use=True, usage_started_at__isnull=False,
+    ).exclude(id=access_req.id).first()
+    if previous and previous.id != access_req.id:
+        _finalize_approved_usage(previous)
+
+    already_using = access_req.in_use
+    if not already_using:
+        access_req.in_use = True
+        access_req.usage_started_at = now
+        access_req.save(update_fields=['in_use', 'usage_started_at'])
+        session.paused_at = now
+        session.save(update_fields=['paused_at'])
+        record_lock_event(
+            session, request.user, None,
+            FocusLockEvent.EventType.APPROVED_APP_START,
+            detail=f'Focus timer paused - child opened approved app '
+                   f'"{access_req.blacklist_item.name}"',
+            metadata={'request_id': access_req.id},
+            notify=False,
+        )
+
+    remaining = max(0, int((access_req.granted_until - now).total_seconds()))
+    item = access_req.blacklist_item
+    url = ('https://' + item.url_pattern) if item.category == 'WEBSITE' and item.url_pattern else ''
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Using "{item.name}" - focus timer paused.',
+        'app_name': item.name,
+        'category': item.category,
+        'url': url,
+        'remaining_seconds': remaining,
+        'focus_seconds': session.actual_focus_seconds,
+        'already_using': already_using,
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_release_approved_app(request, request_id):
+    """Child returns to Focus Mode; accounting is finalized and the timer
+    resumes from exactly where it froze."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'status': 'error', 'message': 'Only children.'}, status=403)
+    access_req = get_object_or_404(
+        AccessRequest.objects.select_related('blacklist_item', 'session'),
+        id=request_id, child=request.user,
+    )
+    sweep_approved_usage(request.user)
+    access_req.refresh_from_db()
+
+    used_delta = _finalize_approved_usage(access_req)
+    session = access_req.session
+    return JsonResponse({
+        'status': 'success',
+        'message': 'Welcome back to Focus Mode.',
+        'used_seconds': used_delta,
+        'total_used_seconds': access_req.usage_seconds,
+        'focus_seconds': session.actual_focus_seconds if session else None,
+        'paused': bool(session and session.paused_at),
+    })
+
+
+# ─── Child: Launch Allowed Apps Through Sadhana ───
+
+def _queue_launch_command(child, session, app_name, category, url_pattern=''):
+    return FocusDeviceCommand.objects.create(
+        requested_by=child,
+        session=session,
+        command_type=FocusDeviceCommand.CommandType.LAUNCH_APP,
+        app_name=app_name,
+        category=category,
+        url_pattern=url_pattern,
+    )
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_launch_app(request):
+    """Clicking an allowed app icon inside Focus Mode. Websites are opened by
+    the browser (extension permits them); desktop APPs are launched by the
+    Desktop Agent via a queued command - the child never touches the taskbar."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'status': 'error', 'message': 'Only children.'}, status=403)
+    try:
+        data = json.loads(request.body)
+        source = str(data.get('source', '')).upper()
+        item_id = data.get('item_id')
+        req_id = data.get('request_id')
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid data.'}, status=400)
+
+    sweep_approved_usage(request.user)
+    session = get_active_session(request.user)
+    now = timezone.now()
+
+    if source == 'WHITELIST':
+        if not item_id:
+            return JsonResponse({'status': 'error', 'message': 'Missing item_id.'}, status=400)
+        item = get_object_or_404(WhitelistItem, id=item_id)
+        if item.category == 'WEBSITE':
+            url = 'https://' + item.url_pattern if item.url_pattern else ''
+            return JsonResponse({
+                'status': 'success', 'action': 'OPEN_URL', 'url': url,
+                'message': f'Opening "{item.name}"...',
+            })
+        cmd = _queue_launch_command(
+            request.user, session, item.app_name or item.name, 'APP'
+        )
+        agent_online = FocusDevice.objects.filter(
+            child=request.user, device_type=FocusDevice.DeviceType.AGENT,
+            is_active=True, last_seen__gte=now - timedelta(seconds=120),
+        ).exists()
+        return JsonResponse({
+            'status': 'success', 'action': 'LAUNCH_APP', 'command_id': cmd.id,
+            'app_name': cmd.app_name, 'agent_online': agent_online,
+            'message': f'Launching "{cmd.app_name}" via Desktop Agent...',
+        })
+
+    if source == 'APPROVED':
+        if not req_id:
+            return JsonResponse({'status': 'error', 'message': 'Missing request_id.'}, status=400)
+        access_req = get_object_or_404(
+            AccessRequest.objects.select_related('blacklist_item'),
+            id=req_id, child=request.user,
+        )
+        if access_req.status != AccessRequest.Status.APPROVED or not access_req.is_grant_active:
+            return JsonResponse({
+                'status': 'error', 'message': 'This approval has expired.',
+            }, status=400)
+        item = access_req.blacklist_item
+        if item.category == 'WEBSITE':
+            url = 'https://' + item.url_pattern if item.url_pattern else ''
+            return JsonResponse({
+                'status': 'success', 'action': 'OPEN_URL', 'url': url,
+                'message': f'Opening "{item.name}" (approved)...',
+            })
+        cmd = _queue_launch_command(
+            request.user, session, item.app_name or item.name, 'APP',
+            url_pattern=item.url_pattern or '',
+        )
+        return JsonResponse({
+            'status': 'success', 'action': 'LAUNCH_APP', 'command_id': cmd.id,
+            'app_name': cmd.app_name,
+            'message': f'Launching "{cmd.app_name}" via Desktop Agent...',
+        })
+
+    return JsonResponse({'status': 'error', 'message': 'Unknown source.'}, status=400)
+
+
+# ─── Device: Command Acknowledgement ───
+
+@csrf_exempt
+@require_http_methods(['POST'])
+def api_device_command_ack(request):
+    device = get_device_from_request(request)
+    if not device or not device.child:
+        return JsonResponse({'status': 'error', 'message': 'Invalid device token.'}, status=401)
+    try:
+        data = json.loads(request.body)
+        command_id = int(data.get('command_id'))
+        ok = bool(data.get('ok', True))
+        detail = str(data.get('detail', ''))[:500]
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid data.'}, status=400)
+
+    command = get_object_or_404(
+        FocusDeviceCommand, id=command_id, requested_by=device.child
+    )
+    command.status = FocusDeviceCommand.Status.DONE if ok \
+        else FocusDeviceCommand.Status.FAILED
+    command.detail = detail
+    command.completed_at = timezone.now()
+    command.save(update_fields=['status', 'detail', 'completed_at'])
+
+    if ok and command.command_type == FocusDeviceCommand.CommandType.LAUNCH_APP:
+        record_lock_event(
+            command.session, device.child, device,
+            FocusLockEvent.EventType.APP_LAUNCHED,
+            detail=f'Desktop Agent launched "{command.app_name}" through Sadhana',
+            metadata={'command_id': command.id},
+            notify=False,
+        )
+    return JsonResponse({'status': 'success'})
 
 
 # ─── Child: Check / Request Access to Blacklisted Item ───
@@ -702,6 +1200,9 @@ def api_focus_analytics(request, child_id):
 
     def get_focus_distraction(fs):
         if fs.status == FocusSession.Status.ACTIVE:
+            if fs.last_tick_at:
+                # Ticking sessions: the server already owns live totals.
+                return fs.actual_focus_seconds, fs.distraction_seconds
             elapsed = int((now - fs.start_time).total_seconds())
             return max(0, elapsed), 0
         return fs.actual_focus_seconds, fs.distraction_seconds
@@ -853,19 +1354,32 @@ def api_parent_active_sessions(request):
         ).select_related('task').first()
         if not session:
             continue
-        elapsed = max(0, int((now - session.start_time).total_seconds()))
-        remaining = max(0, session.planned_duration * 60 - elapsed)
+        sweep_approved_usage(conn.child)
+        session.refresh_from_db(fields=['paused_at'])
+        if session.last_tick_at:
+            focus_seconds = session.actual_focus_seconds
+        else:
+            focus_seconds = max(0, int((now - session.start_time).total_seconds()))
+        remaining = max(0, session.planned_duration * 60 - focus_seconds)
+        active_approval = get_active_approval(conn.child)
         data.append({
             'child_id': conn.child.id,
             'child_name': conn.child.username,
             'session_id': session.id,
             'task_name': session.task.task_name if session.task else None,
             'planned_duration': session.planned_duration,
-            'focus_seconds': elapsed,
+            'focus_seconds': focus_seconds,
             'remaining_seconds': remaining,
             'start_time': session.start_time.isoformat(),
             'lock_enabled': session.lock_enabled,
             'lock_violations': session.lock_violations,
+            'paused': bool(session.paused_at),
+            'approved_app': (active_approval.blacklist_item.name
+                             if active_approval else None),
+            'approved_app_remaining': (
+                max(0, int((active_approval.granted_until - now).total_seconds()))
+                if active_approval and active_approval.granted_until else 0
+            ),
         })
     return JsonResponse({'sessions': data})
 
@@ -894,6 +1408,7 @@ def api_get_approved_apps(request):
     if request.user.role != 'CHILD':
         return JsonResponse({'error': 'Unauthorized.'}, status=403)
 
+    sweep_approved_usage(request.user)
     now = timezone.now()
     approved = AccessRequest.objects.filter(
         child=request.user,
@@ -903,20 +1418,9 @@ def api_get_approved_apps(request):
 
     data = []
     for req in approved:
-        item = req.blacklist_item
-        url = ''
-        if item.category == 'WEBSITE' and item.url_pattern:
-            url = 'https://' + item.url_pattern
-        data.append({
-            'id': req.id,
-            'app_name': item.name,
-            'app_category': item.category,
-            'url_pattern': item.url_pattern,
-            'app_name_exe': item.app_name,
-            'url': url,
-            'granted_until': req.granted_until.isoformat() if req.granted_until else None,
-            'in_use': req.in_use,
-        })
+        payload = approval_payload(req, now)
+        payload['app_category'] = payload.pop('category')
+        data.append(payload)
     return JsonResponse({'approved_apps': data})
 
 
@@ -924,22 +1428,43 @@ def api_get_approved_apps(request):
 @require_http_methods(['POST'])
 @csrf_exempt
 def api_mark_app_usage(request):
+    """Legacy compatibility endpoint (old clients). New flow prefers
+    api_use_approved_app / api_release_approved_app."""
     if request.user.role != 'CHILD':
         return JsonResponse({'error': 'Unauthorized.'}, status=403)
     try:
         data = json.loads(request.body)
         request_id = data.get('request_id')
-        in_use = data.get('in_use', False)
+        in_use = bool(data.get('in_use', False))
     except (ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'error': 'Invalid data.'}, status=400)
 
     access_req = get_object_or_404(
-        AccessRequest, id=request_id, child=request.user,
-        status=AccessRequest.Status.APPROVED
+        AccessRequest.objects.select_related('blacklist_item', 'session'),
+        id=request_id, child=request.user,
     )
-    access_req.in_use = bool(in_use)
-    access_req.save(update_fields=['in_use'])
-    return JsonResponse({'status': 'success', 'app_name': access_req.blacklist_item.name, 'in_use': access_req.in_use})
+    sweep_approved_usage(request.user)
+    access_req.refresh_from_db()
+
+    if in_use:
+        if access_req.status == AccessRequest.Status.APPROVED and access_req.is_grant_active:
+            session = access_req.session
+            if session and session.paused_at is None:
+                access_req.in_use = True
+                access_req.usage_started_at = timezone.now()
+                access_req.save(update_fields=['in_use', 'usage_started_at'])
+                session.paused_at = access_req.usage_started_at
+                session.save(update_fields=['paused_at'])
+    else:
+        _finalize_approved_usage(access_req)
+        access_req.refresh_from_db()
+
+    return JsonResponse({
+        'status': 'success',
+        'app_name': access_req.blacklist_item.name,
+        'in_use': access_req.in_use,
+        'paused': bool(access_req.session and access_req.session.paused_at),
+    })
 
 
 @login_required
@@ -1055,7 +1580,7 @@ def api_device_status(request):
         return JsonResponse({'error': 'Invalid or inactive device token.'}, status=401)
     device.last_seen = timezone.now()
     device.save(update_fields=['last_seen'])
-    return JsonResponse(device_status_payload(child, session))
+    return JsonResponse(device_status_payload(child, session, device))
 
 
 @login_required
@@ -1165,7 +1690,7 @@ def api_focus_mode_status(request):
         child=child, status=FocusSession.Status.ACTIVE
     ).select_related('task').first()
 
-    return JsonResponse(device_status_payload(child, session))
+    return JsonResponse(device_status_payload(child, session, device))
 
 
 # ─── Parent: lock events & devices feed ───

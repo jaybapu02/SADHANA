@@ -24,6 +24,8 @@ import ctypes
 import json
 import logging
 import os
+import shutil
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -45,6 +47,9 @@ DEFAULT_CONFIG = {
     "mode": "blacklist",          # "blacklist" | "whitelist"
     "allow_system_processes": True,
     "restore_focus_window": True,
+    # Optional: exact paths for apps the child may launch through Sadhana,
+    # e.g. {"calculator": "calc.exe", "pdf reader": "C:/.../SumatraPDF.exe"}
+    "app_paths": {},
 }
 
 # Executables that are never killed even in strict whitelist mode (essential OS).
@@ -86,6 +91,9 @@ class FocusAgent:
             "blacklist_apps": [],   # [app_name]
             "whitelist_apps": [],
             "approved_apps": [],    # [app_name]
+            "approval_active": False,  # child is inside an approved app right now
+            "paused": False,
+            "commands": [],         # queued LAUNCH_APP commands from the focus page
         }
         self.pending_events = []
         self.seen_events = set()
@@ -116,6 +124,18 @@ class FocusAgent:
         except requests.RequestException as exc:
             log.warning("Heartbeat failed: %s", exc)
 
+    def ack_command(self, command_id, ok, detail=""):
+        try:
+            r = self.session.post(
+                f"{self.base}/device/command-ack/",
+                json={"command_id": command_id, "ok": ok, "detail": detail},
+                timeout=10,
+            )
+            if r.status_code >= 400:
+                log.warning("Command ack rejected (%s): %s", r.status_code, r.text[:200])
+        except requests.RequestException as exc:
+            log.warning("Command ack failed: %s", exc)
+
     def queue_event(self, event_type, detail="", metadata=None, dedup_key=None):
         key = dedup_key or f"{event_type}:{detail}"
         if key in self.seen_events:
@@ -135,6 +155,11 @@ class FocusAgent:
         self.state["active"] = active
         self.state["lock_enabled"] = lock_enabled
         self.state["session_id"] = data.get("session_id")
+        # While an approved app is in use the child is ALLOWED to be outside
+        # the focus window - minimize detection must stand down.
+        self.state["approval_active"] = bool(data.get("approval_active"))
+        self.state["paused"] = bool(data.get("paused"))
+        self.state["commands"] = data.get("commands") or []
 
         self.state["blacklist_apps"] = [
             b.get("app_name", "").lower()
@@ -154,13 +179,56 @@ class FocusAgent:
             granted = a.get("granted_until")
             if granted:
                 try:
-                    ts = datetime.fromisoformat(granted).replace(tzinfo=timezone.utc).timestamp()
-                    if ts <= now:
+                    dt = datetime.fromisoformat(granted)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    if dt.timestamp() <= now:
                         continue
                 except (ValueError, TypeError):
                     continue
             if a.get("app_name"):
                 self.state["approved_apps"].append(a["app_name"].lower())
+
+    # ── App launching (Focus Stage icons → real desktop apps) ───────────
+
+    def _resolve_app(self, app_name):
+        """Map a friendly app name to something launchable."""
+        key = (app_name or "").strip().lower()
+        # 1. Explicit mapping from config.json wins.
+        paths = self.config.get("app_paths") or {}
+        if key in paths:
+            return paths[key]
+        for alias, path in paths.items():
+            if alias in key or key in alias:
+                return path
+        # 2. On PATH / App Paths registry (os.startfile resolves both).
+        found = shutil.which(app_name)
+        if found:
+            return found
+        return app_name
+
+    def _launch_app(self, app_name):
+        target = self._resolve_app(app_name)
+        try:
+            if self.is_windows():
+                os.startfile(target)  # noqa: S606 - sanctioned launch via Sadhana
+            else:
+                subprocess.Popen([target])  # noqa: S603
+            log.info("Launched approved/allowed app: %s", app_name)
+            return True, f"launched {target}"
+        except FileNotFoundError:
+            return False, f"'{target}' not found on this computer"
+        except OSError as exc:
+            return False, f"could not launch '{target}': {exc}"
+
+    def run_pending_commands(self):
+        commands, self.state["commands"] = self.state["commands"], []
+        for cmd in commands:
+            if cmd.get("command_type") != "LAUNCH_APP":
+                self.ack_command(cmd.get("id"), False, "unknown command_type")
+                continue
+            ok, detail = self._launch_app(cmd.get("app_name", ""))
+            self.ack_command(cmd.get("id"), ok, detail)
 
     # ── Process enforcement ──────────────────────────────────────────────
 
@@ -231,6 +299,9 @@ class FocusAgent:
     def monitor_focus(self):
         if not (self.state["active"] and self.state["lock_enabled"]):
             return
+        # Approved use: the child is legitimately outside the focus window.
+        if self.state["approval_active"] or self.state["paused"]:
+            return
         if not self.is_windows():
             return
         title = self.foreground_window_title() or ""
@@ -281,6 +352,8 @@ class FocusAgent:
                     log.info("Lock ACTIVE (session #%s)", self.state["session_id"])
                 if not self.state["lock_enabled"] and was_locked:
                     log.info("Lock released")
+                if self.state["commands"]:
+                    self.run_pending_commands()
                 self.send_heartbeat()
 
             if now - last_process_check >= self.config["process_check_interval_seconds"]:

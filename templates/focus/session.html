@@ -1,19 +1,11 @@
 {% extends 'base.html' %}
 {% block title %}Focus Mode - Sadhana{% endblock %}
 {% block topbar_title %}Study &amp; Focus Mode{% endblock %}
+{% block body_class %}{% if active_session %}focus-stage-open{% endif %}{% endblock %}
 
 {% block content %}
-<div class="sd-page-header">
-    <div>
-        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-brain"></i></span> Study &amp; Focus Mode</h2>
-        <p class="sd-page-subtitle">Start a distraction-free session and earn rewards.</p>
-    </div>
-    <div class="sd-page-actions">
-        <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
-    </div>
-</div>
-
-
+{{ whitelist_items|json_script:"allowedItemsData" }}
+{{ blacklist_items|json_script:"restrictedItemsData" }}
 
 <div id="accessResultToast" class="toast" role="alert">
     <div class="toast-header">
@@ -23,360 +15,268 @@
     <div class="toast-body" id="toastMessage"></div>
 </div>
 
-<div class="row">
-    <!-- Timer & Controls Column -->
-    <div class="col-lg-7 mb-4">
-        <div class="card shadow border-0 rounded-4 h-100">
-            <div class="card-body p-4 text-center">
-                {% if active_session %}
-                <div class="mb-2">
-                    <span class="badge bg-success fs-6"><i class="fa-solid fa-circle me-1"></i> Session Active</span>
-                </div>
-                {% endif %}
+<!-- ═══════════════════ SETUP VIEW (no active session) ═══════════════════ -->
+<div id="setupView">
+    <div class="sd-page-header">
+        <div>
+            <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-brain"></i></span> Study &amp; Focus Mode</h2>
+            <p class="sd-page-subtitle">Start a distraction-free session and earn rewards.</p>
+        </div>
+        <div class="sd-page-actions">
+            <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
+        </div>
+    </div>
 
-                <div class="focus-timer mb-2" id="timerDisplay">00:00</div>
-                <p class="text-muted mb-3" id="timerLabel">Ready to focus?</p>
+    <div class="row">
+        <!-- Timer & Controls Column -->
+        <div class="col-lg-7 mb-4">
+            <div class="card shadow border-0 rounded-4 h-100">
+                <div class="card-body p-4 text-center">
+                    <div class="focus-timer mb-2" id="timerDisplay">00:00</div>
+                    <p class="text-muted mb-3" id="timerLabel">Ready to focus?</p>
 
-                <!-- Current Task -->
-                <div id="currentTaskDisplay" class="mb-3" {% if not active_session %}style="display:none;"{% endif %}>
-                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 fs-6 px-3 py-2">
-                        <i class="fa-solid fa-list-check me-2"></i>Task: <strong id="currentTaskName">{{ active_session.task.task_name|default:"Free focus" }}</strong>
-                    </span>
-                </div>
+                    <!-- Duration Selector -->
+                    <div id="durationSelector" class="mb-4">
+                        <label class="fw-semibold mb-2">Choose Study Duration</label>
+                        <div class="d-flex justify-content-center gap-2 flex-wrap">
+                            <button class="btn btn-outline-primary duration-btn selected" data-minutes="25" onclick="selectDuration(this, 25)">25 min</button>
+                            <button class="btn btn-outline-primary duration-btn" data-minutes="50" onclick="selectDuration(this, 50)">50 min</button>
+                            <button class="btn btn-outline-primary duration-btn" data-minutes="90" onclick="selectDuration(this, 90)">90 min</button>
+                            <div class="input-group" style="max-width: 170px;">
+                                <input type="number" class="form-control" id="customDuration" placeholder="Custom min" min="1" max="480">
+                                <button class="btn btn-outline-primary" onclick="selectCustomDuration()">Set</button>
+                            </div>
+                        </div>
+                    </div>
 
-                <!-- Duration Selector -->
-                <div id="durationSelector" class="mb-4">
-                    <label class="fw-semibold mb-2">Choose Study Duration</label>
-                    <div class="d-flex justify-content-center gap-2 flex-wrap">
-                        <button class="btn btn-outline-primary duration-btn selected" data-minutes="25" onclick="selectDuration(this, 25)">25 min</button>
-                        <button class="btn btn-outline-primary duration-btn" data-minutes="50" onclick="selectDuration(this, 50)">50 min</button>
-                        <button class="btn btn-outline-primary duration-btn" data-minutes="90" onclick="selectDuration(this, 90)">90 min</button>
-                        <div class="input-group" style="max-width: 170px;">
-                            <input type="number" class="form-control" id="customDuration" placeholder="Custom min" min="1" max="480">
-                            <button class="btn btn-outline-primary" onclick="selectCustomDuration()">Set</button>
+                    <!-- Task Selector -->
+                    <div id="taskSelector" class="mb-4">
+                        <label class="fw-semibold mb-2">Select a Task to Focus On</label>
+                        <select class="form-select mx-auto" id="taskSelect" style="max-width: 340px;">
+                            <option value="">-- No task (free focus) --</option>
+                            {% for task in today_tasks %}
+                            <option value="{{ task.id }}">{{ task.task_name }} {% if task.status %}(done){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Super Power Saving Mode Toggle -->
+                    <div id="superPowerPanel" class="mb-4">
+                        <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                            <label class="fw-semibold mb-0">Super Power Saving Mode</label>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="superPowerToggle">
+                            </div>
+                        </div>
+                        <p class="small text-muted mb-2 mx-auto" style="max-width: 460px;">
+                            Locks the study environment into a full-screen Focus Stage: only your task, the timer and
+                            parent-approved app icons are visible. Restricted apps need parent approval; approved use
+                            pauses the timer with no penalty. Every interruption is reported to your parent.
+                        </p>
+                        <div id="superPowerDeviceStatus" class="small"></div>
+                    </div>
+
+                    <!-- Control Buttons -->
+                    <div class="row justify-content-center mb-4 g-2">
+                        <div class="col-4">
+                            <button id="startBtn" class="btn btn-success btn-lg rounded-pill px-4 w-100">
+                                <i class="fa-solid fa-play me-2"></i>Start
+                            </button>
+                        </div>
+                        <div class="col-4">
+                            <button id="endBtn" class="btn btn-danger btn-lg rounded-pill px-4 w-100" disabled>
+                                <i class="fa-solid fa-stop me-2"></i>End
+                            </button>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Task Selector -->
-                <div id="taskSelector" class="mb-4">
-                    <label class="fw-semibold mb-2">Select a Task to Focus On</label>
-                    <select class="form-select mx-auto" id="taskSelect" style="max-width: 340px;">
-                        <option value="">-- No task (free focus) --</option>
-                        {% for task in today_tasks %}
-                        <option value="{{ task.id }}" {% if active_session and active_session.task_id == task.id %}selected{% endif %}>
-                            {{ task.task_name }} {% if task.status %}(done){% endif %}
-                        </option>
+        <!-- Apps Column (setup preview) -->
+        <div class="col-lg-5 mb-4">
+            <div class="card shadow border-0 rounded-4 mb-3">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-check-circle text-success me-2"></i>Allowed Apps</h5>
+                    <div id="whitelistContainer">
+                        {% for item in whitelist %}
+                        <span class="app-badge whitelist"><i class="fa-solid fa-check me-1"></i>{{ item.name }}</span>
+                        {% empty %}
+                        <p class="text-muted small">No whitelist items configured.</p>
                         {% endfor %}
-                    </select>
-                </div>
-
-                <!-- Super Power Saving Mode Toggle -->
-                <div id="superPowerPanel" class="mb-4">
-                    <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
-                        <label class="fw-semibold mb-0">Super Power Saving Mode</label>
-                        <div class="form-check form-switch mb-0">
-                            <input class="form-check-input" type="checkbox" id="superPowerToggle" {% if active_session and active_session.lock_enabled %}checked disabled{% endif %}>
-                        </div>
                     </div>
-                    <p class="small text-muted mb-2 mx-auto" style="max-width: 460px;">
-                        Locks the study environment: blocks restricted apps & websites, prevents tab switching,
-                        and reports every interruption to your parent immediately. Requires the Focus Guard browser
-                        extension and/or Desktop Agent.
+                </div>
+            </div>
+
+            <div class="card shadow border-0 rounded-4 mb-3">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-ban text-danger me-2"></i>Restricted Apps</h5>
+                    <div id="blacklistContainer">
+                        {% for item in blacklist %}
+                        <span class="app-badge blacklist"><i class="fa-solid fa-ban me-1"></i>{{ item.name }}</span>
+                        {% empty %}
+                        <p class="text-muted small">No blacklist items configured.</p>
+                        {% endfor %}
+                    </div>
+                    <p class="small text-muted mb-0 mt-2">During a locked session these need parent approval. Approved use never counts as distraction.</p>
+                </div>
+            </div>
+
+            <!-- Super Power Lock & Devices Panel -->
+            <div class="card shadow border-0 rounded-4" id="lockDevicesPanel">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3"><i class="fa-solid fa-shield-halved text-success me-2"></i>Super Power Lock & Devices</h5>
+                    <p class="small text-muted">
+                        Super Power Saving Mode is enforced by the <strong>Focus Guard browser extension</strong>
+                        and the <strong>Desktop Agent</strong>. Register a device below, then connect it.
                     </p>
-                    <div id="superPowerDeviceStatus" class="small"></div>
-                </div>
 
-                <!-- Control Buttons -->
-                <div class="row justify-content-center mb-4 g-2">
-                    <div class="col-4">
-                        <button id="startBtn" class="btn btn-success btn-lg rounded-pill px-4 w-100" {% if active_session %}disabled{% endif %}>
-                            <i class="fa-solid fa-play me-2"></i>Start
-                        </button>
-                    </div>
-                    <div class="col-4">
-                        <button id="pauseBtn" class="btn btn-warning btn-lg rounded-pill px-4 w-100" {% if not active_session %}disabled{% endif %}>
-                            <i class="fa-solid fa-pause me-2"></i>Pause
-                        </button>
-                    </div>
-                    <div class="col-4">
-                        <button id="endBtn" class="btn btn-danger btn-lg rounded-pill px-4 w-100" {% if not active_session %}disabled{% endif %}>
-                            <i class="fa-solid fa-stop me-2"></i>End
-                        </button>
-                    </div>
-                </div>
+                    <div class="d-flex flex-column gap-3">
+                        <div>
+                            <h6 class="fw-semibold"><i class="fa-solid fa-plug me-1"></i>Register a device</h6>
+                            <div class="input-group input-group-sm mb-2">
+                                <select class="form-select" id="newDeviceType" style="max-width:170px;">
+                                    <option value="EXTENSION">Browser Extension</option>
+                                    <option value="AGENT">Desktop Agent</option>
+                                </select>
+                                <input type="text" class="form-control" id="newDeviceName" placeholder="e.g. Chrome on Study PC">
+                                <button class="btn btn-primary" id="registerDeviceBtn"><i class="fa-solid fa-plus me-1"></i>Register</button>
+                            </div>
+                            <div id="deviceTokenDisplay" class="d-none">
+                                <label class="small fw-semibold">Your device token (copy into the extension/agent):</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" id="deviceTokenValue" readonly>
+                                    <button class="btn btn-outline-info" onclick="copyDeviceToken()"><i class="fa-solid fa-copy"></i></button>
+                                </div>
+                                <p class="small text-muted mt-1 mb-0">Keep this secret. The token authorizes enforcement on your account.</p>
+                            </div>
+                        </div>
 
-                <!-- Session Stats -->
-                <div class="row g-2 mt-3 row-cols-2 row-cols-md-5">
-                    <div class="col">
-                        <div class="session-stats-card">
-                            <h6 class="text-muted small mb-1">Focus Time</h6>
-                            <h4 class="fw-bold mb-0" id="focusDisplay">0s</h4>
+                        <div>
+                            <h6 class="fw-semibold"><i class="fa-solid fa-laptop me-1"></i>Connected devices</h6>
+                            <div id="deviceList" class="small">
+                                <span class="text-muted">Loading...</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="col">
-                        <div class="session-stats-card">
-                            <h6 class="text-muted small mb-1">Distracted</h6>
-                            <h4 class="fw-bold mb-0 text-bad" id="distractionDisplay">0s</h4>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="session-stats-card">
-                            <h6 class="text-muted small mb-1">Progress</h6>
-                            <h4 class="fw-bold mb-0" id="progressDisplay">0%</h4>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="session-stats-card">
-                            <h6 class="text-muted small mb-1">Remaining</h6>
-                            <h4 class="fw-bold mb-0" id="remainingDisplay">--</h4>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="session-stats-card">
-                            <h6 class="text-muted small mb-1">Blocked</h6>
-                            <h4 class="fw-bold mb-0 text-subtle" id="blockedDisplay">0</h4>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="progress mt-3" style="height: 10px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" role="progressbar" style="width: 0%"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Apps Column -->
-    <div class="col-lg-5 mb-4">
-        <div class="card shadow border-0 rounded-4 mb-3">
-            <div class="card-body p-4">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-check-circle text-success me-2"></i>Allowed Apps</h5>
-                <div id="whitelistContainer">
-                    {% for item in whitelist %}
-                    <span class="app-badge whitelist"><i class="fa-solid fa-check me-1"></i>{{ item.name }}</span>
-                    {% empty %}
-                    <p class="text-muted small">No whitelist items configured.</p>
-                    {% endfor %}
-                </div>
+    <!-- Session History -->
+    <div class="card shadow border-0 rounded-4 mt-2">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Session History</h5>
+                <button class="btn btn-sm btn-outline-info" onclick="loadHistory()"><i class="fa-solid fa-rotate me-1"></i> Refresh</button>
             </div>
-        </div>
-
-        <div class="card shadow border-0 rounded-4 mb-3">
-            <div class="card-body p-4">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-ban text-danger me-2"></i>Restricted Apps</h5>
-                <div id="blacklistContainer">
-                    {% for item in blacklist %}
-                    <span class="app-badge blacklist" data-id="{{ item.id }}" data-name="{{ item.name }}">
-                        <i class="fa-solid fa-ban me-1"></i>{{ item.name }}
-                    </span>
-                    {% empty %}
-                    <p class="text-muted small">No blacklist items configured.</p>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Access Request Panel -->
-        <div class="card shadow border-0 rounded-4" id="accessPanel" {% if not active_session %}style="opacity:0.5;pointer-events:none;"{% endif %}>
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-paper-plane text-warning me-2"></i>Request Access</h5>
-                    {% if connected_parent %}
-                    <a href="/chat/?to={{ connected_parent.id }}&text=Hi! I need help with something." class="btn btn-sm btn-outline-primary rounded-pill">
-                        <i class="fa-solid fa-comments me-1"></i> Ask Parent
-                    </a>
-                    {% endif %}
-                </div>
-                <p class="small text-muted">Need a restricted app? Send a request to your parent.</p>
-                <div class="input-group mb-2">
-                    <select class="form-select" id="accessAppSelect">
-                        <option value="">-- Select app --</option>
-                        {% for item in blacklist %}
-                        <option value="{{ item.id }}">{{ item.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <button class="btn btn-warning" id="requestAccessBtn" {% if not active_session %}disabled{% endif %}>
-                        <i class="fa-solid fa-paper-plane me-1"></i> Request
-                    </button>
-                </div>
-                <div id="accessRequestStatus" class="small mt-2"></div>
-            </div>
-        </div>
-
-        <!-- Parent Approved Apps Panel -->
-        <div class="card shadow border-0 rounded-4" id="approvedAppsPanel" style="display:none;">
-            <div class="card-body p-4">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-thumbs-up text-info me-2"></i>Parent Approved Apps</h5>
-                <p class="small text-muted">Approved by your parent. Click to use — no distraction penalty.</p>
-                <div id="approvedAppsContainer" class="d-flex flex-wrap gap-2"></div>
-                <div id="approvedAppStatus" class="small mt-2"></div>
-            </div>
-        </div>
-
-        <!-- Super Power Lock & Devices Panel -->
-        <div class="card shadow border-0 rounded-4" id="lockDevicesPanel">
-            <div class="card-body p-4">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-shield-halved text-success me-2"></i>Super Power Lock & Devices</h5>
-                <p class="small text-muted">
-                    Super Power Saving Mode is enforced by the <strong>Focus Guard browser extension</strong>
-                    and the <strong>Desktop Agent</strong>. Register a device below, then connect it.
-                </p>
-
-                <div id="lockStatusBanner" class="d-none alert alert-success d-flex align-items-center mb-3">
-                    <i class="fa-solid fa-lock me-2"></i>
-                    <div><strong>Lock active.</strong> Your environment is locked for this session.</div>
-                </div>
-
-                <div class="d-flex flex-column gap-3">
-                    <div>
-                        <h6 class="fw-semibold"><i class="fa-solid fa-plug me-1"></i>Register a device</h6>
-                        <div class="input-group input-group-sm mb-2">
-                            <select class="form-select" id="newDeviceType" style="max-width:170px;">
-                                <option value="EXTENSION">Browser Extension</option>
-                                <option value="AGENT">Desktop Agent</option>
-                            </select>
-                            <input type="text" class="form-control" id="newDeviceName" placeholder="e.g. Chrome on Study PC">
-                            <button class="btn btn-primary" id="registerDeviceBtn"><i class="fa-solid fa-plus me-1"></i>Register</button>
-                        </div>
-                        <div id="deviceTokenDisplay" class="d-none">
-                            <label class="small fw-semibold">Your device token (copy into the extension/agent):</label>
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control" id="deviceTokenValue" readonly>
-                                <button class="btn btn-outline-info" onclick="copyDeviceToken()"><i class="fa-solid fa-copy"></i></button>
-                            </div>
-                            <p class="small text-muted mt-1 mb-0">Keep this secret. The token authorizes enforcement on your account.</p>
-                        </div>
-                    </div>
-
-                    <div>
-                        <h6 class="fw-semibold"><i class="fa-solid fa-laptop me-1"></i>Connected devices</h6>
-                        <div id="deviceList" class="small">
-                            <span class="text-muted">Loading...</span>
-                        </div>
-                    </div>
-
-                    <div class="small bg-body-tertiary rounded-3 p-3">
-                        <div class="fw-semibold mb-1"><i class="fa-solid fa-circle-info me-1"></i>How to enforce</div>
-                        <ol class="mb-0 ps-3">
-                            <li>Install the Focus Guard extension (see <code>extensions/focus-guard</code>).</li>
-                            <li>Or run the Desktop Agent (see <code>desktop_agent</code>).</li>
-                            <li>Paste your device token and your server URL into the device.</li>
-                            <li>Toggle <strong>Super Power Saving Mode</strong> and press <strong>Start</strong>.</li>
-                        </ol>
-                    </div>
-                </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Planned</th>
+                            <th>Focused</th>
+                            <th>Distracted</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody">
+                        <tr><td colspan="5" class="text-muted text-center small">Loading...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Session History -->
-<div class="card shadow border-0 rounded-4 mt-2">
-    <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0"><i class="fa-solid fa-clock-rotate-left text-info me-2"></i>Session History</h5>
-            <button class="btn btn-sm btn-outline-info" onclick="loadHistory()"><i class="fa-solid fa-rotate me-1"></i> Refresh</button>
+<!-- ═══════════════════ FOCUS STAGE (active session) ═══════════════════
+     Full-screen "Super Power Saving" environment. Nothing from the site is
+     reachable here - just the task, the timer and sanctioned app icons. -->
+<div id="focusStage" style="display:none;">
+    <div class="fs-topbar">
+        <span class="fs-lock-badge" id="fsLockBadge"><i class="fa-solid fa-lock"></i> SUPER POWER LOCK ACTIVE</span>
+        <span class="fs-task" id="fsTaskName"><i class="fa-solid fa-list-check me-2"></i>Free focus</span>
+        <span class="fs-counters">
+            <span class="fs-counter" title="Blocked attempts"><i class="fa-solid fa-ban me-1"></i><b id="fsBlockedCount">0</b></span>
+            <span class="fs-counter warn" title="Lock violations reported to your parent"><i class="fa-solid fa-triangle-exclamation me-1"></i><b id="fsViolationCount">0</b></span>
+        </span>
+    </div>
+
+    <div class="fs-center">
+        <div class="focus-timer fs-timer active" id="fsTimerDisplay">00:00</div>
+        <div class="fs-status" id="fsStatusLine">Stay focused!</div>
+
+        <div class="fs-progress">
+            <div class="fs-progress-bar" id="fsProgressBar"></div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Planned</th>
-                        <th>Focused</th>
-                        <th>Distracted</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="historyBody">
-                    <tr><td colspan="5" class="text-muted text-center small">Loading...</td></tr>
-                </tbody>
-            </table>
+
+        <!-- Approved-for-this-session strip: appears only when a parent approves -->
+        <div id="fsApprovedSection" style="display:none;" class="mt-4 w-100">
+            <div class="fs-section-title text-info">
+                <i class="fa-solid fa-thumbs-up me-2"></i>Parent approved — click to use (timer pauses, no penalty)
+            </div>
+            <div class="approved-strip" id="fsApprovedGrid"></div>
         </div>
+
+        <!-- Active usage banner while an approved app is open -->
+        <div id="fsUsingBanner" style="display:none;" class="fs-using-banner mt-3">
+            <i class="fa-brands fa-youtube me-2" id="fsUsingIcon"></i>
+            <div class="flex-grow-1 text-start">
+                <div class="fw-bold" id="fsUsingName">YouTube</div>
+                <div class="small opacity-75">Focus timer paused &mdash; time left: <b id="fsUsingCountdown">--:--</b></div>
+            </div>
+            <button class="btn btn-light btn-sm fw-bold" id="fsReturnBtn"><i class="fa-solid fa-arrow-left me-1"></i> Return to Focus Mode</button>
+        </div>
+    </div>
+
+    <div class="fs-bottom">
+        <div class="w-100">
+            <div class="fs-section-title text-success">
+                <i class="fa-solid fa-circle-check me-2"></i>Allowed apps — click to open through Sadhana
+            </div>
+            <div class="app-grid" id="fsAllowedGrid"></div>
+        </div>
+        <div class="w-100 mt-3">
+            <div class="fs-section-title text-danger">
+                <i class="fa-solid fa-lock me-2"></i>Restricted — ask your parent for access
+            </div>
+            <div class="app-grid" id="fsRestrictedGrid"></div>
+        </div>
+        <div class="d-flex justify-content-center align-items-center gap-3 mt-4 flex-wrap">
+            <button id="fsPauseBtn" class="btn fs-btn-warning" style="display:none;"><i class="fa-solid fa-pause me-2"></i>Pause</button>
+            <button id="fsEndBtn" class="btn fs-btn-danger"><i class="fa-solid fa-stop me-2"></i>End Session</button>
+        </div>
+        <div class="fs-footnote" id="fsFootnote">Your parent sees this session live.</div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // ─── Static data ───
+    const ALLOWED_ITEMS = JSON.parse(document.getElementById('allowedItemsData').textContent);
+    const RESTRICTED_ITEMS = JSON.parse(document.getElementById('restrictedItemsData').textContent);
+
     let currentSessionId = null;
     let plannedDuration = 0;
     let selectedDuration = 25;
-    let focusSeconds = 0;
-    let distractionSeconds = 0;
-    let isRunning = false;
-    let isPaused = false;
     let lockEnabled = false;
 
-    // Mutually exclusive timers
-    let isTabHidden = false;
-    let focusInterval = null;
-    let distractionInterval = null;
+    // Server-owned clock (reconciled by polls + ticks)
+    let focusSeconds = 0;          // last server-known value
+    let distractionSeconds = 0;
+    let lastSyncMs = Date.now();   // when focusSeconds was true
+    let sessionPaused = false;     // frozen because approved app in use
+    let manualPaused = false;      // non-lock sessions: explicit pause button
+    let sessionEnded = false;
 
-    {% if active_session %}
-    currentSessionId = {{ active_session.id }};
-    plannedDuration = {{ active_session.planned_duration }};
-    isRunning = true;
-    {% endif %}
+    // Approved usage state
+    let usingApproval = null;      // {id, name, category, url, remaining}
+    const pendingRequests = new Set(); // restricted item ids requested this session
 
-    const timerDisplay = document.getElementById('timerDisplay');
-    const timerLabel = document.getElementById('timerLabel');
-    const focusDisplay = document.getElementById('focusDisplay');
-    const distractionDisplay = document.getElementById('distractionDisplay');
-    const progressDisplay = document.getElementById('progressDisplay');
-    const remainingDisplay = document.getElementById('remainingDisplay');
-    const progressBar = document.getElementById('progressBar');
-    const startBtn = document.getElementById('startBtn');
-    const pauseBtn = document.getElementById('pauseBtn');
-    const endBtn = document.getElementById('endBtn');
-    const durationSelector = document.getElementById('durationSelector');
-    const accessPanel = document.getElementById('accessPanel');
-    const requestAccessBtn = document.getElementById('requestAccessBtn');
-    const accessAppSelect = document.getElementById('accessAppSelect');
-    const accessRequestStatus = document.getElementById('accessRequestStatus');
-
-
-    function formatTime(sec) {
-        const m = String(Math.floor(sec / 60)).padStart(2, '0');
-        const s = String(sec % 60).padStart(2, '0');
-        return `${m}:${s}`;
-    }
-
-    function updateTimerDisplay() {
-        timerDisplay.textContent = formatTime(focusSeconds);
-        const planned = plannedDuration * 60;
-        const pct = planned > 0 ? Math.min(100, Math.round((focusSeconds / planned) * 100)) : 0;
-        focusDisplay.textContent = `${focusSeconds}s`;
-        distractionDisplay.textContent = `${distractionSeconds}s`;
-        progressDisplay.textContent = `${pct}%`;
-        progressBar.style.width = `${pct}%`;
-        progressBar.setAttribute('aria-valuenow', pct);
-
-        if (isRunning) {
-            const remaining = Math.max(0, planned - focusSeconds);
-            remainingDisplay.textContent = formatTime(remaining);
-            if (remaining <= 0) {
-                timerDisplay.className = 'focus-timer completed';
-            }
-        }
-    }
-
-    function selectDuration(btn, minutes) {
-        document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        selectedDuration = minutes;
-        document.getElementById('customDuration').value = '';
-    }
-
-    function selectCustomDuration() {
-        const val = parseInt(document.getElementById('customDuration').value);
-        if (val && val > 0) {
-            document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
-            selectedDuration = val;
-        }
-    }
-
+    // ─── Utils ───
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -389,392 +289,35 @@
         }
         return cookieValue;
     }
+    const CSRF = getCookie('csrftoken');
+
+    function postJSON(url, payload) {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+            body: JSON.stringify(payload || {})
+        }).then(r => r.json());
+    }
 
     function showToast(title, message, type) {
         const el = document.getElementById('accessResultToast');
-        const toast = bootstrap.Toast.getOrCreateInstance(el);
+        bootstrap.Toast.getOrCreateInstance(el).show();
         document.getElementById('toastTitle').textContent = title;
         document.getElementById('toastMessage').textContent = message;
         el.className = `toast text-bg-${type} border-0`;
-        toast.show();
     }
 
-    // ─── Tab-switch detection — timers are mutually exclusive ───
-
-    function pauseFocusTimer() {
-        if (focusInterval) {
-            clearInterval(focusInterval);
-            focusInterval = null;
-        }
+    function formatTime(sec) {
+        sec = Math.max(0, Math.floor(sec));
+        const m = String(Math.floor(sec / 60)).padStart(2, '0');
+        const s = String(sec % 60).padStart(2, '0');
+        return `${m}:${s}`;
     }
 
-    function resumeFocusTimer() {
-        if (focusInterval) return;
-        focusInterval = setInterval(() => {
-            if (!isRunning) return;
-            focusSeconds++;
-            updateTimerDisplay();
-            if (focusSeconds >= plannedDuration * 60) {
-                endSession();
-            }
-        }, 1000);
-    }
-
-    function startDistractionTimer() {
-        if (distractionInterval) return;
-        distractionInterval = setInterval(() => {
-            if (!isRunning) return;
-            distractionSeconds++;
-            updateTimerDisplay();
-        }, 1000);
-    }
-
-    function stopDistractionTimer() {
-        if (distractionInterval) {
-            clearInterval(distractionInterval);
-            distractionInterval = null;
-        }
-    }
-
-    function onTabHidden() {
-        if (!isRunning || isPaused) return;
-        isTabHidden = true;
-        pauseFocusTimer();
-        // Don't start distraction if an approved app is in use
-        if (!lastInUseState) {
-            startDistractionTimer();
-            timerLabel.textContent = 'You moved away — distraction tracking active';
-            timerLabel.className = 'text-danger mb-3';
-            showToast('Focus Paused', 'You left the tab. Focus timer paused, distraction tracking started.', 'warning');
-            reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
-        } else {
-            timerLabel.textContent = 'Using approved app — no penalty';
-            timerLabel.className = 'text-info mb-3';
-        }
-    }
-
-    function reportLockEvent(eventType, detail) {
-        if (!isRunning || !currentSessionId || !lockEnabled) return;
-        const payload = { event_type: eventType, detail: detail };
-        if (window.registeredDeviceToken) payload.device_token = window.registeredDeviceToken;
-        fetch('/focus/api/report-lock-event/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-            body: JSON.stringify(payload)
-        }).then(r => r.json()).then(d => {
-            if (d.status === 'success') {
-                document.getElementById('blockedDisplay').textContent = d.lock_violations || document.getElementById('blockedDisplay').textContent;
-            }
-        }).catch(() => {});
-    }
-
-    function onTabVisible() {
-        if (!isRunning || isPaused) return;
-        isTabHidden = false;
-        stopDistractionTimer();
-        resumeFocusTimer();
-        timerLabel.textContent = 'You\'re back — keep focusing!';
-        timerLabel.className = 'text-success mb-3';
-        setTimeout(() => { timerLabel.textContent = 'Stay focused!'; timerLabel.className = 'text-muted mb-3'; }, 3000);
-        showToast('Focus Resumed', 'Welcome back! Focus timer resumed.', 'success');
-    }
-
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            onTabHidden();
-        } else {
-            onTabVisible();
-        }
-    });
-
-    // ─── Session lifecycle ───
-
-    function setSessionActive(sessionId, duration, taskName, sessionLockEnabled) {
-        currentSessionId = sessionId;
-        plannedDuration = duration;
-        isRunning = true;
-        lockEnabled = !!sessionLockEnabled;
-        focusSeconds = 0;
-        distractionSeconds = 0;
-        isTabHidden = false;
-        startBtn.disabled = true;
-        pauseBtn.disabled = false;
-        pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
-        endBtn.disabled = false;
-        durationSelector.style.display = 'none';
-        document.getElementById('taskSelector').style.display = 'none';
-        document.getElementById('superPowerPanel').style.display = 'none';
-        document.getElementById('currentTaskDisplay').style.display = 'block';
-        document.getElementById('currentTaskName').textContent = taskName || 'Free focus';
-        accessPanel.style.opacity = '1';
-        accessPanel.style.pointerEvents = 'auto';
-        requestAccessBtn.disabled = false;
-        timerLabel.textContent = 'Stay focused!';
-        timerLabel.className = 'text-muted mb-3';
-        timerDisplay.className = 'focus-timer active';
-        updateTimerDisplay();
-
-        if (lockEnabled) {
-            document.getElementById('lockStatusBanner').classList.remove('d-none');
-        } else {
-            document.getElementById('lockStatusBanner').classList.add('d-none');
-        }
-
-        resumeFocusTimer();
-    }
-
-    function setSessionInactive() {
-        isRunning = false;
-        currentSessionId = null;
-        plannedDuration = 0;
-        lockEnabled = false;
-        isTabHidden = false;
-        pauseFocusTimer();
-        stopDistractionTimer();
-        isPaused = false;
-        startBtn.disabled = false;
-        pauseBtn.disabled = true;
-        pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
-        endBtn.disabled = true;
-        durationSelector.style.display = 'block';
-        document.getElementById('taskSelector').style.display = 'block';
-        document.getElementById('superPowerPanel').style.display = 'block';
-        document.getElementById('currentTaskDisplay').style.display = 'none';
-        document.getElementById('lockStatusBanner').classList.add('d-none');
-        accessPanel.style.opacity = '0.5';
-        accessPanel.style.pointerEvents = 'none';
-        requestAccessBtn.disabled = true;
-        timerLabel.textContent = 'Ready to focus?';
-        timerLabel.className = 'text-muted mb-3';
-        timerDisplay.className = 'focus-timer';
-        loadHistory();
-    }
-
-    function endSession() {
-        if (!currentSessionId) return;
-        pauseFocusTimer();
-        stopDistractionTimer();
-        isTabHidden = false;
-
-        fetch('/focus/api/end-session/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                session_id: currentSessionId,
-                focus_seconds: focusSeconds,
-                distraction_seconds: distractionSeconds
-            })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.status === 'success') {
-                const completed = data.session_status === 'COMPLETED';
-                const msg = completed
-                    ? `Session complete! Focused: ${focusSeconds}s, Distracted: ${distractionSeconds}s`
-                    : `Session ended early. Focused: ${focusSeconds}s, Distracted: ${distractionSeconds}s`;
-                showToast('Session Saved', msg, completed ? 'success' : 'warning');
-                timerDisplay.className = `focus-timer ${completed ? 'completed' : 'interrupted'}`;
-                timerLabel.textContent = completed ? 'Session Complete!' : 'Session Ended Early';
-            } else {
-                showToast('Error', data.error || 'Could not save session.', 'danger');
-            }
-        })
-        .catch(() => showToast('Error', 'Network error.', 'danger'))
-        .finally(() => setSessionInactive());
-    }
-
-    // Start
-    startBtn.addEventListener('click', () => {
-        const taskSelect = document.getElementById('taskSelect');
-        const taskId = taskSelect && taskSelect.value ? parseInt(taskSelect.value) : null;
-        const payload = { duration: selectedDuration, task_id: taskId, lock_enabled: lockEnabled };
-        if (lockEnabled && window.registeredDeviceToken) payload.device_token = window.registeredDeviceToken;
-        fetch('/focus/api/start-session/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.status === 'success') {
-                setSessionActive(data.session_id, data.planned_duration, data.task_name);
-                showToast('Session Started', `Focus session started for ${data.planned_duration} minutes${data.lock_enabled ? ' — Super Power Lock ON' : ''}.`, 'success');
-            } else {
-                showToast('Error', data.error || 'Could not start session.', 'danger');
-            }
-        })
-        .catch(() => showToast('Error', 'Network error.', 'danger'));
-    });
-
-    // Pause / Resume
-    pauseBtn.addEventListener('click', () => {
-        if (!currentSessionId || !isRunning) return;
-        if (!isPaused) {
-            isPaused = true;
-            pauseFocusTimer();
-            stopDistractionTimer();
-            pauseBtn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Resume';
-            timerLabel.textContent = 'Session paused';
-            timerLabel.className = 'text-warning mb-3';
-            timerDisplay.className = 'focus-timer';
-            showToast('Session Paused', 'Focus timer paused. Click Resume to continue.', 'warning');
-        } else {
-            isPaused = false;
-            // Only resume focus if tab is visible and not using approved app
-            if (!document.hidden && !lastInUseState) {
-                resumeFocusTimer();
-                timerLabel.textContent = 'Stay focused!';
-                timerLabel.className = 'text-muted mb-3';
-                timerDisplay.className = 'focus-timer active';
-            } else if (document.hidden) {
-                isTabHidden = true;
-                startDistractionTimer();
-                timerLabel.textContent = 'You moved away — distraction tracking active';
-                timerLabel.className = 'text-danger mb-3';
-            } else if (lastInUseState) {
-                timerLabel.textContent = 'Using approved app — no penalty';
-                timerLabel.className = 'text-info mb-3';
-            } else {
-                resumeFocusTimer();
-                timerLabel.textContent = 'Stay focused!';
-                timerLabel.className = 'text-muted mb-3';
-                timerDisplay.className = 'focus-timer active';
-            }
-            pauseBtn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
-            showToast('Session Resumed', 'Focus timer resumed.', 'success');
-        }
-    });
-
-    // End
-    endBtn.addEventListener('click', () => {
-        if (!currentSessionId) return;
-        if (!confirm('End your focus session?')) return;
-        endSession();
-    });
-
-    // Request Access
-    requestAccessBtn.addEventListener('click', () => {
-        const blacklistItemId = accessAppSelect.value;
-        if (!blacklistItemId) {
-            accessRequestStatus.innerHTML = '<span class="text-danger">Please select an app.</span>';
-            return;
-        }
-        if (!currentSessionId) {
-            accessRequestStatus.innerHTML = '<span class="text-danger">No active session.</span>';
-            return;
-        }
-        const appName = accessAppSelect.options[accessAppSelect.selectedIndex].text;
-        fetch('/focus/api/request-access/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                blacklist_item_id: parseInt(blacklistItemId),
-                session_id: currentSessionId
-            })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.status === 'success') {
-                accessRequestStatus.innerHTML = `<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>${data.message}</span>`;
-                showToast('Request Sent', `Access request for "${appName}" sent to parent.`, 'warning');
-            } else {
-                accessRequestStatus.innerHTML = `<span class="text-danger"><i class="fa-solid fa-exclamation-circle me-1"></i>${data.error}</span>`;
-            }
-        })
-        .catch(() => { accessRequestStatus.innerHTML = '<span class="text-danger">Network error.</span>'; });
-    });
-
-    // ─── Approved Apps: show clickable tiles, pause distraction when in use ───
-
-    let activeApprovedAppId = null;
-    let lastInUseState = false;
-
-    function loadApprovedApps() {
-        if (!isRunning || !currentSessionId) return;
-        fetch('/focus/api/approved-apps/')
-            .then(r => r.json())
-            .then(data => {
-                const container = document.getElementById('approvedAppsContainer');
-                const panel = document.getElementById('approvedAppsPanel');
-                const status = document.getElementById('approvedAppStatus');
-                if (!data.approved_apps || data.approved_apps.length === 0) {
-                    panel.style.display = 'none';
-                    if (activeApprovedAppId) {
-                        activeApprovedAppId = null;
-                        lastInUseState = false;
-                        resumeDistractionIfNeeded();
-                    }
-                    return;
-                }
-                panel.style.display = 'block';
-
-                const existing = new Set();
-                container.querySelectorAll('.approved-app-tile').forEach(el => existing.add(el.dataset.reqId));
-
-                let anyInUse = false;
-
-                data.approved_apps.forEach(app => {
-                    if (app.in_use) anyInUse = true;
-
-                    if (existing.has(String(app.id))) {
-                        // Update existing tile in_use state
-                        const tile = container.querySelector(`[data-req-id="${app.id}"]`);
-                        if (tile) {
-                            const wasInUse = tile.dataset.inUse === 'true';
-                            if (wasInUse !== app.in_use) {
-                                tile.dataset.inUse = app.in_use ? 'true' : 'false';
-                                if (app.in_use) {
-                                    tile.classList.add('in-use');
-                                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name} <span class="badge bg-success in-use-badge">In Use</span>`;
-                                } else {
-                                    tile.classList.remove('in-use');
-                                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name}`;
-                                }
-                            }
-                        }
-                        return;
-                    }
-
-                    const tile = document.createElement('div');
-                    tile.className = 'approved-app-tile' + (app.in_use ? ' in-use' : '');
-                    tile.dataset.reqId = app.id;
-                    tile.dataset.appName = app.app_name;
-                    tile.dataset.inUse = app.in_use ? 'true' : 'false';
-                    tile.innerHTML = app.in_use
-                        ? `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name} <span class="badge bg-success in-use-badge">In Use</span>`
-                        : `<i class="fa-brands fa-${getAppIcon(app.app_name)}"></i> ${app.app_name}`;
-                    tile.addEventListener('click', () => toggleApprovedApp(tile, app.id, app.app_name));
-                    container.appendChild(tile);
-                });
-
-                // Auto-sync distraction timer with in_use state
-                if (anyInUse && !lastInUseState) {
-                    lastInUseState = true;
-                    stopDistractionTimer();
-                    document.getElementById('approvedAppStatus').innerHTML = '<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Using approved app — distraction paused</span>';
-                } else if (!anyInUse && lastInUseState) {
-                    lastInUseState = false;
-                    activeApprovedAppId = null;
-                    document.getElementById('approvedAppStatus').innerHTML = '';
-                    resumeDistractionIfNeeded();
-                }
-            });
-    }
-
-    function resumeDistractionIfNeeded() {
-        // Only start distraction if tab is actually hidden
-        if (document.hidden) {
-            startDistractionTimer();
-        }
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
     }
 
     function getAppIcon(name) {
@@ -782,48 +325,461 @@
             'instagram': 'instagram', 'facebook': 'facebook', 'youtube': 'youtube',
             'whatsapp': 'whatsapp', 'discord': 'discord', 'telegram': 'telegram',
             'netflix': 'netflix', 'steam': 'steam', 'chrome': 'chrome',
-            'spotify': 'spotify', 'twitter': 'twitter', 'x': 'x-twitter',
+            'spotify': 'spotify', 'twitter': 'twitter', 'x-twitter': 'x-twitter',
             'linkedin': 'linkedin', 'github': 'github', 'reddit': 'reddit',
             'tiktok': 'tiktok', 'snapchat': 'snapchat', 'pinterest': 'pinterest',
+            'vs code': 'laptop-code', 'code': 'code', 'calculator': 'calculator',
+            'pdf': 'file-pdf', 'sadhana': 'seedling', 'docs': 'file-word',
         };
+        const lower = (name || '').toLowerCase();
         for (const [key, icon] of Object.entries(iconMap)) {
-            if (name.toLowerCase().includes(key)) return icon;
+            if (lower.includes(key)) return icon;
         }
         return 'window-restore';
     }
 
-    function toggleApprovedApp(tile, reqId, appName) {
-        const currentlyInUse = tile.dataset.inUse === 'true';
-        const newInUse = !currentlyInUse;
-
-        // Mark on server
-        fetch('/focus/api/mark-app-usage/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-            body: JSON.stringify({ request_id: reqId, in_use: newInUse })
-        }).then(r => r.json()).then(data => {
-            if (data.status === 'success') {
-                tile.dataset.inUse = newInUse ? 'true' : 'false';
-                if (newInUse) {
-                    tile.classList.add('in-use');
-                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(appName)}"></i> ${appName} <span class="badge bg-success in-use-badge">In Use</span>`;
-                    document.getElementById('approvedAppStatus').innerHTML = '<span class="text-success"><i class="fa-solid fa-check-circle me-1"></i>Using approved app — distraction paused</span>';
-                    stopDistractionTimer();
-                    lastInUseState = true;
-                    showToast('App Active', `"${appName}" is now active. Distraction paused.`, 'success');
-                } else {
-                    tile.classList.remove('in-use');
-                    tile.innerHTML = `<i class="fa-brands fa-${getAppIcon(appName)}"></i> ${appName}`;
-                    document.getElementById('approvedAppStatus').innerHTML = '';
-                    lastInUseState = false;
-                    if (document.hidden) startDistractionTimer();
-                    showToast('App Closed', `Stopped using "${appName}". Distraction tracking active.`, 'info');
-                }
-            }
-        }).catch(() => showToast('Error', 'Could not update app status.', 'danger'));
+    // ─── Display loop ───
+    function liveFocusSeconds() {
+        if (sessionPaused || manualPaused) return focusSeconds;
+        const drift = Math.floor((Date.now() - lastSyncMs) / 1000);
+        if (plannedDuration > 0) {
+            const planned = plannedDuration * 60;
+            return Math.min(focusSeconds + drift, planned);
+        }
+        return focusSeconds + drift;
     }
 
-    // Session History
+    function renderTimer() {
+        const shown = liveFocusSeconds();
+        document.getElementById('fsTimerDisplay').textContent = formatTime(shown);
+        if (plannedDuration > 0) {
+            const pct = Math.min(100, Math.round((shown / (plannedDuration * 60)) * 100));
+            document.getElementById('fsProgressBar').style.width = `${pct}%`;
+        }
+        if (usingApproval) {
+            document.getElementById('fsUsingCountdown').textContent = formatTime(usingApproval.remaining);
+        }
+        if (!sessionEnded && plannedDuration > 0 && shown >= plannedDuration * 60) {
+            endSession(true); // natural completion - no scary confirm
+        }
+    }
+    setInterval(renderTimer, 1000);
+
+    function setStatus(text, cls) {
+        const el = document.getElementById('fsStatusLine');
+        el.textContent = text;
+        el.className = `fs-status ${cls || ''}`;
+    }
+
+    // ─── Server sync ───
+    function applyServerState(d) {
+        focusSeconds = d.focus_seconds || 0;
+        distractionSeconds = d.distraction_seconds || 0;
+        lastSyncMs = Date.now();
+        sessionPaused = !!d.paused;
+        document.getElementById('fsBlockedCount').textContent = d.blocked_attempts ?? 0;
+        document.getElementById('fsViolationCount').textContent = d.lock_violations ?? 0;
+
+        renderApprovedApps(d.approved || []);
+
+        const active = d.active_approval;
+        if (active && !usingApproval) enterUsingMode(active);
+        else if (!active && usingApproval) exitUsingMode(false);
+
+        if (sessionPaused && usingApproval) {
+            setStatus(`Using "${usingApproval.name}" — focus timer paused`, 'text-info');
+        } else if (document.hidden) {
+            setStatus('You moved away — distraction tracking active', 'text-bad');
+        } else if (!manualPaused) {
+            setStatus('Stay focused!', '');
+        }
+    }
+
+    function pollState() {
+        if (!currentSessionId || sessionEnded) return;
+        fetch('/focus/api/session-state/').then(r => r.json()).then(d => {
+            if (!d.active) { // ended elsewhere
+                setSessionInactive();
+                return;
+            }
+            applyServerState(d);
+        }).catch(() => {});
+    }
+
+    // Presence tick: tells the server what the child is doing right now.
+    function sendTick() {
+        if (!currentSessionId || sessionEnded) return;
+        const kind = manualPaused ? 'PAUSED'
+            : (sessionPaused || usingApproval) ? 'FOCUS'
+            : document.hidden ? 'DISTRACTED' : 'FOCUS';
+        postJSON('/focus/api/session-tick/', { session_id: currentSessionId, kind })
+            .then(d => {
+                if (d.status === 'success') {
+                    focusSeconds = d.focus_seconds;
+                    distractionSeconds = d.distraction_seconds;
+                    lastSyncMs = Date.now();
+                    sessionPaused = !!d.paused;
+                }
+            }).catch(() => {});
+    }
+
+    // ─── Tab visibility → distraction accounting (server decides via ticks) ───
+    document.addEventListener('visibilitychange', () => {
+        if (!currentSessionId || sessionEnded) return;
+        if (document.hidden) {
+            if (!usingApproval && lockEnabled) reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
+            sendTick();
+        } else {
+            pollState();
+        }
+    });
+
+    function reportLockEvent(eventType, detail) {
+        if (!currentSessionId || !lockEnabled) return;
+        postJSON('/focus/api/report-lock-event/', { event_type: eventType, detail }).catch(() => {});
+    }
+
+    // ─── Stage visibility ───
+    function showStage() {
+        document.getElementById('setupView').style.display = 'none';
+        document.body.classList.add('focus-stage-open');
+        const stage = document.getElementById('focusStage');
+        stage.style.display = 'flex';
+        document.getElementById('fsPauseBtn').style.display = lockEnabled ? 'none' : 'inline-block';
+        document.getElementById('fsLockBadge').style.visibility = lockEnabled ? 'visible' : 'hidden';
+        buildAppGrids();
+    }
+
+    function hideStage() {
+        document.getElementById('setupView').style.display = 'block';
+        document.body.classList.remove('focus-stage-open');
+        document.getElementById('focusStage').style.display = 'none';
+    }
+
+    // ─── App grids inside the stage ───
+    function buildAppGrids() {
+        const allowedGrid = document.getElementById('fsAllowedGrid');
+        allowedGrid.innerHTML = '';
+        ALLOWED_ITEMS.forEach(item => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'app-tile allowed';
+            tile.title = item.category === 'WEBSITE' ? 'Open website' : 'Launch via Desktop Agent';
+            tile.innerHTML = `<i class="fa-${item.category === 'WEBSITE' ? 'brands' : 'solid'} fa-${getAppIcon(item.app_name || item.name)}"></i><span>${escapeHtml(item.name)}</span>`;
+            tile.addEventListener('click', () => launchAllowed(item));
+            allowedGrid.appendChild(tile);
+        });
+        if (!ALLOWED_ITEMS.length) allowedGrid.innerHTML = '<span class="text-secondary small">No allowed apps configured.</span>';
+
+        renderRestrictedGrid();
+    }
+
+    function renderRestrictedGrid() {
+        const grid = document.getElementById('fsRestrictedGrid');
+        grid.innerHTML = '';
+        RESTRICTED_ITEMS.forEach(item => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'app-tile locked';
+            tile.dataset.itemId = item.id;
+            tile.innerHTML = `<i class="fa-${item.category === 'WEBSITE' ? 'brands' : 'solid'} fa-${getAppIcon(item.app_name || item.name)}"></i><span>${escapeHtml(item.name)}</span><small class="fs-tile-hint">${pendingRequests.has(item.id) ? '<i class="fa-solid fa-hourglass-half me-1"></i>Awaiting approval' : 'Click to request'}</small>`;
+            tile.addEventListener('click', () => requestAccess(item, tile));
+            grid.appendChild(tile);
+        });
+        if (!RESTRICTED_ITEMS.length) grid.innerHTML = '<span class="text-secondary small">No restricted apps configured.</span>';
+    }
+
+    function requestAccess(item, tile) {
+        if (pendingRequests.has(item.id)) return;
+        pendingRequests.add(item.id);
+        renderRestrictedGrid();
+        postJSON('/focus/api/request-access/', {
+            blacklist_item_id: item.id,
+            session_id: currentSessionId,
+        }).then(d => {
+            if (d.status === 'success') {
+                showToast('Request Sent', `Access request for "${item.name}" sent to your parent.`, 'warning');
+            } else {
+                pendingRequests.delete(item.id);
+                renderRestrictedGrid();
+                showToast('Not Sent', d.error || 'Could not send access request.', 'danger');
+            }
+        }).catch(() => {
+            pendingRequests.delete(item.id);
+            renderRestrictedGrid();
+        });
+    }
+
+    function launchAllowed(item) {
+        if (item.category === 'WEBSITE') {
+            postJSON('/focus/api/launch-app/', { source: 'WHITELIST', item_id: item.id }).then(d => {
+                if (d.status === 'success' && d.url) window.open(d.url, '_blank', 'noopener');
+            }).catch(() => {});
+            return;
+        }
+        postJSON('/focus/api/launch-app/', { source: 'WHITELIST', item_id: item.id }).then(d => {
+            if (d.status !== 'success') {
+                showToast('Cannot Launch', d.message || 'Launch failed.', 'danger');
+                return;
+            }
+            if (d.agent_online) showToast('Launching', `"${d.app_name}" is being opened via Desktop Agent...`, 'success');
+            else showToast('No Desktop Agent', `"${d.app_name}" will open when your Desktop Agent reconnects. Open apps manually for now.`, 'info');
+        }).catch(() => {});
+    }
+
+    // ─── Approved apps (parent-approved temporary access) ───
+    let approvedCache = [];
+
+    function renderApprovedApps(list) {
+        approvedCache = list;
+        const section = document.getElementById('fsApprovedSection');
+        const grid = document.getElementById('fsApprovedGrid');
+        if (!list.length) {
+            section.style.display = 'none';
+            grid.innerHTML = '';
+            return;
+        }
+        section.style.display = 'block';
+        grid.innerHTML = '';
+        list.forEach(app => {
+            const inUse = usingApproval && usingApproval.id === app.id;
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'approved-tile' + (inUse ? ' active' : '');
+            const remaining = inUse ? usingApproval.remaining
+                : Math.max(0, Math.floor((new Date(app.granted_until) - Date.now()) / 1000));
+            tile.innerHTML = `
+                <i class="fa-${app.category === 'WEBSITE' ? 'brands' : 'solid'} fa-${getAppIcon(app.app_name)}"></i>
+                <span>${escapeHtml(app.app_name)}</span>
+                <b class="approved-countdown">${formatTime(remaining)}</b>`;
+            tile.title = inUse ? 'Using now — timer paused' : 'Click to use (pauses focus timer)';
+            tile.addEventListener('click', () => startApprovedUse(app));
+            grid.appendChild(tile);
+        });
+    }
+
+    function startApprovedUse(app) {
+        if (usingApproval) return; // one at a time
+        postJSON(`/focus/api/approved-app/${app.id}/use/`).then(d => {
+            if (d.status !== 'success') {
+                showToast('Cannot Use App', d.message || 'Approval unavailable.', 'danger');
+                pollState();
+                return;
+            }
+            enterUsingMode({
+                id: app.id,
+                name: app.app_name,
+                category: app.category,
+                url: d.url || app.url,
+                remaining: d.remaining_seconds,
+            });
+            // Open it for real: websites in a popup, desktop apps via agent.
+            if (app.category === 'WEBSITE' && (d.url || app.url)) {
+                window.open(d.url || app.url, '_blank', 'noopener,width=1100,height=800');
+            } else if (app.category === 'APP') {
+                postJSON('/focus/api/launch-app/', { source: 'APPROVED', request_id: app.id }).then(r => {
+                    if (r.status === 'success') {
+                        showToast(r.agent_online !== false ? 'Launching' : 'No Desktop Agent',
+                            r.agent_online !== false
+                                ? `"${r.app_name}" is opening via Desktop Agent...`
+                                : `"${r.app_name}" will open when the Desktop Agent reconnects.`,
+                            r.agent_online !== false ? 'success' : 'info');
+                    }
+                }).catch(() => {});
+            }
+            showToast('Timer Paused', `Using "${app.app_name}" — no distraction penalty until the approval ends.`, 'info');
+        }).catch(() => {});
+    }
+
+    function enterUsingMode(approval) {
+        usingApproval = {
+            id: approval.id,
+            name: approval.app_name || approval.name,
+            category: approval.category,
+            url: approval.url || '',
+            remaining: approval.remaining_seconds || approval.remaining || 0,
+            startedAt: Date.now(),
+        };
+        document.getElementById('fsUsingBanner').style.display = 'flex';
+        document.getElementById('fsUsingName').textContent = usingApproval.name;
+        const iconEl = document.getElementById('fsUsingIcon');
+        iconEl.className = `me-2 fa-${usingApproval.category === 'WEBSITE' ? 'brands' : 'solid'} fa-${getAppIcon(usingApproval.name)}`;
+        setStatus(`Using "${usingApproval.name}" — focus timer paused`, 'text-info');
+        document.querySelectorAll('.app-grid').forEach(g => g.classList.add('dimmed'));
+        renderTimer();
+    }
+
+    function exitUsingMode(showToastMsg = true) {
+        if (!usingApproval) return;
+        const name = usingApproval.name;
+        const id = usingApproval.id;
+        usingApproval = null;
+        document.getElementById('fsUsingBanner').style.display = 'none';
+        document.querySelectorAll('.app-grid').forEach(g => g.classList.remove('dimmed'));
+        lastSyncMs = Date.now(); // resume exactly where the timer froze
+        setStatus('Welcome back to Focus Mode!', 'text-success');
+        setTimeout(() => { if (!usingApproval && currentSessionId) setStatus('Stay focused!', ''); }, 4000);
+        if (showToastMsg) showToast('Focus Resumed', `Back to "${document.getElementById('fsTaskName').textContent.trim() || 'Focus Mode'}". Timer resumed.`, 'success');
+        postJSON(`/focus/api/approved-app/${id}/release/`).then(() => pollState()).catch(() => {});
+    }
+
+    // Countdown for the active approval; auto-return when grant expires.
+    setInterval(() => {
+        if (!usingApproval) return;
+        usingApproval.remaining -= 1;
+        if (usingApproval.remaining <= 0) {
+            showToast('Time Is Up', `"${usingApproval.name}" access expired — returning to Focus Mode.`, 'warning');
+            exitUsingMode(false);
+        } else {
+            renderTimer();
+            if (usingApproval.remaining <= 60) setStatus(`Hurry back — ${usingApproval.remaining}s of approved time left`, 'text-warn');
+        }
+    }, 1000);
+
+    document.getElementById('fsReturnBtn').addEventListener('click', () => exitUsingMode(true));
+
+    // ─── Session lifecycle ───
+    let statePollInterval = null;
+    let tickInterval = null;
+
+    function startLoops() {
+        stopLoops();
+        pollState();
+        sendTick();
+        statePollInterval = setInterval(pollState, 5000);
+        tickInterval = setInterval(sendTick, 5000);
+    }
+
+    function stopLoops() {
+        if (statePollInterval) { clearInterval(statePollInterval); statePollInterval = null; }
+        if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
+    }
+
+    function activateSession(sessionId, duration, taskName, isLocked) {
+        currentSessionId = sessionId;
+        plannedDuration = duration || 0;
+        lockEnabled = !!isLocked;
+        focusSeconds = 0;
+        distractionSeconds = 0;
+        lastSyncMs = Date.now();
+        sessionEnded = false;
+        sessionPaused = false;
+        manualPaused = false;
+        usingApproval = null;
+        pendingRequests.clear();
+
+        document.getElementById('fsTaskName').innerHTML =
+            `<i class="fa-solid fa-list-check me-2"></i>${escapeHtml(taskName || 'Free focus')}`;
+        document.getElementById('fsEndBtn').disabled = false;
+        showStage();
+        startLoops();
+        renderTimer();
+    }
+
+    function setSessionInactive() {
+        sessionEnded = true;
+        currentSessionId = null;
+        stopLoops();
+        usingApproval = null;
+        hideStage();
+        endBtn.disabled = true;
+        loadHistory();
+    }
+
+    function endSession(auto = false) {
+        if (!currentSessionId || sessionEnded) return;
+        if (!auto) {
+            const warning = lockEnabled
+                ? 'End this session early?\n\nThis is recorded as an early exit violation and your parent is notified immediately.'
+                : 'End your focus session?';
+            if (!confirm(warning)) return;
+        }
+        sessionEnded = true; // stop loops firing mid-request
+        stopLoops();
+        const sid = currentSessionId;
+        currentSessionId = null;
+
+        postJSON('/focus/api/end-session/', { session_id: sid })
+            .then(d => {
+                if (d.status === 'success') {
+                    const completed = d.session_status === 'COMPLETED';
+                    const mins = Math.round((d.actual_focus_seconds || 0) / 60);
+                    let msg = completed
+                        ? `Session complete! ${mins} min focused.`
+                        : `Session ended early — ${mins} min focused.`;
+                    if (d.approved_usage && Object.keys(d.approved_usage).length) {
+                        const parts = Object.entries(d.approved_usage)
+                            .map(([n, s]) => `${n}: ${Math.round(s / 60)}m`);
+                        msg += ` Approved use (no penalty): ${parts.join(', ')}.`;
+                    }
+                    showToast(completed ? 'Session Complete!' : 'Session Saved', msg, completed ? 'success' : 'warning');
+                } else {
+                    showToast('Error', d.error || 'Could not save session.', 'danger');
+                }
+            })
+            .catch(() => showToast('Error', 'Network error.', 'danger'))
+            .finally(() => setSessionInactive());
+    }
+
+    // Pause is only available for NON-lock sessions (no bypass in Super Power mode).
+    document.getElementById('fsPauseBtn').addEventListener('click', () => {
+        if (!currentSessionId || lockEnabled) return;
+        manualPaused = !manualPaused;
+        const btn = document.getElementById('fsPauseBtn');
+        if (manualPaused) {
+            btn.innerHTML = '<i class="fa-solid fa-play me-2"></i>Resume';
+            setStatus('Session paused', 'text-warn');
+            sendTick();
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-pause me-2"></i>Pause';
+            setStatus('Stay focused!', '');
+            lastSyncMs = Date.now();
+            sendTick();
+        }
+    });
+
+    document.getElementById('fsEndBtn').addEventListener('click', () => endSession(false));
+
+    // ─── Setup view logic ───
+    const startBtn = document.getElementById('startBtn');
+    const endBtn = document.getElementById('endBtn');
+
+    function selectDuration(btn, minutes) {
+        document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedDuration = minutes;
+        document.getElementById('customDuration').value = '';
+    }
+    function selectCustomDuration() {
+        const val = parseInt(document.getElementById('customDuration').value);
+        if (val && val > 0) {
+            document.querySelectorAll('.duration-btn').forEach(b => b.classList.remove('selected'));
+            selectedDuration = val;
+        }
+    }
+    window.selectDuration = selectDuration;
+    window.selectCustomDuration = selectCustomDuration;
+
+    startBtn.addEventListener('click', () => {
+        const taskSelect = document.getElementById('taskSelect');
+        const taskId = taskSelect && taskSelect.value ? parseInt(taskSelect.value) : null;
+        const payload = { duration: selectedDuration, task_id: taskId, lock_enabled: lockEnabled };
+        if (lockEnabled && window.registeredDeviceToken) payload.device_token = window.registeredDeviceToken;
+        postJSON('/focus/api/start-session/', payload)
+            .then(data => {
+                if (data.status === 'success') {
+                    activateSession(data.session_id, data.planned_duration, data.task_name, data.lock_enabled);
+                    showToast('Session Started',
+                        `${data.planned_duration} minutes${data.lock_enabled ? ' — Super Power Lock ON' : ''}.`,
+                        'success');
+                } else {
+                    showToast('Error', data.error || 'Could not start session.', 'danger');
+                }
+            })
+            .catch(() => showToast('Error', 'Network error.', 'danger'));
+    });
+
+    // Session history
     function loadHistory() {
         fetch('/focus/api/child-history/')
             .then(r => r.json())
@@ -836,9 +792,9 @@
                         const label = s.status === 'COMPLETED' ? 'Completed' : s.status === 'INTERRUPTED' ? 'Interrupted' : 'Active';
                         return `<tr>
                             <td>${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                            <td>${s.planned_duration}m</td>
-                            <td>${Math.round(s.actual_focus_seconds / 60)}m ${s.actual_focus_seconds % 60}s</td>
-                            <td>${Math.round(s.distraction_seconds / 60)}m ${s.distraction_seconds % 60}s</td>
+                            <td>${s.planned_duration ? s.planned_duration + 'm' : '—'}</td>
+                            <td>${Math.floor(s.actual_focus_seconds / 60)}m ${s.actual_focus_seconds % 60}s</td>
+                            <td>${Math.floor(s.distraction_seconds / 60)}m ${s.distraction_seconds % 60}s</td>
                             <td><span class="badge ${badge}">${label}</span></td>
                         </tr>`;
                     }).join('');
@@ -848,30 +804,7 @@
             });
     }
 
-    // Init
-    loadHistory();
-    loadDevices();
-    window.registeredDeviceToken = null;
-
-    const superPowerToggle = document.getElementById('superPowerToggle');
-    if (superPowerToggle) {
-        superPowerToggle.addEventListener('change', () => {
-            lockEnabled = superPowerToggle.checked;
-            const statusEl = document.getElementById('superPowerDeviceStatus');
-            if (lockEnabled) {
-                statusEl.innerHTML = '<span class="text-warning"><i class="fa-solid fa-triangle-exclamation me-1"></i>Super Power Saving Mode will be enabled when you press Start. Register a device to enforce it.</span>';
-            } else {
-                statusEl.innerHTML = '';
-            }
-        });
-    }
-
-    if (currentSessionId) {
-        const taskEl = document.getElementById('currentTaskName');
-        setSessionActive(currentSessionId, plannedDuration, taskEl ? taskEl.textContent : null, {{ active_session.lock_enabled|yesno:"true,false" }});
-    }
-
-    // Super Power: device management
+    // Device management
     async function loadDevices() {
         try {
             const r = await fetch('/focus/api/devices/');
@@ -905,31 +838,26 @@
     document.getElementById('registerDeviceBtn').addEventListener('click', () => {
         const deviceType = document.getElementById('newDeviceType').value;
         const name = document.getElementById('newDeviceName').value.trim();
-        fetch('/focus/api/devices/register/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-            body: JSON.stringify({ device_type: deviceType, name: name })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.status === 'success') {
-                window.registeredDeviceToken = data.token;
-                document.getElementById('deviceTokenValue').value = data.token;
-                document.getElementById('deviceTokenDisplay').classList.remove('d-none');
-                showToast('Device Registered', `"${data.name}" registered. Copy the token into the ${data.device_type === 'EXTENSION' ? 'extension' : 'agent'}.`, 'success');
-                loadDevices();
-            } else {
-                showToast('Error', data.error || 'Could not register device.', 'danger');
-            }
-        })
-        .catch(() => showToast('Error', 'Network error.', 'danger'));
+        postJSON('/focus/api/devices/register/', { device_type: deviceType, name })
+            .then(data => {
+                if (data.status === 'success') {
+                    window.registeredDeviceToken = data.token;
+                    document.getElementById('deviceTokenValue').value = data.token;
+                    document.getElementById('deviceTokenDisplay').classList.remove('d-none');
+                    showToast('Device Registered', `"${data.name}" registered. Copy the token into the ${data.device_type === 'EXTENSION' ? 'extension' : 'agent'}.`, 'success');
+                    loadDevices();
+                } else {
+                    showToast('Error', data.error || 'Could not register device.', 'danger');
+                }
+            })
+            .catch(() => showToast('Error', 'Network error.', 'danger'));
     });
 
     window.revokeDevice = function(deviceId) {
         if (!confirm('Revoke this device? Its token will stop working.')) return;
         fetch(`/focus/api/devices/revoke/${deviceId}/`, {
             method: 'POST',
-            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            headers: { 'X-CSRFToken': CSRF }
         })
         .then(r => r.json())
         .then(d => { if (d.status === 'success') { showToast('Device Revoked', d.revoked, 'info'); loadDevices(); } })
@@ -943,66 +871,31 @@
         showToast('Copied', 'Device token copied to clipboard.', 'success');
     };
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+    const superPowerToggle = document.getElementById('superPowerToggle');
+    if (superPowerToggle) {
+        superPowerToggle.addEventListener('change', () => {
+            lockEnabled = superPowerToggle.checked;
+            const statusEl = document.getElementById('superPowerDeviceStatus');
+            if (lockEnabled) {
+                statusEl.innerHTML = '<span class="text-warning"><i class="fa-solid fa-triangle-exclamation me-1"></i>Super Power Saving Mode locks you into a full-screen Focus Stage when you press Start. Register a device to enforce it.</span>';
+            } else {
+                statusEl.innerHTML = '';
+            }
+        });
     }
 
-    // Poll for approved apps every 8 seconds when session is active
-    let approvedAppsPollInterval = null;
-    function startApprovedAppsPolling() {
-        stopApprovedAppsPolling();
-        loadApprovedApps();
-        approvedAppsPollInterval = setInterval(loadApprovedApps, 8000);
-    }
-    function stopApprovedAppsPolling() {
-        if (approvedAppsPollInterval) {
-            clearInterval(approvedAppsPollInterval);
-            approvedAppsPollInterval = null;
-        }
-    }
+    // ─── Init ───
+    window.registeredDeviceToken = null;
+    loadHistory();
+    loadDevices();
 
-    // Patch setSessionActive/setSessionInactive to toggle polling
-    const _origSetActive = setSessionActive;
-    const _origSetInactive = setSessionInactive;
-    setSessionActive = function(sessionId, duration, taskName, sessionLockEnabled) {
-        _origSetActive(sessionId, duration, taskName, sessionLockEnabled);
-        startApprovedAppsPolling();
-        startBlockedPolling();
-    };
-    setSessionInactive = function() {
-        stopApprovedAppsPolling();
-        stopBlockedPolling();
-        activeApprovedAppId = null;
-        document.getElementById('approvedAppsPanel').style.display = 'none';
-        document.getElementById('approvedAppsContainer').innerHTML = '';
-        _origSetInactive();
-    };
-
-    // Poll for blocked attempt count (reported by desktop agent / extension)
-    let blockedPollInterval = null;
-    function startBlockedPolling() {
-        stopBlockedPolling();
-        loadBlockedCount();
-        blockedPollInterval = setInterval(loadBlockedCount, 10000);
-    }
-    function stopBlockedPolling() {
-        if (blockedPollInterval) {
-            clearInterval(blockedPollInterval);
-            blockedPollInterval = null;
-        }
-    }
-    function loadBlockedCount() {
-        if (!isRunning || !currentSessionId) return;
-        fetch('/focus/api/focus-mode-status/')
-            .then(r => r.json())
-            .then(data => {
-                if (data.active) {
-                    document.getElementById('blockedDisplay').textContent = data.blocked_attempts || 0;
-                }
-            })
-            .catch(() => {});
-    }
+    {% if active_session %}
+    activateSession(
+        {{ active_session.id }},
+        {{ active_session.planned_duration }},
+        '{{ active_session.task.task_name|default:"Free focus"|escapejs }}',
+        {{ active_session.lock_enabled|yesno:"true,false" }}
+    );
+    {% endif %}
 </script>
 {% endblock %}

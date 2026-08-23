@@ -19,6 +19,11 @@ urlpatterns = [
     path('api/report-blocked/', views.api_report_blocked, name='api_report_blocked'),
     path('api/focus-mode-status/', views.api_focus_mode_status, name='api_focus_mode_status'),
     path('api/report-lock-event/', views.api_report_lock_event, name='api_report_lock_event'),
+    path('api/session-tick/', views.api_session_tick, name='api_session_tick'),
+    path('api/session-state/', views.api_session_state, name='api_session_state'),
+    path('api/approved-app/<int:request_id>/use/', views.api_use_approved_app, name='api_use_approved_app'),
+    path('api/approved-app/<int:request_id>/release/', views.api_release_approved_app, name='api_release_approved_app'),
+    path('api/launch-app/', views.api_launch_app, name='api_launch_app'),
 
     # Child: Super Power Saving Mode devices
     path('api/devices/', views.api_list_devices, name='api_list_devices'),
@@ -28,6 +33,7 @@ urlpatterns = [
     # Device-facing (token auth for browser extension / desktop agent)
     path('api/device-status/', views.api_device_status, name='api_device_status'),
     path('api/device-heartbeat/', views.api_device_heartbeat, name='api_device_heartbeat'),
+    path('api/device/command-ack/', views.api_device_command_ack, name='api_device_command_ack'),
 
     # Parent: Dashboard & management
     path('parent/', views.parent_focus_dashboard, name='parent_focus_dashboard'),

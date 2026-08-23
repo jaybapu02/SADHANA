@@ -18,6 +18,8 @@ let state = {
   approvedPatterns: [],
   blockedAttempts: 0,
   lockViolations: 0,
+  approvalActive: false, // child is inside a parent-approved app right now
+  paused: false,         // focus timer frozen (approved use)
 };
 let pendingEvents = []; // events detected while the server was unreachable
 
@@ -110,6 +112,9 @@ function applyStatus(data) {
   state.sessionId = data.session_id;
   state.blockedAttempts = data.blocked_attempts || 0;
   state.lockViolations = data.lock_violations || 0;
+  // Approved use is sanctioned: pause window enforcement while it lasts.
+  state.approvalActive = !!data.approval_active;
+  state.paused = !!data.paused;
 
   state.whitelistPatterns = (data.whitelist || [])
     .filter(w => w.category === 'WEBSITE' && w.url_pattern)
@@ -126,8 +131,8 @@ function applyStatus(data) {
   applyBlockingRules();
 
   if (state.active && state.lockEnabled) {
-    setBadge('lock');
-    enforceWindow();
+    setBadge(state.approvalActive ? 'app' : 'lock');
+    if (!state.approvalActive) bringFocusWindowToFront();
     flushPending();
   } else if (state.active && !state.lockEnabled) {
     setBadge('on');
@@ -196,10 +201,12 @@ async function applyBlockingRules() {
 // ─── Badge ─────────────────────────────────────────────────────────────────
 
 function setBadge(label) {
-  const text = label === 'lock' ? '🔒' : label === 'on' ? '⏱' : label === 'off' ? '' : label === 'no' ? 'X' : '!';
+  const text = label === 'lock' ? '🔒' : label === 'app' ? '▶' : label === 'on' ? '⏱' : label === 'off' ? '' : label === 'no' ? 'X' : '!';
   try {
     chrome.action.setBadgeText({ text });
-    chrome.action.setBadgeBackgroundColor({ color: label === 'lock' ? '#d63384' : '#6c757d' });
+    chrome.action.setBadgeBackgroundColor({
+      color: label === 'lock' ? '#d63384' : label === 'app' ? '#0d6efd' : '#6c757d',
+    });
   } catch (e) { /* ok */ }
 }
 
@@ -248,6 +255,8 @@ function trackFocusTab(tabId, url) {
 
 function bringFocusWindowToFront() {
   if (!state.focusWindowId || !state.active || !state.lockEnabled) return;
+  // While an approved app is in use, the child is allowed to be elsewhere.
+  if (state.approvalActive || state.paused) return;
   try {
     chrome.windows.get(state.focusWindowId, w => {
       if (chrome.runtime.lastError || !w) return;
@@ -278,6 +287,9 @@ chrome.tabs.onActivated.addListener(async info => {
     try { chrome.tabs.remove(tab.id); } catch (e) { /* ok */ }
     return;
   }
+  // Whitelisted / parent-approved sites are sanctioned destinations: clicking
+  // an allowed app icon inside Focus Mode must NOT count as a violation.
+  if (isApprovedOrWhitelisted(tab.url)) return;
   // Switched away from the focus window to an unrelated tab.
   reportEvent('TAB_SWITCH', `Child switched to ${tab.url || 'another tab'}`);
   bringFocusWindowToFront();
@@ -309,6 +321,9 @@ chrome.windows.onRemoved.addListener(windowId => {
 // Window lost focus (minimize / alt-tab to desktop).
 chrome.windows.onFocusChanged.addListener(windowId => {
   if (!state.active || !state.lockEnabled) return;
+  // Approved use: the child is legitimately in another window (e.g. the
+  // YouTube popup they opened through Sadhana). Not a violation.
+  if (state.approvalActive || state.paused) return;
   if (windowId === chrome.windows.WINDOW_ID_NONE && state.focusWindowId) {
     reportEvent('MINIMIZE', 'The focus window lost focus');
     bringFocusWindowToFront();
@@ -330,15 +345,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
   if (msg && msg.type === 'TAB_HIDDEN') {
-    reportEvent('TAB_SWITCH', msg.detail || 'Child switched away from the focus window');
-    bringFocusWindowToFront();
+    // While an approved app is in use the focus page is legitimately hidden.
+    if (!state.approvalActive && !state.paused) {
+      reportEvent('TAB_SWITCH', msg.detail || 'Child switched away from the focus window');
+      bringFocusWindowToFront();
+    }
     sendResponse({ ok: true });
   }
 });
 
-// Periodic enforcement: keep the focus window in front while locked.
+// Periodic enforcement: keep the focus window in front while locked -
+// but never fight the child during sanctioned approved-app usage.
 setInterval(() => {
-  if (state.active && state.lockEnabled) bringFocusWindowToFront();
+  if (state.active && state.lockEnabled && !state.approvalActive && !state.paused) {
+    bringFocusWindowToFront();
+  }
 }, 2000);
 
 // ─── Startup ───────────────────────────────────────────────────────────────
