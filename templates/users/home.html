@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Sadhana - Study Focus &amp; Discipline{% endblock %}
 
@@ -71,7 +72,7 @@
 
             <div class="col-lg-6 position-relative" style="z-index: 1;">
                 <div class="marketing-hero-img position-relative">
-                    <img src="https://illustrations.popsy.co/gray/studying.svg" alt="Study illustration"
+                    <img src="{% static 'images/landing_image.png' %}" alt="Study illustration"
                          style="max-height: 420px;">
                 </div>
                 <span class="float-icon" style="top: 6%; left: 2%;"><i class="fa-solid fa-book-open"></i></span>
