@@ -283,6 +283,23 @@
         </footer>
     </div>
 </div>
+
+<!-- Focus Warning Modal (minimize / split-screen / tab switch) -->
+<div id="focusWarningOverlay" class="fs-warning-overlay" hidden>
+    <div class="fs-warning-card">
+        <div class="fs-warning-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3>Stay Focused</h3>
+        <p>Leaving or minimizing Focus Mode may be recorded as an interruption. Please stay in Focus Mode.</p>
+        <div class="fs-warning-actions">
+            <button class="fs-btn fs-btn-stay" id="focusWarningStay">
+                <i class="fa-solid fa-arrow-left"></i> Stay Focused
+            </button>
+            <button class="fs-btn fs-btn-continue" id="focusWarningContinue">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Continue Anyway
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -307,6 +324,10 @@
     // Approved usage state
     let usingApproval = null;      // {id, name, category, url, remaining}
     const pendingRequests = new Set(); // restricted item ids requested this session
+
+    // Focus warning state
+    let focusWarningShown = false;  // true while the warning modal is visible
+    let focusWarningContinued = false; // true if child chose "Continue Anyway"
 
     // ─── Utils ───
     function getCookie(name) {
@@ -482,13 +503,24 @@
             }).catch(() => {});
     }
 
-    // ─── Tab visibility → distraction accounting (server decides via ticks) ───
+    // ─── Tab visibility → distraction accounting + warning modal ───
     document.addEventListener('visibilitychange', () => {
         if (!currentSessionId || sessionEnded) return;
         if (document.hidden) {
-            if (!usingApproval && lockEnabled) reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
+            // Show warning modal if session is active and not already shown
+            // The modal intercepts the event; notification only fires on "Continue Anyway"
+            if (!sessionPaused && !manualPaused && !focusWarningShown && !focusWarningContinued) {
+                showFocusWarning();
+            } else if (usingApproval || focusWarningContinued) {
+                // Approved app usage or already acknowledged: report quietly
+                if (!usingApproval && lockEnabled) reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
+            }
             sendTick();
         } else {
+            // Page became visible again - reset the continued flag so next leave shows warning
+            if (focusWarningContinued && !sessionEnded) {
+                focusWarningContinued = false;
+            }
             pollState();
         }
     });
@@ -497,6 +529,36 @@
         if (!currentSessionId || !lockEnabled) return;
         postJSON('/focus/api/report-lock-event/', { event_type: eventType, detail }).catch(() => {});
     }
+
+    // ─── Focus warning modal (minimize / split-screen / tab switch) ───
+    function showFocusWarning() {
+        if (!currentSessionId || sessionEnded || focusWarningShown) return;
+        focusWarningShown = true;
+        document.getElementById('focusWarningOverlay').hidden = false;
+    }
+
+    function hideFocusWarning() {
+        focusWarningShown = false;
+        document.getElementById('focusWarningOverlay').hidden = true;
+    }
+
+    document.getElementById('focusWarningStay').addEventListener('click', () => {
+        hideFocusWarning();
+        setStatus('Stay focused!', '');
+    });
+
+    document.getElementById('focusWarningContinue').addEventListener('click', () => {
+        focusWarningContinued = true;
+        hideFocusWarning();
+        if (currentSessionId) {
+            // Record the event - record_lock_event will notify the parent
+            postJSON('/focus/api/report-lock-event/', {
+                event_type: 'TAB_HIDE',
+                detail: 'Child acknowledged focus warning and chose to continue anyway'
+            }).catch(() => {});
+        }
+        setStatus('Your parent has been notified of this interruption.', 'is-bad');
+    });
 
     // ─── Stage visibility ───
     function showStage() {
@@ -526,6 +588,7 @@
             tile.innerHTML = `
                 <span class="fs-app-icon">${appIconHtml(item.app_name || item.name, item.category)}</span>
                 <span class="fs-app-name">${escapeHtml(item.name)}</span>
+                <span class="fs-app-cat">${item.category === 'WEBSITE' ? 'Website' : 'App'}</span>
                 <button type="button" class="fs-btn-mini">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i> Open
                 </button>`;
@@ -744,6 +807,8 @@
         sessionPaused = false;
         manualPaused = false;
         usingApproval = null;
+        focusWarningShown = false;
+        focusWarningContinued = false;
         pendingRequests.clear();
 
         document.getElementById('fsTaskNameText').textContent = taskName || 'Free focus';
@@ -758,6 +823,9 @@
         currentSessionId = null;
         stopLoops();
         usingApproval = null;
+        focusWarningShown = false;
+        focusWarningContinued = false;
+        hideFocusWarning();
         hideStage();
         endBtn.disabled = true;
         loadHistory();
@@ -812,6 +880,9 @@
             setStatus('Stay focused!', '');
             lastSyncMs = Date.now();
             sendTick();
+            // Notify linked parent that the child resumed
+            postJSON('/focus/api/resume-session/', { session_id: currentSessionId })
+                .catch(() => {});
         }
     });
 

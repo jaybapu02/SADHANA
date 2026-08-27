@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/report-lock-event/', views.api_report_lock_event, name='api_report_lock_event'),
     path('api/session-tick/', views.api_session_tick, name='api_session_tick'),
     path('api/session-state/', views.api_session_state, name='api_session_state'),
+    path('api/resume-session/', views.api_resume_session, name='api_resume_session'),
     path('api/approved-app/<int:request_id>/use/', views.api_use_approved_app, name='api_use_approved_app'),
     path('api/approved-app/<int:request_id>/release/', views.api_release_approved_app, name='api_release_approved_app'),
     path('api/launch-app/', views.api_launch_app, name='api_launch_app'),

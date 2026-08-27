@@ -745,6 +745,30 @@ def api_release_approved_app(request, request_id):
     })
 
 
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_resume_session(request):
+    """Child resumes a manually paused focus session. Notifies all linked
+    parents that the child has resumed their session."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'status': 'error', 'message': 'Only children.'}, status=403)
+    try:
+        data = json.loads(request.body)
+        session_id = data.get('session_id')
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid data.'}, status=400)
+
+    session = get_object_or_404(FocusSession, id=session_id, child=request.user)
+    if session.status != FocusSession.Status.ACTIVE:
+        return JsonResponse({'status': 'error', 'message': 'Session is not active.'}, status=400)
+
+    for parent in get_connected_parents(request.user):
+        NotificationService.focus_resumed(parent, request.user)
+
+    return JsonResponse({'status': 'success', 'message': 'Resume notification sent.'})
+
+
 # ─── Child: Launch Allowed Apps Through Sadhana ───
 
 def _queue_launch_command(child, session, app_name, category, url_pattern=''):

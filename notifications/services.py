@@ -287,6 +287,29 @@ class NotificationService:
         )
 
     @staticmethod
+    def focus_resumed(parent, child):
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.FOCUS_COMPLETED,
+            message=f"Your child \"{child.username}\" resumed their Focus Session."
+        )
+
+    @staticmethod
+    def focus_mode_left(parent, child, event_type=''):
+        labels = {
+            'MINIMIZE': 'left/minimized Focus Mode',
+            'TAB_HIDE': 'left/minimized Focus Mode',
+            'WINDOW_CLOSE': 'tried to close Focus Mode',
+            'LEAVE_ATTEMPT': 'left Focus Mode',
+        }
+        verb = labels.get(event_type, 'left/minimized Focus Mode')
+        return NotificationService._notify_parent(
+            parent=parent, child=child,
+            notification_type=Notification.NotificationType.LOCK_VIOLATION,
+            message=f"\u26a0\ufe0f Your child \"{child.username}\" {verb}."
+        )
+
+    @staticmethod
     def chat_message(recipient, sender, preview):
         """A new chat message arrived while the recipient was not online."""
         return NotificationService._create(
