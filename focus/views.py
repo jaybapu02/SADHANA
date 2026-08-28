@@ -313,6 +313,8 @@ def focus_session_view(request):
         'active_session': active_session,
         'today_tasks': today_tasks,
         'connected_parent': conn.parent if conn else None,
+        'connected_parent_id': conn.parent.id if conn else None,
+        'connected_parent_name': conn.parent.username if conn else None,
     }
     return render(request, 'focus/session.html', context)
 

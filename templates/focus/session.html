@@ -274,6 +274,10 @@
         </section>
 
         <footer class="fs-controls">
+            <button id="fsChatBtn" class="fs-btn fs-btn-chat" title="Chat with Parent" onclick="toggleFocusChat()">
+                <i class="fa-regular fa-comment-dots"></i> Chat
+                <span class="fs-chat-badge" id="fsChatBadge" hidden>0</span>
+            </button>
             <button id="fsPauseBtn" class="fs-btn fs-btn-warn" hidden>
                 <i class="fa-solid fa-pause"></i> Pause
             </button>
@@ -281,6 +285,43 @@
                 <i class="fa-solid fa-stop"></i> End Session
             </button>
         </footer>
+    </div>
+</div>
+
+<!-- ═══════════════════ FOCUS CHAT DRAWER ═══════════════════ -->
+<div id="fsChatDrawer" class="fs-chat-drawer" hidden>
+    <div class="fs-chat-panel">
+        <div class="fs-chat-header">
+            <div class="fs-chat-header-info">
+                <div class="fs-chat-avatar" id="fsChatAvatar">?</div>
+                <div>
+                    <div class="fs-chat-name" id="fsChatName">Parent</div>
+                    <div class="fs-chat-status" id="fsChatStatus">connecting...</div>
+                </div>
+            </div>
+            <button class="fs-chat-close" onclick="toggleFocusChat(false)" title="Close chat">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="fs-chat-body" id="fsChatBody">
+            <div class="fs-chat-empty">
+                <i class="fa-regular fa-comment-dots"></i>
+                <span>Start chatting with your parent</span>
+            </div>
+        </div>
+        <div class="fs-chat-composer">
+            <div class="fs-chat-emoji-panel" id="fsChatEmojiPanel" hidden></div>
+            <div class="fs-chat-input-row">
+                <button class="fs-chat-icon-btn" id="fsChatEmojiBtn" title="Emoji">
+                    <i class="fa-regular fa-face-smile"></i>
+                </button>
+                <input type="text" id="fsChatInput" class="fs-chat-input"
+                       placeholder="Type a message" maxlength="2000" autocomplete="off">
+                <button class="fs-chat-send" id="fsChatSendBtn" title="Send">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -300,6 +341,164 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ─── Focus Chat Drawer ─── */
+.fs-chat-drawer {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: min(380px, 92vw);
+    z-index: 6000;
+    display: flex;
+    flex-direction: column;
+    background: var(--sd-surface);
+    border-left: 1px solid var(--sd-border-strong);
+    box-shadow: -8px 0 30px rgba(0,0,0,0.25);
+    animation: fs-chat-slide-in 0.22s ease-out;
+}
+.fs-chat-drawer[hidden] { display: none; }
+@keyframes fs-chat-slide-in {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.fs-chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--sd-surface-2);
+    border-bottom: 1px solid var(--sd-border);
+    flex-shrink: 0;
+}
+.fs-chat-header-info { display: flex; align-items: center; gap: 0.65rem; min-width: 0; }
+.fs-chat-avatar {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    display: grid; place-items: center;
+    font-weight: 700; font-size: 0.85rem; color: #fff;
+    background: linear-gradient(135deg, #5a67f2, #22d3ee);
+}
+.fs-chat-name { font-weight: 700; font-size: 0.92rem; color: var(--sd-text); }
+.fs-chat-status { font-size: 0.75rem; color: var(--sd-text-faint); }
+.fs-chat-status.typing { color: var(--sd-accent); }
+.fs-chat-close {
+    width: 34px; height: 34px; border-radius: 50%; border: none;
+    background: transparent; color: var(--sd-text-muted); cursor: pointer;
+    display: grid; place-items: center; font-size: 1.05rem;
+    transition: background 0.15s, color 0.15s;
+}
+.fs-chat-close:hover { background: var(--sd-surface-3); color: var(--sd-text); }
+
+.fs-chat-body {
+    flex: 1; overflow-y: auto; padding: 0.75rem;
+    display: flex; flex-direction: column; gap: 0.35rem;
+    background: var(--sd-bg-inset, var(--sd-bg));
+}
+.fs-chat-empty {
+    margin: auto; text-align: center; color: var(--sd-text-faint);
+    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    font-size: 0.85rem;
+}
+.fs-chat-empty i { font-size: 2rem; opacity: 0.4; }
+
+/* Day chip */
+.fs-chat-day {
+    text-align: center; margin: 0.4rem 0;
+    font-size: 0.72rem; font-weight: 600; color: var(--sd-text-faint);
+}
+.fs-chat-day span {
+    display: inline-block; padding: 0.2rem 0.7rem;
+    border-radius: var(--rd-pill);
+    background: var(--sd-surface-2); border: 1px solid var(--sd-border);
+}
+
+/* Message bubbles */
+.fs-chat-msg {
+    max-width: 82%; padding: 0.55rem 0.75rem;
+    border-radius: var(--rd-lg); font-size: 0.88rem;
+    line-height: 1.45; word-wrap: break-word;
+    position: relative;
+}
+.fs-chat-msg.mine {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #454dc0, #5a67f2);
+    color: #f2f3ff; border-bottom-right-radius: 4px;
+}
+.fs-chat-msg.theirs {
+    align-self: flex-start;
+    background: var(--sd-surface-2); color: var(--sd-text);
+    border: 1px solid var(--sd-border); border-bottom-left-radius: 4px;
+}
+.fs-chat-msg-meta {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 0.35rem; margin-top: 0.2rem;
+    font-size: 0.67rem; opacity: 0.65;
+}
+.fs-chat-msg.mine .fs-chat-msg-meta { color: #d0d4ff; }
+.fs-chat-ticks.read { color: #60a5fa; }
+
+/* Composer */
+.fs-chat-composer {
+    flex-shrink: 0; border-top: 1px solid var(--sd-border);
+    background: var(--sd-surface-2); padding: 0.5rem 0.6rem 0.6rem;
+    position: relative;
+}
+.fs-chat-emoji-panel {
+    display: grid; grid-template-columns: repeat(8, 1fr);
+    gap: 0.2rem; padding: 0.5rem; max-height: 140px; overflow-y: auto;
+    border-bottom: 1px solid var(--sd-border); margin-bottom: 0.45rem;
+    background: var(--sd-surface);
+    border-radius: var(--rd-md);
+}
+.fs-chat-emoji-panel button {
+    width: 100%; aspect-ratio: 1; border: none; background: transparent;
+    font-size: 1.15rem; cursor: pointer; border-radius: var(--rd-md);
+    transition: background 0.12s;
+}
+.fs-chat-emoji-panel button:hover { background: var(--sd-surface-3); }
+
+.fs-chat-input-row {
+    display: flex; align-items: center; gap: 0.35rem;
+}
+.fs-chat-icon-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    background: transparent; color: var(--sd-text-muted); cursor: pointer;
+    display: grid; place-items: center; font-size: 1.05rem; flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.fs-chat-icon-btn:hover { background: var(--sd-surface-3); color: var(--sd-text); }
+.fs-chat-input {
+    flex: 1; border: none; border-radius: var(--rd-pill);
+    background: var(--sd-surface-3); color: var(--sd-text);
+    padding: 0.5rem 0.85rem; font-size: 0.88rem; min-width: 0;
+}
+.fs-chat-input::placeholder { color: var(--sd-text-faint); }
+.fs-chat-input:focus { outline: none; box-shadow: 0 0 0 2px var(--sd-primary); }
+.fs-chat-send {
+    width: 36px; height: 36px; border-radius: 50%; border: none;
+    background: var(--sd-primary); color: #fff; cursor: pointer;
+    display: grid; place-items: center; font-size: 0.85rem; flex-shrink: 0;
+    transition: filter 0.15s, transform 0.15s;
+}
+.fs-chat-send:hover { filter: brightness(1.1); transform: scale(1.05); }
+.fs-chat-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Chat button badge */
+.fs-btn-chat { position: relative; }
+.fs-chat-badge {
+    position: absolute; top: -4px; right: -4px;
+    min-width: 18px; height: 18px; padding: 0 4px;
+    border-radius: 9px; font-size: 0.65rem; font-weight: 700;
+    background: var(--sd-danger); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    line-height: 1;
+}
+.fs-chat-badge[hidden] { display: none; }
+
+@media (max-width: 575.98px) {
+    .fs-chat-drawer { width: 100vw; }
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -845,6 +1044,9 @@
         focusWarningContinued = false;
         hideFocusWarning();
         hideStage();
+        document.getElementById('fsChatDrawer').hidden = true;
+        focusChatOpen = false;
+        if (focusChatWs) { focusChatWs.close(); focusChatWs = null; }
         endBtn.disabled = true;
         loadHistory();
     }
@@ -1050,10 +1252,299 @@
         });
     }
 
+    // ─── Focus Chat (inline parent chat inside Focus Mode) ───
+    const PARENT_ID = {{ connected_parent_id|default:"null" }};
+    const PARENT_NAME = {{ connected_parent_name|default:"''"|safe }};
+    const FOCUS_EMOJIS = ['😀','😄','😊','🙂','😍','🥰','😎','🤩','🥳','😅','🤗','🤔','😴','🙃','😢','😭','😡','🥺','🤯','🙈','💪','👏','🙌','👍','👎','👀','🤝','🙏','👌','✌️','🤞','💯','🔥','⭐','🌟','✨','🎉','🎊','🏆','🥇','🚀','✅','❌','⏰','📚','✏️','📖','💡','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🌈','🎯','🫶','🥹'];
+
+    let focusChatWs = null;
+    let focusChatWsRetry = 0;
+    let focusChatConvId = null;
+    let focusChatOpen = false;
+    let focusChatUnread = 0;
+    let focusChatLastDayKey = null;
+    let focusChatTypingTimer = null;
+    let focusChatTypingSentAt = 0;
+
+    const fsChatBody = document.getElementById('fsChatBody');
+    const fsChatInput = document.getElementById('fsChatInput');
+    const fsChatSendBtn = document.getElementById('fsChatSendBtn');
+    const fsChatBadge = document.getElementById('fsChatBadge');
+    const fsChatStatus = document.getElementById('fsChatStatus');
+    const fsChatName = document.getElementById('fsChatName');
+    const fsChatEmojiPanel = document.getElementById('fsChatEmojiPanel');
+
+    function fsChatEsc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function fsChatFmtTime(iso) {
+        return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    function fsChatDayKey(iso) {
+        const d = new Date(iso);
+        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    }
+    function fsChatDayLabel(iso) {
+        const d = new Date(iso);
+        const today = new Date();
+        const yest = new Date(); yest.setDate(today.getDate() - 1);
+        if (d.toDateString() === today.toDateString()) return 'Today';
+        if (d.toDateString() === yest.toDateString()) return 'Yesterday';
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+
+    function toggleFocusChat(force) {
+        focusChatOpen = force !== undefined ? force : !focusChatOpen;
+        const drawer = document.getElementById('fsChatDrawer');
+        if (focusChatOpen) {
+            drawer.hidden = false;
+            focusChatUnread = 0;
+            updateFsChatBadge();
+            if (!focusChatWs || focusChatWs.readyState !== WebSocket.OPEN) {
+                connectFocusChatWs();
+            }
+            if (focusChatConvId) loadFsChatMessages(focusChatConvId);
+            setTimeout(() => fsChatInput.focus(), 100);
+        } else {
+            drawer.hidden = true;
+        }
+    }
+    window.toggleFocusChat = toggleFocusChat;
+
+    function updateFsChatBadge() {
+        if (focusChatUnread > 0) {
+            fsChatBadge.textContent = focusChatUnread;
+            fsChatBadge.hidden = false;
+        } else {
+            fsChatBadge.hidden = true;
+        }
+    }
+
+    function buildFsChatEmojiPanel() {
+        fsChatEmojiPanel.innerHTML = FOCUS_EMOJIS.map(e =>
+            `<button type="button" data-e="${e}">${e}</button>`
+        ).join('');
+        fsChatEmojiPanel.querySelectorAll('button').forEach(b => {
+            b.addEventListener('click', () => {
+                fsChatInput.value += b.dataset.e;
+                fsChatInput.focus();
+            });
+        });
+    }
+
+    function toggleFsChatEmoji(force) {
+        const show = force !== undefined ? force : fsChatEmojiPanel.hidden;
+        fsChatEmojiPanel.hidden = !show;
+    }
+
+    document.getElementById('fsChatEmojiBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFsChatEmoji();
+    });
+    document.addEventListener('click', (e) => {
+        if (!fsChatEmojiPanel.contains(e.target) && e.target.id !== 'fsChatEmojiBtn') {
+            toggleFsChatEmoji(false);
+        }
+    });
+
+    // ── Focus Chat WebSocket ──
+    function connectFocusChatWs() {
+        if (!PARENT_ID) return;
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        focusChatWs = new WebSocket(`${proto}://${location.host}/ws/chat/`);
+        focusChatWs.onopen = () => {
+            focusChatWsRetry = 0;
+            fsChatStatus.textContent = 'online';
+            fsChatStatus.className = 'fs-chat-status';
+        };
+        focusChatWs.onmessage = e => handleFocusChatWs(JSON.parse(e.data));
+        focusChatWs.onclose = () => {
+            fsChatStatus.textContent = 'reconnecting...';
+            setTimeout(connectFocusChatWs, Math.min(5000, 1000 * Math.pow(2, focusChatWsRetry++)));
+        };
+        focusChatWs.onerror = () => focusChatWs.close();
+    }
+
+    function focusChatWsSend(obj) {
+        if (focusChatWs && focusChatWs.readyState === WebSocket.OPEN) {
+            focusChatWs.send(JSON.stringify(obj));
+            return true;
+        }
+        return false;
+    }
+
+    function handleFocusChatWs(data) {
+        switch (data.type) {
+            case 'connected':
+                // Find our conversation with the parent
+                data.conversations.forEach(c => {
+                    if (c.other_id === PARENT_ID) {
+                        focusChatConvId = c.id;
+                    }
+                });
+                if (focusChatConvId && focusChatOpen) {
+                    loadFsChatMessages(focusChatConvId);
+                }
+                break;
+            case 'chat_message':
+                if (data.conversation_id === focusChatConvId) {
+                    appendFsChatMsg(data);
+                    if (data.sender_id !== {{ user.id }}) {
+                        focusChatWsSend({ action: 'mark_read', conversation_id: focusChatConvId });
+                    }
+                } else if (data.sender_id !== {{ user.id }}) {
+                    focusChatUnread++;
+                    updateFsChatBadge();
+                }
+                break;
+            case 'typing':
+                if (data.conversation_id === focusChatConvId) {
+                    fsChatStatus.textContent = 'typing...';
+                    fsChatStatus.className = 'fs-chat-status typing';
+                    clearTimeout(handleFocusChatWs._typingT);
+                    handleFocusChatWs._typingT = setTimeout(() => {
+                        fsChatStatus.textContent = 'online';
+                        fsChatStatus.className = 'fs-chat-status';
+                    }, 2500);
+                }
+                break;
+            case 'read':
+                if (data.conversation_id === focusChatConvId) {
+                    fsChatBody.querySelectorAll('.fs-chat-msg.mine .fs-chat-ticks').forEach(t => {
+                        t.classList.add('read');
+                        t.innerHTML = '<i class="fa-solid fa-check-double"></i>';
+                    });
+                }
+                break;
+            case 'presence':
+                if (data.user_id === PARENT_ID) {
+                    fsChatStatus.textContent = data.online ? 'online' : 'offline';
+                    fsChatStatus.className = 'fs-chat-status';
+                }
+                break;
+        }
+    }
+
+    function renderFsChatBubble(m) {
+        if (m.is_deleted) {
+            return `<div class="fs-chat-msg ${m.sender_id === {{ user.id }} ? 'mine' : 'theirs'}">
+                <div style="opacity:0.6;font-style:italic;">Message deleted</div>
+            </div>`;
+        }
+        const mine = m.sender_id === {{ user.id }};
+        const ticks = mine ? `<span class="fs-chat-ticks ${m.is_read ? 'read' : ''}">${
+            m.is_read ? '<i class="fa-solid fa-check-double"></i>'
+            : m.is_delivered ? '<i class="fa-solid fa-check-double"></i>'
+            : '<i class="fa-solid fa-check"></i>'}</span>` : '';
+        return `<div class="fs-chat-msg ${mine ? 'mine' : 'theirs'}" data-id="${m.id}">
+            <div>${fsChatEsc(m.text)}</div>
+            <div class="fs-chat-msg-meta">
+                <span>${fsChatFmtTime(m.created_at)}</span>
+                ${ticks}
+            </div>
+        </div>`;
+    }
+
+    function fsChatAddDay(iso) {
+        const key = fsChatDayKey(iso);
+        if (key !== focusChatLastDayKey) {
+            focusChatLastDayKey = key;
+            const chip = document.createElement('div');
+            chip.className = 'fs-chat-day';
+            chip.innerHTML = `<span>${fsChatDayLabel(iso)}</span>`;
+            fsChatBody.appendChild(chip);
+        }
+    }
+
+    function appendFsChatMsg(m) {
+        fsChatAddDay(m.created_at);
+        const wrap = document.createElement('div');
+        wrap.innerHTML = renderFsChatBubble(m).trim();
+        fsChatBody.appendChild(wrap.firstChild);
+        fsChatBody.scrollTop = fsChatBody.scrollHeight;
+    }
+
+    async function loadFsChatMessages(convId) {
+        try {
+            const r = await fetch(`/chat/api/conversations/${convId}/messages/`);
+            if (!r.ok) return;
+            const data = await r.json();
+            fsChatBody.innerHTML = '';
+            focusChatLastDayKey = null;
+            data.messages.forEach(m => appendFsChatMsg(m));
+            fsChatBody.scrollTop = fsChatBody.scrollHeight;
+            focusChatWsSend({ action: 'mark_read', conversation_id: convId });
+        } catch (e) { console.warn('Focus chat load error:', e); }
+    }
+
+    async function sendFsChatMessage() {
+        const text = fsChatInput.value.trim();
+        if (!text || !focusChatConvId) return;
+        fsChatInput.value = '';
+        toggleFsChatEmoji(false);
+        const payload = { action: 'message', conversation_id: focusChatConvId, text };
+        if (!focusChatWsSend(payload)) {
+            try {
+                const r = await fetch(`/chat/api/conversations/${focusChatConvId}/send/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                    body: JSON.stringify({ text })
+                });
+                if (r.ok) {
+                    const d = await r.json();
+                    d.reply_to = d.reply_to || null;
+                    appendFsChatMsg(d);
+                }
+            } catch (e) { console.warn('Focus chat send error:', e); }
+        }
+    }
+
+    fsChatSendBtn.addEventListener('click', sendFsChatMessage);
+    fsChatInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); sendFsChatMessage(); }
+        if (e.key === 'Escape') { toggleFocusChat(false); }
+    });
+    fsChatInput.addEventListener('input', () => {
+        const now = Date.now();
+        if (now - focusChatTypingSentAt > 2000 && focusChatConvId) {
+            focusChatTypingSentAt = now;
+            focusChatWsSend({ action: 'typing', conversation_id: focusChatConvId });
+        }
+        clearTimeout(focusChatTypingTimer);
+        focusChatTypingTimer = setTimeout(() => focusChatTypingSentAt = 0, 3000);
+    });
+
+    // Poll unread count for the badge
+    async function refreshFsChatUnread() {
+        try {
+            const r = await fetch('/chat/api/unread-count/');
+            const d = await r.json();
+            // Use server count only if drawer is closed
+            if (!focusChatOpen) {
+                focusChatUnread = d.unread_count || 0;
+                updateFsChatBadge();
+            }
+        } catch (e) {}
+    }
+    setInterval(refreshFsChatUnread, 15000);
+
+    // Initialize chat on session start
+    function initFocusChat() {
+        if (!PARENT_ID) return;
+        fsChatName.textContent = PARENT_NAME || 'Parent';
+        const initials = (PARENT_NAME || '?').slice(0, 2).toUpperCase();
+        document.getElementById('fsChatAvatar').textContent = initials;
+        buildFsChatEmojiPanel();
+        connectFocusChatWs();
+        refreshFsChatUnread();
+    }
+
     // ─── Init ───
     window.registeredDeviceToken = null;
     loadHistory();
     loadDevices();
+    initFocusChat();
 
     {% if active_session %}
     activateSession(
