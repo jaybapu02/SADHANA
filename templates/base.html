@@ -20,6 +20,7 @@
             } catch (e) {}
         })();
     </script>
+    {% block extra_css %}{% endblock %}
 </head>
 <body class="{% if user.is_authenticated %}has-sidebar{% endif %} {% block body_class %}{% endblock %}">
     <a class="skip-link" href="#sd-main-content">Skip to content</a>

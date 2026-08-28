@@ -274,7 +274,7 @@
         </section>
 
         <footer class="fs-controls">
-            <button id="fsChatBtn" class="fs-btn fs-btn-chat" title="Chat with Parent" onclick="toggleFocusChat()">
+            <button id="fsChatBtn" class="fs-btn fs-btn-chat" title="Chat with Parent — allowed during Focus Mode" onclick="toggleFocusChat()">
                 <i class="fa-regular fa-comment-dots"></i> Chat
                 <span class="fs-chat-badge" id="fsChatBadge" hidden>0</span>
             </button>
@@ -357,6 +357,14 @@
     border-left: 1px solid var(--sd-border-strong);
     box-shadow: -8px 0 30px rgba(0,0,0,0.25);
     animation: fs-chat-slide-in 0.22s ease-out;
+    overflow: hidden;
+}
+.fs-chat-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 .fs-chat-drawer[hidden] { display: none; }
 @keyframes fs-chat-slide-in {
@@ -442,6 +450,7 @@
     flex-shrink: 0; border-top: 1px solid var(--sd-border);
     background: var(--sd-surface-2); padding: 0.5rem 0.6rem 0.6rem;
     position: relative;
+    margin-top: auto;
 }
 .fs-chat-emoji-panel {
     display: grid; grid-template-columns: repeat(8, 1fr);
@@ -484,8 +493,29 @@
 .fs-chat-send:hover { filter: brightness(1.1); transform: scale(1.05); }
 .fs-chat-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-/* Chat button badge */
-.fs-btn-chat { position: relative; }
+/* Chat button */
+.fs-btn-chat {
+    position: relative;
+    border: 1px solid rgba(90, 103, 242, 0.55);
+    background: rgba(90, 103, 242, 0.14);
+    color: var(--sd-primary);
+    min-width: 168px;
+    padding: 0.72rem 1.5rem;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.94rem;
+    border-radius: var(--rd-pill);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: transform var(--tr-fast), filter var(--tr-fast), background var(--tr-fast);
+}
+.fs-btn-chat:hover { background: rgba(90, 103, 242, 0.26); transform: translateY(-1px); }
+.fs-btn-chat.open { background: var(--sd-primary); color: #fff; border-color: var(--sd-primary); }
+.fs-btn-chat.open:hover { filter: brightness(1.1); }
+.fs-btn-chat:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 .fs-chat-badge {
     position: absolute; top: -4px; right: -4px;
     min-width: 18px; height: 18px; padding: 0 4px;
@@ -693,12 +723,16 @@
     }
 
     // Presence tick: tells the server what the child is doing right now.
-    function sendTick() {
+    // The SERVER owns the clock: it attributes the delta since the last tick
+    // to whatever kind is declared here.  When the visibility state changes
+    // we must close out the PREVIOUS period first (forceKind), so the server
+    // credits the correct bucket.
+    function sendTick(forceKind) {
         if (!currentSessionId || sessionEnded) return;
         const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
-        const kind = manualPaused ? 'PAUSED'
-            : (sessionPaused || usingApproval || allowedAppGuard) ? 'FOCUS'
-            : document.hidden ? 'DISTRACTED' : 'FOCUS';
+        const kind = forceKind || (manualPaused ? 'PAUSED'
+            : (sessionPaused || usingApproval || allowedAppGuard || focusChatOpen) ? 'FOCUS'
+            : document.hidden ? 'DISTRACTED' : 'FOCUS');
         postJSON('/focus/api/session-tick/', { session_id: currentSessionId, kind })
             .then(d => {
                 if (d.status === 'success') {
@@ -717,19 +751,29 @@
             const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
             // Show warning modal if session is active and not already shown.
             // Skip the guard: allowed-app launches through Sadhana are permitted.
-            if (!sessionPaused && !manualPaused && !focusWarningShown && !focusWarningContinued && !allowedAppGuard) {
+            // Skip also when the child is using the inline chat (allowed activity).
+            if (!sessionPaused && !manualPaused && !focusWarningShown && !focusWarningContinued && !allowedAppGuard && !focusChatOpen) {
                 showFocusWarning();
-            } else if (usingApproval || focusWarningContinued || allowedAppGuard) {
-                // Approved app usage or already acknowledged or allowed-app launch:
-                // report quietly (no parent notification for allowed apps).
-                if (!usingApproval && !allowedAppGuard && lockEnabled) reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
+            } else if (usingApproval || focusWarningContinued || allowedAppGuard || focusChatOpen) {
+                // Approved app usage, chat, or already acknowledged: report quietly.
+                if (!usingApproval && !allowedAppGuard && !focusChatOpen && lockEnabled) reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
             }
-            sendTick();
+            // Close out the PREVIOUS period.  The page was visible until now,
+            // so the delta since the last tick was FOCUS time (unless paused /
+            // approved app etc. which also count as FOCUS).
+            sendTick('FOCUS');
         } else {
             // Page became visible again - reset the continued flag so next leave shows warning
             if (focusWarningContinued && !sessionEnded) {
                 focusWarningContinued = false;
             }
+            // Close out the PREVIOUS period.  The page was hidden until now,
+            // so the delta since the last tick was DISTRACTED time — unless
+            // the child was chatting / using an approved app / manually paused,
+            // in which case the hidden period still counts as FOCUS / PAUSED.
+            const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
+            const wasFocused = manualPaused || sessionPaused || usingApproval || allowedAppGuard || focusChatOpen;
+            sendTick(wasFocused ? 'FOCUS' : 'DISTRACTED');
             pollState();
         }
     });
@@ -1046,8 +1090,10 @@
         hideFocusWarning();
         hideStage();
         document.getElementById('fsChatDrawer').hidden = true;
+        document.getElementById('fsChatBtn').classList.remove('open');
         focusChatOpen = false;
         if (focusChatWs) { focusChatWs.close(); focusChatWs = null; }
+        focusChatConvId = null;
         endBtn.disabled = true;
         loadHistory();
     }
@@ -1298,17 +1344,23 @@
     function toggleFocusChat(force) {
         focusChatOpen = force !== undefined ? force : !focusChatOpen;
         const drawer = document.getElementById('fsChatDrawer');
+        const btn = document.getElementById('fsChatBtn');
         if (focusChatOpen) {
             drawer.hidden = false;
+            btn.classList.add('open');
             focusChatUnread = 0;
             updateFsChatBadge();
             if (!focusChatWs || focusChatWs.readyState !== WebSocket.OPEN) {
                 connectFocusChatWs();
+            } else if (focusChatConvId) {
+                loadFsChatMessages(focusChatConvId);
+            } else {
+                ensureFocusChatConversation();
             }
-            if (focusChatConvId) loadFsChatMessages(focusChatConvId);
             setTimeout(() => fsChatInput.focus(), 100);
         } else {
             drawer.hidden = true;
+            btn.classList.remove('open');
         }
     }
     window.toggleFocusChat = toggleFocusChat;
@@ -1344,7 +1396,7 @@
         toggleFsChatEmoji();
     });
     document.addEventListener('click', (e) => {
-        if (!fsChatEmojiPanel.contains(e.target) && e.target.id !== 'fsChatEmojiBtn') {
+        if (!fsChatEmojiPanel.hidden && !fsChatEmojiPanel.contains(e.target) && e.target.id !== 'fsChatEmojiBtn') {
             toggleFsChatEmoji(false);
         }
     });
@@ -1352,6 +1404,10 @@
     // ── Focus Chat WebSocket ──
     function connectFocusChatWs() {
         if (!PARENT_ID) return;
+        // Don't open duplicate connections
+        if (focusChatWs && (focusChatWs.readyState === WebSocket.OPEN || focusChatWs.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
         const proto = location.protocol === 'https:' ? 'wss' : 'ws';
         focusChatWs = new WebSocket(`${proto}://${location.host}/ws/chat/`);
         focusChatWs.onopen = () => {
@@ -1361,8 +1417,11 @@
         };
         focusChatWs.onmessage = e => handleFocusChatWs(JSON.parse(e.data));
         focusChatWs.onclose = () => {
+            if (sessionEnded) return;
             fsChatStatus.textContent = 'reconnecting...';
-            setTimeout(connectFocusChatWs, Math.min(5000, 1000 * Math.pow(2, focusChatWsRetry++)));
+            fsChatStatus.className = 'fs-chat-status';
+            const delay = Math.min(5000, 1000 * Math.pow(2, focusChatWsRetry++));
+            setTimeout(connectFocusChatWs, delay);
         };
         focusChatWs.onerror = () => focusChatWs.close();
     }
@@ -1375,10 +1434,31 @@
         return false;
     }
 
+    // Ensure a Conversation exists between child and linked parent.
+    // If the WebSocket 'connected' event found none, call the REST endpoint
+    // which uses get_or_create to guarantee a Conversation row exists.
+    async function ensureFocusChatConversation() {
+        if (!PARENT_ID || focusChatConvId) return;
+        try {
+            const r = await fetch(`/chat/api/quick/${PARENT_ID}/`);
+            const d = await r.json();
+            if (d.status === 'ok' && d.conversation_id) {
+                focusChatConvId = d.conversation_id;
+                // Reconnect the WS so it picks up the new conversation group
+                if (focusChatWs) focusChatWs.close();
+                connectFocusChatWs();
+                if (focusChatOpen) loadFsChatMessages(focusChatConvId);
+            }
+        } catch (e) {
+            console.warn('Could not create focus chat conversation:', e);
+        }
+    }
+
     function handleFocusChatWs(data) {
         switch (data.type) {
             case 'connected':
                 // Find our conversation with the parent
+                focusChatConvId = null;
                 data.conversations.forEach(c => {
                     if (c.other_id === PARENT_ID) {
                         focusChatConvId = c.id;
@@ -1386,6 +1466,9 @@
                 });
                 if (focusChatConvId && focusChatOpen) {
                     loadFsChatMessages(focusChatConvId);
+                } else if (!focusChatConvId && PARENT_ID) {
+                    // No conversation exists yet — create one via the REST API
+                    ensureFocusChatConversation();
                 }
                 break;
             case 'chat_message':
@@ -1473,7 +1556,11 @@
             const data = await r.json();
             fsChatBody.innerHTML = '';
             focusChatLastDayKey = null;
-            data.messages.forEach(m => appendFsChatMsg(m));
+            if (data.messages && data.messages.length > 0) {
+                data.messages.forEach(m => appendFsChatMsg(m));
+            } else {
+                fsChatBody.innerHTML = '<div class="fs-chat-empty"><i class="fa-regular fa-comment-dots"></i><span>Start chatting with your parent</span></div>';
+            }
             fsChatBody.scrollTop = fsChatBody.scrollHeight;
             focusChatWsSend({ action: 'mark_read', conversation_id: convId });
         } catch (e) { console.warn('Focus chat load error:', e); }
@@ -1481,7 +1568,15 @@
 
     async function sendFsChatMessage() {
         const text = fsChatInput.value.trim();
-        if (!text || !focusChatConvId) return;
+        if (!text) return;
+        // If no conversation yet, create one first
+        if (!focusChatConvId && PARENT_ID) {
+            await ensureFocusChatConversation();
+        }
+        if (!focusChatConvId) {
+            showToast('Chat Unavailable', 'Could not find or create a conversation with your parent.', 'warning');
+            return;
+        }
         fsChatInput.value = '';
         toggleFsChatEmoji(false);
         const payload = { action: 'message', conversation_id: focusChatConvId, text };
@@ -1518,6 +1613,7 @@
 
     // Poll unread count for the badge
     async function refreshFsChatUnread() {
+        if (!PARENT_ID) return;
         try {
             const r = await fetch('/chat/api/unread-count/');
             const d = await r.json();
@@ -1532,7 +1628,17 @@
 
     // Initialize chat on session start
     function initFocusChat() {
-        if (!PARENT_ID) return;
+        if (!PARENT_ID) {
+            // No linked parent — disable the chat button
+            const btn = document.getElementById('fsChatBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.title = 'No linked parent to chat with';
+                btn.style.opacity = '0.4';
+                btn.style.cursor = 'not-allowed';
+            }
+            return;
+        }
         fsChatName.textContent = PARENT_NAME || 'Parent';
         const initials = (PARENT_NAME || '?').slice(0, 2).toUpperCase();
         document.getElementById('fsChatAvatar').textContent = initials;
