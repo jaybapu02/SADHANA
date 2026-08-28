@@ -450,6 +450,7 @@
     background: var(--sd-surface);
     border-radius: var(--rd-md);
 }
+.fs-chat-emoji-panel[hidden] { display: none !important; }
 .fs-chat-emoji-panel button {
     width: 100%; aspect-ratio: 1; border: none; background: transparent;
     font-size: 1.15rem; cursor: pointer; border-radius: var(--rd-md);
@@ -1254,7 +1255,7 @@
 
     // ─── Focus Chat (inline parent chat inside Focus Mode) ───
     const PARENT_ID = {{ connected_parent_id|default:"null" }};
-    const PARENT_NAME = {{ connected_parent_name|default:"''"|safe }};
+    const PARENT_NAME = "{{ connected_parent_name|default:""|escapejs }}";
     const FOCUS_EMOJIS = ['😀','😄','😊','🙂','😍','🥰','😎','🤩','🥳','😅','🤗','🤔','😴','🙃','😢','😭','😡','🥺','🤯','🙈','💪','👏','🙌','👍','👎','👀','🤝','🙏','👌','✌️','🤞','💯','🔥','⭐','🌟','✨','🎉','🎊','🏆','🥇','🚀','✅','❌','⏰','📚','✏️','📖','💡','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🌈','🎯','🫶','🥹'];
 
     let focusChatWs = null;
