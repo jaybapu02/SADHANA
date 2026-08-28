@@ -329,6 +329,12 @@
     let focusWarningShown = false;  // true while the warning modal is visible
     let focusWarningContinued = false; // true if child chose "Continue Anyway"
 
+    // Allowed-app launch guard: set when the child opens an app/website through
+    // the Sadhana Allowed Apps section. The visibilitychange handler uses this
+    // to send FOCUS (not DISTRACTED) so the distraction timer stays at zero.
+    let allowedAppLaunchedAt = 0;  // timestamp when the guard was set
+    const ALLOWED_APP_GUARD_MS = 15000; // grace period (new tab needs time to load)
+
     // ─── Utils ───
     function getCookie(name) {
         let cookieValue = null;
@@ -489,8 +495,9 @@
     // Presence tick: tells the server what the child is doing right now.
     function sendTick() {
         if (!currentSessionId || sessionEnded) return;
+        const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
         const kind = manualPaused ? 'PAUSED'
-            : (sessionPaused || usingApproval) ? 'FOCUS'
+            : (sessionPaused || usingApproval || allowedAppGuard) ? 'FOCUS'
             : document.hidden ? 'DISTRACTED' : 'FOCUS';
         postJSON('/focus/api/session-tick/', { session_id: currentSessionId, kind })
             .then(d => {
@@ -507,13 +514,15 @@
     document.addEventListener('visibilitychange', () => {
         if (!currentSessionId || sessionEnded) return;
         if (document.hidden) {
-            // Show warning modal if session is active and not already shown
-            // The modal intercepts the event; notification only fires on "Continue Anyway"
-            if (!sessionPaused && !manualPaused && !focusWarningShown && !focusWarningContinued) {
+            const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
+            // Show warning modal if session is active and not already shown.
+            // Skip the guard: allowed-app launches through Sadhana are permitted.
+            if (!sessionPaused && !manualPaused && !focusWarningShown && !focusWarningContinued && !allowedAppGuard) {
                 showFocusWarning();
-            } else if (usingApproval || focusWarningContinued) {
-                // Approved app usage or already acknowledged: report quietly
-                if (!usingApproval && lockEnabled) reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
+            } else if (usingApproval || focusWarningContinued || allowedAppGuard) {
+                // Approved app usage or already acknowledged or allowed-app launch:
+                // report quietly (no parent notification for allowed apps).
+                if (!usingApproval && !allowedAppGuard && lockEnabled) reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
             }
             sendTick();
         } else {
@@ -650,7 +659,15 @@
     function launchAllowed(item) {
         if (item.category === 'WEBSITE') {
             postJSON('/focus/api/launch-app/', { source: 'WHITELIST', item_id: item.id }).then(d => {
-                if (d.status === 'success' && d.url) window.open(d.url, '_blank', 'noopener');
+                if (d.status === 'success' && d.url) {
+                    // Set guard BEFORE opening the tab so visibilitychange
+                    // recognises the transition as an intentional, permitted action.
+                    allowedAppLaunchedAt = Date.now();
+                    // Notify the extension so it suppresses violation reports too.
+                    window.postMessage({ type: 'SADHANA_ALLOWED_APP_LAUNCHED', duration: ALLOWED_APP_GUARD_MS }, '*');
+                    window.open(d.url, '_blank', 'noopener');
+                    setTimeout(() => { allowedAppLaunchedAt = 0; }, ALLOWED_APP_GUARD_MS);
+                }
             }).catch(() => {});
             return;
         }
@@ -809,6 +826,7 @@
         usingApproval = null;
         focusWarningShown = false;
         focusWarningContinued = false;
+        allowedAppLaunchedAt = 0;
         pendingRequests.clear();
 
         document.getElementById('fsTaskNameText').textContent = taskName || 'Free focus';

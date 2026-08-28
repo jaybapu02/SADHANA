@@ -26,6 +26,16 @@
 
   notify({ type: 'FOCUS_PAGE_READY' });
 
+  // Listen for allowed-app launch signals from the focus page JS.
+  // When a child opens an Allowed App through Sadhana, the page sets a guard
+  // flag that the service worker checks before reporting violations.
+  window.addEventListener('message', e => {
+    if (e.source !== window) return;
+    if (e.data && e.data.type === 'SADHANA_ALLOWED_APP_LAUNCHED') {
+      notify({ type: 'ALLOWED_APP_GUARD', duration: e.data.duration || 15000 });
+    }
+  });
+
   // Tab switch detection (user leaves this tab).
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {

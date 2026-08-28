@@ -22,6 +22,8 @@ let state = {
   paused: false,         // focus timer frozen (approved use)
 };
 let pendingEvents = []; // events detected while the server was unreachable
+let allowedAppLaunchedAt = 0; // timestamp of the last allowed-app launch (set by content script)
+const ALLOWED_APP_GUARD_MS = 15000; // grace period
 
 // ─── Config ────────────────────────────────────────────────────────────────
 
@@ -222,6 +224,10 @@ function isFocusTab(url) {
   }
 }
 
+function isAllowedAppGuardActive() {
+  return (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
+}
+
 function isBlacklisted(url) {
   try {
     const u = new URL(url);
@@ -257,6 +263,8 @@ function bringFocusWindowToFront() {
   if (!state.focusWindowId || !state.active || !state.lockEnabled) return;
   // While an approved app is in use, the child is allowed to be elsewhere.
   if (state.approvalActive || state.paused) return;
+  // During an allowed-app launch guard, the child legitimately navigated away.
+  if (isAllowedAppGuardActive()) return;
   try {
     chrome.windows.get(state.focusWindowId, w => {
       if (chrome.runtime.lastError || !w) return;
@@ -290,6 +298,9 @@ chrome.tabs.onActivated.addListener(async info => {
   // Whitelisted / parent-approved sites are sanctioned destinations: clicking
   // an allowed app icon inside Focus Mode must NOT count as a violation.
   if (isApprovedOrWhitelisted(tab.url)) return;
+  // Allowed-app launch guard: the child just opened an app through Sadhana.
+  // The new tab may not have fully loaded yet; treat it as permitted.
+  if (isAllowedAppGuardActive()) return;
   // Switched away from the focus window to an unrelated tab.
   reportEvent('TAB_SWITCH', `Child switched to ${tab.url || 'another tab'}`);
   bringFocusWindowToFront();
@@ -324,6 +335,8 @@ chrome.windows.onFocusChanged.addListener(windowId => {
   // Approved use: the child is legitimately in another window (e.g. the
   // YouTube popup they opened through Sadhana). Not a violation.
   if (state.approvalActive || state.paused) return;
+  // Allowed-app launch: the child just opened an app through Sadhana.
+  if (isAllowedAppGuardActive()) return;
   if (windowId === chrome.windows.WINDOW_ID_NONE && state.focusWindowId) {
     reportEvent('MINIMIZE', 'The focus window lost focus');
     bringFocusWindowToFront();
@@ -338,15 +351,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sendResponse({ ok: true });
     return;
   }
+  if (msg && msg.type === 'ALLOWED_APP_GUARD') {
+    // The focus page just launched an allowed app through Sadhana.
+    // Set a timestamp guard so we don't report violations during the transition.
+    allowedAppLaunchedAt = Date.now();
+    setTimeout(() => { allowedAppLaunchedAt = 0; }, msg.duration || ALLOWED_APP_GUARD_MS);
+    sendResponse({ ok: true });
+    return;
+  }
   if (msg && msg.type === 'LEAVE_ATTEMPT') {
-    reportEvent('LEAVE_ATTEMPT', msg.detail || 'Child tried to leave the focus window');
-    bringFocusWindowToFront();
+    if (!isAllowedAppGuardActive()) {
+      reportEvent('LEAVE_ATTEMPT', msg.detail || 'Child tried to leave the focus window');
+      bringFocusWindowToFront();
+    }
     sendResponse({ ok: true });
     return;
   }
   if (msg && msg.type === 'TAB_HIDDEN') {
     // While an approved app is in use the focus page is legitimately hidden.
-    if (!state.approvalActive && !state.paused) {
+    // Also during an allowed-app launch guard: the child opened an app through Sadhana.
+    if (!state.approvalActive && !state.paused && !isAllowedAppGuardActive()) {
       reportEvent('TAB_SWITCH', msg.detail || 'Child switched away from the focus window');
       bringFocusWindowToFront();
     }
@@ -355,9 +379,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 // Periodic enforcement: keep the focus window in front while locked -
-// but never fight the child during sanctioned approved-app usage.
+// but never fight the child during sanctioned approved-app usage or
+// allowed-app launches through Sadhana.
 setInterval(() => {
-  if (state.active && state.lockEnabled && !state.approvalActive && !state.paused) {
+  if (state.active && state.lockEnabled && !state.approvalActive && !state.paused && !isAllowedAppGuardActive()) {
     bringFocusWindowToFront();
   }
 }, 2000);
