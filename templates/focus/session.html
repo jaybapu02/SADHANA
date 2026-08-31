@@ -1653,6 +1653,38 @@
     loadDevices();
     initFocusChat();
 
+    // ─── Stale session prevention: notify server on tab/window close ───
+    // Uses sendBeacon for reliable delivery even during page unload.
+    // The backend also has a 5-minute heartbeat timeout, so this is a
+    // best-effort fast path; the backend handles the rest.
+    window.addEventListener('beforeunload', function(e) {
+        if (!currentSessionId || sessionEnded) return;
+        const payload = JSON.stringify({ session_id: currentSessionId });
+        const blob = new Blob([payload], { type: 'application/json' });
+        try {
+            navigator.sendBeacon('/focus/api/session-leave/', blob);
+        } catch (_) {}
+    });
+
+    // ─── Visibility change heartbeat fallback ───
+    // When the page becomes visible after being hidden for a while,
+    // check if we need to resume or if the session ended while away.
+    let lastHiddenAt = 0;
+    document.addEventListener('visibilitychange', function() {
+        if (!currentSessionId || sessionEnded) return;
+        if (document.hidden) {
+            lastHiddenAt = Date.now();
+        } else if (lastHiddenAt > 0) {
+            const hiddenDuration = Date.now() - lastHiddenAt;
+            lastHiddenAt = 0;
+            // If hidden for more than 2 minutes, do an immediate state check
+            // to detect if the session was cleaned up server-side
+            if (hiddenDuration > 120000) {
+                pollState();
+            }
+        }
+    });
+
     {% if active_session %}
     activateSession(
         {{ active_session.id }},

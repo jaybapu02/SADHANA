@@ -69,6 +69,104 @@ def seed_default_lists():
 # ─── Helper ───
 
 TICK_MAX_DELTA_SECONDS = 60  # clamp per-tick accumulation (bounds drift & abuse)
+STALE_SESSION_TIMEOUT_SECONDS = 300  # 5 minutes without a tick → session abandoned
+
+
+def cleanup_stale_sessions(child=None):
+    """Mark abandoned ACTIVE sessions as INTERRUPTed.
+
+    A session is considered stale/abandoned when:
+    - It has been ACTIVE for longer than its planned duration + grace, OR
+    - It has not received a presence tick for STALE_SESSION_TIMEOUT_SECONDS.
+
+    This covers: browser close, tab close, network loss, server restart.
+    Does NOT delete the session — it is preserved as INTERRUPTED in history.
+    """
+    now = timezone.now()
+    stale_cutoff = now - timedelta(seconds=STALE_SESSION_TIMEOUT_SECONDS)
+
+    qs = FocusSession.objects.filter(status=FocusSession.Status.ACTIVE)
+    if child:
+        qs = qs.filter(child=child)
+
+    for session in qs:
+        is_stale = False
+
+        # Case 1: session has a last_tick_at that is too old
+        if session.last_tick_at and session.last_tick_at < stale_cutoff:
+            is_stale = True
+
+        # Case 2: session never sent a tick (legacy or crashed before first tick)
+        # and has existed beyond its planned duration + grace
+        if not session.last_tick_at:
+            planned_end = session.start_time + timedelta(
+                minutes=session.planned_duration,
+                seconds=STALE_SESSION_TIMEOUT_SECONDS,
+            )
+            if now > planned_end:
+                is_stale = True
+
+        # Case 3: session has no planned duration (STUDY type) and hasn't
+        # ticked in the timeout window
+        if not session.last_tick_at and session.planned_duration == 0:
+            if session.start_time < stale_cutoff:
+                is_stale = True
+
+        if is_stale:
+            _interrupt_stale_session(session)
+
+
+def _interrupt_stale_session(session):
+    """Finalize an abandoned session as INTERRUPTED and notify parents."""
+    now = timezone.now()
+
+    # Sweep any open approved-app usage
+    for open_req in AccessRequest.objects.filter(
+        child=session.child,
+        session=session,
+        status=AccessRequest.Status.APPROVED,
+        in_use=True,
+        usage_started_at__isnull=False,
+    ).select_related('blacklist_item', 'session'):
+        _finalize_approved_usage(open_req)
+
+    session.refresh_from_db(fields=['paused_at', 'pause_seconds_total',
+                                    'actual_focus_seconds',
+                                    'distraction_seconds'])
+
+    # Bank trailing seconds since last tick (up to one tick interval)
+    if session.last_tick_at:
+        trailing = int((now - session.last_tick_at).total_seconds())
+        if 0 <= trailing <= TICK_MAX_DELTA_SECONDS:
+            if session.paused_at:
+                session.pause_seconds_total += trailing
+            else:
+                session.actual_focus_seconds += trailing
+
+    session.end_time = now
+    session.last_tick_at = None
+    session.status = FocusSession.Status.INTERRUPTED
+    session.early_exit = True
+    session.save()
+
+    # Record lock event if lock was enabled
+    if session.lock_enabled:
+        record_lock_event(
+            session, session.child, None,
+            FocusLockEvent.EventType.LOCK_DEACTIVATED,
+            detail="Session interrupted - child left Focus Mode (stale session cleanup)",
+            notify=False,
+        )
+        for parent in get_connected_parents(session.child):
+            NotificationService.lock_deactivated(parent, session.child)
+
+    # Notify parents
+    focus_minutes = round(session.actual_focus_seconds / 60)
+    for parent in get_connected_parents(session.child):
+        NotificationService.focus_interrupted(parent, session.child, focus_minutes)
+    NotificationService.focus_interrupted_child(session.child, focus_minutes)
+
+    studydna_analyze(session.child)
 
 
 def get_connected_parents(child):
@@ -293,6 +391,8 @@ def focus_session_view(request):
     if request.user.role != 'CHILD':
         return redirect('dashboard_router')
     seed_default_lists()
+    # Clean up any stale sessions before rendering
+    cleanup_stale_sessions(child=request.user)
     whitelist = WhitelistItem.objects.all()
     blacklist = BlacklistItem.objects.all()
     active_session = FocusSession.objects.filter(
@@ -336,6 +436,9 @@ def api_start_session(request):
 
     if duration not in (25, 50, 90) and duration < 1:
         return JsonResponse({'error': 'Duration must be 25, 50, 90, or a positive custom value.'}, status=400)
+
+    # Clean up any stale sessions before checking for existing ones
+    cleanup_stale_sessions(child=request.user)
 
     existing = FocusSession.objects.filter(
         child=request.user, status=FocusSession.Status.ACTIVE
@@ -500,6 +603,9 @@ def api_start_study_session(request):
     if request.user.role != 'CHILD':
         return JsonResponse({'error': 'Only children can start sessions.'}, status=403)
 
+    # Clean up any stale sessions before checking
+    cleanup_stale_sessions(child=request.user)
+
     existing = FocusSession.objects.filter(
         child=request.user, status=FocusSession.Status.ACTIVE
     ).first()
@@ -523,6 +629,8 @@ def api_start_study_session(request):
 def api_active_session(request):
     if request.user.role != 'CHILD':
         return JsonResponse({'error': 'Unauthorized.'}, status=403)
+    # Clean up any stale sessions
+    cleanup_stale_sessions(child=request.user)
     session = FocusSession.objects.filter(
         child=request.user, status=FocusSession.Status.ACTIVE
     ).first()
@@ -557,6 +665,7 @@ def api_session_tick(request):
 
     session = get_object_or_404(FocusSession, id=session_id, child=request.user)
     if session.status != FocusSession.Status.ACTIVE:
+        # Session may have been cleaned up as stale between ticks
         return JsonResponse({'status': 'error', 'message': 'Session is not active.'}, status=400)
 
     sweep_approved_usage(request.user)
@@ -604,6 +713,9 @@ def api_session_state(request):
         return JsonResponse({'status': 'error', 'message': 'Unauthorized.'}, status=403)
     sweep_approved_usage(request.user)
     session = get_active_session(request.user)
+    if not session:
+        cleanup_stale_sessions(child=request.user)
+        session = get_active_session(request.user)
     now = timezone.now()
     if not session:
         return JsonResponse({
@@ -769,6 +881,36 @@ def api_resume_session(request):
         NotificationService.focus_resumed(parent, request.user)
 
     return JsonResponse({'status': 'success', 'message': 'Resume notification sent.'})
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_session_leave(request):
+    """Lightweight endpoint called via sendBeacon when the child's Focus Mode
+    page is being unloaded (tab close, navigation away). Sets last_tick_at
+    far in the past so the backend stale-session cleanup picks it up
+    immediately on the next check. This is a best-effort fast path; the
+    5-minute heartbeat timeout handles cases where sendBeacon doesn't fire."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized.'}, status=403)
+    try:
+        data = json.loads(request.body)
+        session_id = data.get('session_id')
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid data.'}, status=400)
+
+    session = FocusSession.objects.filter(
+        id=session_id, child=request.user, status=FocusSession.Status.ACTIVE
+    ).first()
+    if not session:
+        return JsonResponse({'status': 'ok'})
+
+    # Mark last_tick_at as very old so cleanup_stale_sessions picks it up
+    session.last_tick_at = timezone.now() - timedelta(seconds=STALE_SESSION_TIMEOUT_SECONDS + 10)
+    session.save(update_fields=['last_tick_at'])
+
+    return JsonResponse({'status': 'ok'})
 
 
 # ─── Child: Launch Allowed Apps Through Sadhana ───
@@ -1375,6 +1517,8 @@ def api_parent_active_sessions(request):
 
     data = []
     for conn in connections:
+        # Clean up stale sessions for each child
+        cleanup_stale_sessions(child=conn.child)
         session = FocusSession.objects.filter(
             child=conn.child, status=FocusSession.Status.ACTIVE
         ).select_related('task').first()
@@ -1592,6 +1736,8 @@ def _device_context(request):
     device = get_device_from_request(request)
     if not device:
         return None, None, None
+    # Clean up stale sessions for this child
+    cleanup_stale_sessions(child=device.child)
     session = FocusSession.objects.filter(
         child=device.child, status=FocusSession.Status.ACTIVE
     ).select_related('task').first()
@@ -1674,6 +1820,9 @@ def api_report_lock_event(request):
     if not child:
         return JsonResponse({'error': 'Unauthorized.'}, status=401)
 
+    # Clean up stale sessions for this child
+    cleanup_stale_sessions(child=child)
+
     session = FocusSession.objects.filter(
         child=child, status=FocusSession.Status.ACTIVE
     ).select_related('task').first()
@@ -1711,6 +1860,9 @@ def api_focus_mode_status(request):
     child, device = resolve_effective_child(request)
     if not child:
         return JsonResponse({'error': 'Unauthorized.'}, status=401)
+
+    # Clean up stale sessions for this child
+    cleanup_stale_sessions(child=child)
 
     session = FocusSession.objects.filter(
         child=child, status=FocusSession.Status.ACTIVE
