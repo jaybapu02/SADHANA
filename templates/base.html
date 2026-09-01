@@ -1,9 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Sadhana - Study Focus &amp; Discipline{% endblock %}</title>
+    <link rel="icon" type="image/jpeg" href="{% static 'images/logo.jpeg' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -34,7 +36,7 @@
         <!-- ==================== Sidebar ==================== -->
         <aside class="sd-sidebar" id="sdSidebar" aria-label="Main navigation">
             <a class="sd-sidebar-brand" href="{% url 'home' %}" title="Sadhana">
-                <span class="sd-brand-mark"><i class="fa-solid fa-leaf"></i></span>
+                <span class="sd-brand-mark"><img src="{% static 'images/logo.jpeg' %}" alt="Sadhana logo"></span>
                 <span class="sd-brand-name">Sadhana<small>Study &middot; Focus</small></span>
             </a>
 
@@ -179,7 +181,7 @@
     <nav class="marketing-nav py-2">
         <div class="container d-flex align-items-center justify-content-between">
             <a class="d-flex align-items-center gap-2 text-decoration-none" href="{% url 'home' %}">
-                <span class="sd-brand-mark"><i class="fa-solid fa-leaf"></i></span>
+                <span class="sd-brand-mark"><img src="{% static 'images/logo.jpeg' %}" alt="Sadhana logo"></span>
                 <span class="fs-5 fw-bold gradient-text">Sadhana</span>
             </a>
             <div class="d-flex align-items-center gap-2">
