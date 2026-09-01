@@ -29,9 +29,12 @@ def api_notifications(request):
             'id': n.id,
             'sender_name': n.sender_name,
             'notification_type': n.notification_type,
+            'priority': n.priority,
             'message': n.message,
             'timestamp': n.timestamp.isoformat(),
             'is_read': n.is_read,
+            'action_url': n.action_url,
+            'action_label': n.action_label,
         }
         for n in notifications
     ]
@@ -40,8 +43,13 @@ def api_notifications(request):
 
 @login_required
 def api_unread_count(request):
-    count = Notification.objects.filter(recipient=request.user, is_read=False).count()
-    return JsonResponse({'unread_count': count})
+    qs = Notification.objects.filter(recipient=request.user, is_read=False)
+    count = qs.count()
+    attention_count = qs.filter(priority=Notification.Priority.ATTENTION_REQUIRED).count()
+    return JsonResponse({
+        'unread_count': count,
+        'attention_count': attention_count,
+    })
 
 
 @login_required

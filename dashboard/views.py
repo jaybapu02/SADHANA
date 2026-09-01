@@ -76,12 +76,17 @@ def parent_dashboard(request):
                 NotificationService.all_tasks_done(request.user, child)
 
     unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+    attention_count = Notification.objects.filter(
+        recipient=request.user, is_read=False,
+        priority=Notification.Priority.ATTENTION_REQUIRED
+    ).count()
 
     context = {
         'sent_requests': sent_requests,
         'connected_children': connected_children,
         'children_todo': children_todo,
         'unread_count': unread_count,
+        'attention_count': attention_count,
     }
     return render(request, 'dashboard/parent.html', context)
 

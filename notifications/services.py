@@ -2,36 +2,51 @@ from django.db import transaction
 from .models import Notification
 
 
+P = Notification.Priority
+
+
 class NotificationService:
 
     @staticmethod
-    def _create(recipient, sender, sender_name, notification_type, message):
+    def _create(recipient, sender, sender_name, notification_type, message,
+                priority=P.NORMAL, action_url='', action_label=''):
         return Notification.objects.create(
             recipient=recipient,
             sender=sender,
             sender_name=sender_name,
             notification_type=notification_type,
-            message=message
+            message=message,
+            priority=priority,
+            action_url=action_url,
+            action_label=action_label,
         )
 
     @staticmethod
-    def _notify_parent(parent, child, notification_type, message):
+    def _notify_parent(parent, child, notification_type, message,
+                       priority=P.NORMAL, action_url='', action_label=''):
         return NotificationService._create(
             recipient=parent,
             sender=child,
             sender_name=child.username,
             notification_type=notification_type,
-            message=message
+            message=message,
+            priority=priority,
+            action_url=action_url,
+            action_label=action_label,
         )
 
     @staticmethod
-    def _notify_child(child, parent, notification_type, message):
+    def _notify_child(child, parent, notification_type, message,
+                      priority=P.NORMAL, action_url='', action_label=''):
         return NotificationService._create(
             recipient=child,
             sender=parent,
             sender_name=parent.username,
             notification_type=notification_type,
-            message=message
+            message=message,
+            priority=priority,
+            action_url=action_url,
+            action_label=action_label,
         )
 
     # Parent → Child notifications
@@ -156,7 +171,10 @@ class NotificationService:
         return NotificationService._notify_parent(
             parent=parent, child=child,
             notification_type=Notification.NotificationType.ACCESS_REQUESTED,
-            message=message
+            message=message,
+            priority=P.ATTENTION_REQUIRED,
+            action_url=f'/focus/parent/',
+            action_label='Review Request',
         )
 
     @staticmethod
@@ -191,7 +209,8 @@ class NotificationService:
         return NotificationService._notify_parent(
             parent=parent, child=child,
             notification_type=Notification.NotificationType.DISTRACTION_ALERT,
-            message=message
+            message=message,
+            priority=P.IMPORTANT,
         )
 
     # Super Power Saving Mode notifications
@@ -238,7 +257,8 @@ class NotificationService:
         return NotificationService._notify_parent(
             parent=parent, child=child,
             notification_type=Notification.NotificationType.LOCK_VIOLATION,
-            message=message
+            message=message,
+            priority=P.IMPORTANT,
         )
 
     @staticmethod
@@ -283,7 +303,8 @@ class NotificationService:
         return NotificationService._notify_parent(
             parent=parent, child=child,
             notification_type=Notification.NotificationType.FOCUS_INTERRUPTED,
-            message=f"Your child \"{child.username}\" ended their focus session early after {duration_minutes} minutes."
+            message=f"Your child \"{child.username}\" ended their focus session early after {duration_minutes} minutes.",
+            priority=P.IMPORTANT,
         )
 
     @staticmethod
@@ -291,7 +312,8 @@ class NotificationService:
         return NotificationService._notify_parent(
             parent=parent, child=child,
             notification_type=Notification.NotificationType.FOCUS_COMPLETED,
-            message=f"Your child \"{child.username}\" resumed their Focus Session."
+            message=f"Your child \"{child.username}\" resumed their Focus Session.",
+            priority=P.IMPORTANT,
         )
 
     @staticmethod
@@ -306,7 +328,8 @@ class NotificationService:
         return NotificationService._notify_parent(
             parent=parent, child=child,
             notification_type=Notification.NotificationType.LOCK_VIOLATION,
-            message=f"\u26a0\ufe0f Your child \"{child.username}\" {verb}."
+            message=f"\u26a0\ufe0f Your child \"{child.username}\" {verb}.",
+            priority=P.IMPORTANT,
         )
 
     @staticmethod

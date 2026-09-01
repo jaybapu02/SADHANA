@@ -245,6 +245,11 @@
                     if (data.unread_count > 0) {
                         badge.textContent = data.unread_count;
                         badge.style.display = 'inline';
+                        if (data.attention_count > 0) {
+                            badge.style.background = 'var(--sd-danger)';
+                        } else {
+                            badge.style.background = '';
+                        }
                     } else {
                         badge.style.display = 'none';
                     }

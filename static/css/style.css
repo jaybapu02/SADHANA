@@ -1478,6 +1478,69 @@ textarea.form-control { min-height: 96px; }
   background: var(--sd-surface-3);
   color: var(--sd-text-muted);
 }
+/* Priority: Important */
+.notif-row.priority-important {
+  border-left-color: var(--sd-warning);
+}
+.notif-row.priority-important.unread {
+  background: rgba(245, 183, 61, 0.08);
+  border-left-color: var(--sd-warning);
+}
+.notif-row.priority-important.unread:hover {
+  background: rgba(245, 183, 61, 0.14);
+}
+.notif-row.priority-important .notif-icon {
+  background: rgba(245, 183, 61, 0.15);
+  color: var(--sd-warning);
+}
+/* Priority: Attention Required */
+.notif-row.priority-attention {
+  border-left-color: var(--sd-danger);
+}
+.notif-row.priority-attention.unread {
+  background: rgba(240, 100, 122, 0.08);
+  border-left-color: var(--sd-danger);
+}
+.notif-row.priority-attention.unread:hover {
+  background: rgba(240, 100, 122, 0.14);
+}
+.notif-row.priority-attention .notif-icon {
+  background: rgba(240, 100, 122, 0.15);
+  color: var(--sd-danger);
+}
+/* Attention section header */
+.notif-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sd-text-muted);
+}
+.notif-section-header .badge {
+  font-size: 0.65rem;
+  padding: 0.2em 0.55em;
+}
+.notif-section-divider {
+  border: none;
+  border-top: 1px solid var(--sd-border);
+  margin: 0.25rem 0.9rem;
+}
+/* Action button in notification row */
+.notif-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: var(--rd-sm);
+  text-decoration: none;
+  transition: background var(--tr-fast), color var(--tr-fast);
+}
 
 /* DNA insights */
 .rec-card {

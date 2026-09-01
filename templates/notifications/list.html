@@ -86,7 +86,6 @@ function fetchNotifications() {
                 err.isLoadError = true;
                 throw err;
             }
-            // Non-JSON body (e.g. login redirect HTML or server error page).
             return r.json().catch(() => {
                 const err = new Error('List API returned a non-JSON response.');
                 err.isLoadError = true;
@@ -113,42 +112,92 @@ function fetchNotifications() {
 
             renderUnreadState(visible.filter(n => !n.is_read).length);
 
-            let html = '';
-            visible.forEach(n => {
-                const timeAgo = timeSince(n.timestamp);
-                const unreadClass = n.is_read ? '' : 'unread';
-                const badgeHtml = n.is_read ? '' : '<span class="badge soft-primary">New</span>';
+            const attention = visible.filter(n => n.priority === 'ATTENTION_REQUIRED' && !n.is_read);
+            const important = visible.filter(n => n.priority === 'IMPORTANT' && !n.is_read);
+            const needsAttention = [...attention, ...important];
+            const recent = visible.filter(n => !needsAttention.includes(n));
 
-                html += `
-                    <div class="notif-row ${unreadClass}" data-id="${n.id}">
-                        <span class="notif-icon"><i class="fa-solid fa-bell"></i></span>
-                        <div class="flex-grow-1 min-w-0">
-                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
-                                ${badgeHtml}
-                                <small class="text-muted">${timeAgo} ago</small>
-                                <span class="badge soft-info text-capitalize">${escapeHtml(n.notification_type.replace(/_/g, ' '))}</span>
-                            </div>
-                            <p class="mb-0 small">${escapeHtml(n.message)}</p>
-                        </div>
-                        <div class="d-flex gap-1">
-                            ${n.is_read ? '' : `<button class="btn btn-action btn-outline-secondary mark-read-btn" data-id="${n.id}" title="Mark as read"><i class="fa-solid fa-check"></i></button>`}
-                            <button class="btn btn-action btn-outline-danger delete-btn" data-id="${n.id}" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
-                        </div>
-                    </div>
-                `;
-            });
+            let html = '';
+
+            if (needsAttention.length > 0) {
+                html += `<div class="notif-section-header">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--sd-warning);"></i>
+                    Needs Your Attention
+                    <span class="badge soft-warning">${needsAttention.length}</span>
+                </div>`;
+                needsAttention.forEach(n => {
+                    html += renderNotifRow(n);
+                });
+            }
+
+            if (recent.length > 0) {
+                if (needsAttention.length > 0) {
+                    html += '<hr class="notif-section-divider">';
+                }
+                html += `<div class="notif-section-header">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Recent Activity
+                </div>`;
+                recent.forEach(n => {
+                    html += renderNotifRow(n);
+                });
+            }
+
             container.innerHTML = html;
         })
         .catch(err => {
             if (err && err.isLoadError) {
-                // Genuine failure of the list API only — surface it accurately.
                 console.error('[notifications] load failed:', err.message);
                 showToast('Could not load notifications.', 'error');
             } else {
-                // Rendering bug or unexpected shape — log it, never mask it as a load error.
                 console.error('[notifications] unexpected error while rendering list:', err);
             }
         });
+}
+
+function renderNotifRow(n) {
+    const timeAgo = timeSince(n.timestamp);
+    const unreadClass = n.is_read ? '' : 'unread';
+    const badgeHtml = n.is_read ? '' : '<span class="badge soft-primary">New</span>';
+
+    let priorityClass = '';
+    let priorityBadge = '';
+    let iconHtml = '<i class="fa-solid fa-bell"></i>';
+
+    if (n.priority === 'ATTENTION_REQUIRED') {
+        priorityClass = 'priority-attention';
+        priorityBadge = '<span class="badge soft-danger">Action Needed</span>';
+        iconHtml = '<i class="fa-solid fa-lock"></i>';
+    } else if (n.priority === 'IMPORTANT') {
+        priorityClass = 'priority-important';
+        priorityBadge = '<span class="badge soft-warning">Important</span>';
+        iconHtml = '<i class="fa-solid fa-triangle-exclamation"></i>';
+    }
+
+    let actionHtml = '';
+    if (n.action_url && n.action_label && n.priority === 'ATTENTION_REQUIRED' && !n.is_read) {
+        actionHtml = `<a href="${escapeHtml(n.action_url)}" class="notif-action-btn btn btn-sm btn-gradient">${escapeHtml(n.action_label)}</a>`;
+    }
+
+    return `
+        <div class="notif-row ${unreadClass} ${priorityClass}" data-id="${n.id}">
+            <span class="notif-icon">${iconHtml}</span>
+            <div class="flex-grow-1 min-w-0">
+                <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                    ${badgeHtml}
+                    ${priorityBadge}
+                    <small class="text-muted">${timeAgo} ago</small>
+                    <span class="badge soft-info text-capitalize">${escapeHtml(n.notification_type.replace(/_/g, ' '))}</span>
+                </div>
+                <p class="mb-0 small">${escapeHtml(n.message)}</p>
+                ${actionHtml ? '<div class="mt-1">' + actionHtml + '</div>' : ''}
+            </div>
+            <div class="d-flex gap-1">
+                ${n.is_read ? '' : `<button class="btn btn-action btn-outline-secondary mark-read-btn" data-id="${n.id}" title="Mark as read"><i class="fa-solid fa-check"></i></button>`}
+                <button class="btn btn-action btn-outline-danger delete-btn" data-id="${n.id}" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+            </div>
+        </div>
+    `;
 }
 
 // ---- Event delegation (attached once; survives list re-renders) ----

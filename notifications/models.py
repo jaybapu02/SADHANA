@@ -28,6 +28,11 @@ class Notification(models.Model):
         BADGE_EARNED = 'BADGE_EARNED', 'Badge Earned'
         CHAT_MESSAGE = 'CHAT_MESSAGE', 'Chat Message'
 
+    class Priority(models.TextChoices):
+        NORMAL = 'NORMAL', 'Normal'
+        IMPORTANT = 'IMPORTANT', 'Important'
+        ATTENTION_REQUIRED = 'ATTENTION_REQUIRED', 'Attention Required'
+
     recipient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -44,9 +49,17 @@ class Notification(models.Model):
         max_length=50,
         choices=NotificationType.choices
     )
+    priority = models.CharField(
+        max_length=20,
+        choices=Priority.choices,
+        default=Priority.NORMAL,
+        db_index=True,
+    )
     message = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
     is_read = models.BooleanField(default=False)
+    action_url = models.CharField(max_length=500, blank=True, default='')
+    action_label = models.CharField(max_length=100, blank=True, default='')
 
     class Meta:
         ordering = ['-timestamp']

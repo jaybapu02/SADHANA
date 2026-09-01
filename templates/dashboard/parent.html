@@ -11,7 +11,9 @@
     <div class="sd-page-actions">
         <a href="{% url 'notification_list' %}" class="btn btn-outline-secondary position-relative">
             <i class="fa-regular fa-bell me-1"></i> Notifications
-            {% if unread_count > 0 %}
+            {% if attention_count > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ attention_count }}<span class="visually-hidden"> attention required</span></span>
+            {% elif unread_count > 0 %}
                 <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ unread_count }}</span>
             {% endif %}
         </a>
