@@ -2229,6 +2229,30 @@ body.focus-stage-open #flashToasts { display: none !important; }
   color: var(--sd-warning);
 }
 .fs-btn-continue:hover { background: rgba(245, 183, 61, 0.26); }
+.fs-warning-grace {
+  font-size: 0.82rem;
+  color: var(--sd-success);
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.8rem;
+  background: rgba(34, 197, 139, 0.1);
+  border-radius: var(--rd-md);
+  border: 1px solid rgba(34, 197, 139, 0.3);
+}
+.fs-warning-grace b {
+  color: var(--sd-success);
+  font-weight: 700;
+}
+.fs-warning-card #focusWarningMessage {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--sd-danger);
+  padding: 0.6rem 0.8rem;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: var(--rd-md);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
 
 /* ── Controls ────────────────────────────────────────────────────────── */
 .fs-controls {

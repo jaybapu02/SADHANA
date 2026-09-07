@@ -247,9 +247,10 @@ class NotificationService:
             'LEAVE_ATTEMPT': 'tried to leave Focus Mode',
             'APP_BLOCKED': 'tried to open a restricted app',
             'WEBSITE_BLOCKED': 'tried to open a restricted website',
+            'UNAUTHORIZED_ACTIVITY': 'left Sadhana for an unauthorized application',
         }
         verb = labels.get(event_type, event_type.replace('_', ' ').lower())
-        message = f'⚠ Your child "{child.username}" {verb}.'
+        message = f'⚠️ Your child "{child.username}" {verb}.'
         if detail:
             message += f' ({detail})'
         if task_name:
@@ -323,12 +324,13 @@ class NotificationService:
             'TAB_HIDE': 'left/minimized Focus Mode',
             'WINDOW_CLOSE': 'tried to close Focus Mode',
             'LEAVE_ATTEMPT': 'left Focus Mode',
+            'UNAUTHORIZED_ACTIVITY': 'left Sadhana for an unauthorized application',
         }
         verb = labels.get(event_type, 'left/minimized Focus Mode')
         return NotificationService._notify_parent(
             parent=parent, child=child,
             notification_type=Notification.NotificationType.LOCK_VIOLATION,
-            message=f"\u26a0\ufe0f Your child \"{child.username}\" {verb}.",
+            message=f"⚠️ Your child \"{child.username}\" {verb}.",
             priority=P.IMPORTANT,
         )
 

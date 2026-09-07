@@ -322,7 +322,8 @@ def record_lock_event(session, child, device, event_type, detail='', metadata=No
                       FocusLockEvent.EventType.TAB_HIDE,
                       FocusLockEvent.EventType.MINIMIZE,
                       FocusLockEvent.EventType.WINDOW_CLOSE,
-                      FocusLockEvent.EventType.LEAVE_ATTEMPT):
+                      FocusLockEvent.EventType.LEAVE_ATTEMPT,
+                      FocusLockEvent.EventType.UNAUTHORIZED_ACTIVITY):
         session.lock_violations += 1
         update_fields.append('lock_violations')
     if update_fields:

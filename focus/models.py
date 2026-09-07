@@ -286,6 +286,7 @@ class FocusLockEvent(models.Model):
         APP_LAUNCHED = 'APP_LAUNCHED', 'App Launched Via Sadhana'
         DEVICE_ONLINE = 'DEVICE_ONLINE', 'Device Online'
         DEVICE_OFFLINE = 'DEVICE_OFFLINE', 'Device Offline'
+        UNAUTHORIZED_ACTIVITY = 'UNAUTHORIZED_ACTIVITY', 'Unauthorized Activity'
 
     class Severity(models.TextChoices):
         INFO = 'INFO', 'Info'
@@ -311,6 +312,7 @@ class FocusLockEvent(models.Model):
         EventType.APP_BLOCKED: Severity.CRITICAL,
         EventType.WEBSITE_BLOCKED: Severity.CRITICAL,
         EventType.DEVICE_OFFLINE: Severity.CRITICAL,
+        EventType.UNAUTHORIZED_ACTIVITY: Severity.CRITICAL,
     }
 
     session = models.ForeignKey(

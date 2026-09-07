@@ -25,6 +25,11 @@ let pendingEvents = []; // events detected while the server was unreachable
 let allowedAppLaunchedAt = 0; // timestamp of the last allowed-app launch (set by content script)
 const ALLOWED_APP_GUARD_MS = 15000; // grace period
 
+// Grace period state for focus loss detection
+const GRACE_PERIOD_MS = 5000; // 5 seconds before a focus loss counts as violation
+let focusLostAt = 0;           // timestamp when focus was lost (0 = focused)
+let focusViolationRecorded = false; // true once we've recorded a violation for this leave
+
 // ─── Config ────────────────────────────────────────────────────────────────
 
 async function loadConfig() {
@@ -132,6 +137,12 @@ function applyStatus(data) {
 
   applyBlockingRules();
 
+  // Reset grace period state when session state changes
+  if (state.approvalActive || state.paused) {
+    focusLostAt = 0;
+    focusViolationRecorded = false;
+  }
+
   if (state.active && state.lockEnabled) {
     setBadge(state.approvalActive ? 'app' : 'lock');
     if (!state.approvalActive) bringFocusWindowToFront();
@@ -140,6 +151,9 @@ function applyStatus(data) {
     setBadge('on');
   } else if (wasActive && !state.active) {
     setBadge('off');
+    // Session ended — reset grace period state
+    focusLostAt = 0;
+    focusViolationRecorded = false;
   }
 
   if (!wasLocked && state.lockEnabled) onLockActivated();
@@ -337,9 +351,32 @@ chrome.windows.onFocusChanged.addListener(windowId => {
   if (state.approvalActive || state.paused) return;
   // Allowed-app launch: the child just opened an app through Sadhana.
   if (isAllowedAppGuardActive()) return;
+
   if (windowId === chrome.windows.WINDOW_ID_NONE && state.focusWindowId) {
-    reportEvent('MINIMIZE', 'The focus window lost focus');
-    bringFocusWindowToFront();
+    // Focus left the browser entirely (minimize, alt-tab, etc.)
+    if (focusLostAt === 0) {
+      // Start the grace period
+      focusLostAt = Date.now();
+      focusViolationRecorded = false;
+      console.log('[Focus Guard] Focus lost — grace period started');
+    }
+    // Check if grace period has expired
+    const elapsed = Date.now() - focusLostAt;
+    if (elapsed >= GRACE_PERIOD_MS && !focusViolationRecorded) {
+      focusViolationRecorded = true;
+      console.log('[Focus Guard] Grace period expired — recording violation');
+      reportEvent('MINIMIZE', 'The focus window lost focus (grace period expired)');
+      bringFocusWindowToFront();
+    }
+  } else if (windowId !== chrome.windows.WINDOW_ID_NONE) {
+    // Focus returned to a browser window
+    if (focusLostAt > 0) {
+      const awayMs = Date.now() - focusLostAt;
+      console.log(`[Focus Guard] Focus returned after ${awayMs}ms`);
+      // If a violation was already recorded, the server has it
+      focusLostAt = 0;
+      focusViolationRecorded = false;
+    }
   }
 });
 
@@ -371,8 +408,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     // While an approved app is in use the focus page is legitimately hidden.
     // Also during an allowed-app launch guard: the child opened an app through Sadhana.
     if (!state.approvalActive && !state.paused && !isAllowedAppGuardActive()) {
-      reportEvent('TAB_SWITCH', msg.detail || 'Child switched away from the focus window');
-      bringFocusWindowToFront();
+      // Start grace period if not already started
+      if (focusLostAt === 0) {
+        focusLostAt = Date.now();
+        focusViolationRecorded = false;
+        console.log('[Focus Guard] Tab hidden — grace period started');
+      }
+      // The actual violation will be recorded by the periodic check or
+      // the windows.onFocusChanged handler when the grace period expires.
     }
     sendResponse({ ok: true });
   }
@@ -381,9 +424,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // Periodic enforcement: keep the focus window in front while locked -
 // but never fight the child during sanctioned approved-app usage or
 // allowed-app launches through Sadhana.
+// Also check if the grace period has expired and record the violation.
 setInterval(() => {
   if (state.active && state.lockEnabled && !state.approvalActive && !state.paused && !isAllowedAppGuardActive()) {
-    bringFocusWindowToFront();
+    // Check if grace period has expired
+    if (focusLostAt > 0 && !focusViolationRecorded) {
+      const elapsed = Date.now() - focusLostAt;
+      if (elapsed >= GRACE_PERIOD_MS) {
+        focusViolationRecorded = true;
+        console.log('[Focus Guard] Grace period expired (periodic check) — recording violation');
+        reportEvent('MINIMIZE', 'The focus window lost focus (grace period expired)');
+        bringFocusWindowToFront();
+      }
+    } else {
+      bringFocusWindowToFront();
+    }
   }
 }, 2000);
 

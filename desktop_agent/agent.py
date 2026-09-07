@@ -6,8 +6,11 @@ Responsibilities:
   * Kill restricted application processes (blacklist mode) or kill everything
     that is not whitelisted (strict whitelist mode).
   * Temporarily allow apps the parent approved.
-  * Detect window minimize / loss of focus and report it to the server so the
-    parent is notified. Best effort: restores focus when possible.
+  * Detect window minimize / loss of focus / unauthorized app switching and
+    report it to the server so the parent is notified. Best effort: restores
+    focus when possible.
+  * Enforce a grace period for accidental window switches before recording
+    violations.
   * Batches lock events into the device heartbeat.
 
 The agent is best-effort. It cannot fully defeat a determined user; it is meant
@@ -29,6 +32,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from ctypes import wintypes
 
 import requests
 import psutil
@@ -47,6 +51,7 @@ DEFAULT_CONFIG = {
     "mode": "blacklist",          # "blacklist" | "whitelist"
     "allow_system_processes": True,
     "restore_focus_window": True,
+    "focus_grace_period_seconds": 5,  # seconds before a focus loss counts as violation
     # Optional: exact paths for apps the child may launch through Sadhana,
     # e.g. {"calculator": "calc.exe", "pdf reader": "C:/.../SumatraPDF.exe"}
     "app_paths": {},
@@ -63,12 +68,18 @@ SYSTEM_EXES = {
     "opera.exe", "code.exe", "python.exe", "pythonw.exe",
 }
 
+# Browser executable names — these are the focus window hosts.
+BROWSER_EXES = {
+    "msedge.exe", "chrome.exe", "firefox.exe", "brave.exe", "opera.exe",
+}
+
 EVENT_TYPES = {
     "APP_BLOCKED": "APP_BLOCKED",
     "MINIMIZE": "MINIMIZE",
     "LEAVE_ATTEMPT": "LEAVE_ATTEMPT",
     "TAB_SWITCH": "TAB_SWITCH",
     "WINDOW_CLOSE": "WINDOW_CLOSE",
+    "UNAUTHORIZED_ACTIVITY": "UNAUTHORIZED_ACTIVITY",
 }
 
 
@@ -98,6 +109,13 @@ class FocusAgent:
         self.pending_events = []
         self.seen_events = set()
         self.last_poll = 0.0
+
+        # Focus enforcement state
+        self._left_focus_at = 0.0        # timestamp when child left focus (0 = in focus)
+        self._last_foreground_pid = 0    # PID of the last known foreground process
+        self._last_foreground_name = ""  # name of the last known foreground process
+        self._violation_recorded = False  # True once we've recorded a violation for this leave
+        self._grace_seconds = self.config.get("focus_grace_period_seconds", 5)
 
     # ── API ──────────────────────────────────────────────────────────────
 
@@ -296,26 +314,209 @@ class FocusAgent:
         except Exception:
             return None
 
+    def get_foreground_process_info(self):
+        """Return (pid, process_name, window_title) of the foreground window.
+        Returns (0, '', '') on failure."""
+        if not self.is_windows():
+            return 0, '', ''
+        try:
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+
+            hwnd = user32.GetForegroundWindow()
+            if not hwnd:
+                return 0, '', ''
+
+            # Get window title
+            length = user32.GetWindowTextLengthW(hwnd) + 1
+            buf = ctypes.create_unicode_buffer(length)
+            user32.GetWindowTextW(hwnd, buf, length)
+            title = buf.value
+
+            # Get window thread process ID
+            pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            pid = pid.value
+
+            if pid <= 0:
+                return 0, '', title
+
+            # Get process name from PID
+            try:
+                proc = psutil.Process(pid)
+                name = proc.name()
+                return pid, name, title
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                return pid, '', title
+
+        except Exception:
+            return 0, '', ''
+
+    def is_focus_browser_window(self, process_name, window_title):
+        """Check if the foreground window belongs to a browser that could
+        be hosting the Sadhana focus page."""
+        name_lower = (process_name or '').lower()
+        if name_lower in BROWSER_EXES:
+            return True
+        # Also check if the title contains Sadhana-related keywords
+        title_lower = (window_title or '').lower()
+        if 'sadhana' in title_lower or 'focus' in title_lower:
+            return True
+        return False
+
+    def is_unauthorized_app(self, process_name):
+        """Check if the given process is a blacklisted (unauthorized) app.
+        Returns (is_unauthorized, app_name) tuple."""
+        name_lower = (process_name or '').lower()
+        if not name_lower:
+            return False, ''
+
+        # Approved apps are always allowed
+        if name_lower in self.state["approved_apps"]:
+            return False, name_lower
+        if name_lower in self.state["whitelist_apps"]:
+            return False, name_lower
+
+        # Check blacklist
+        if name_lower in self.state["blacklist_apps"]:
+            return True, name_lower
+
+        # In whitelist mode, anything not whitelisted is unauthorized
+        mode = self.config["mode"]
+        if mode == "whitelist" and name_lower not in SYSTEM_EXES:
+            if name_lower not in self.state["whitelist_apps"] and name_lower not in self.state["approved_apps"]:
+                return True, name_lower
+
+        return False, name_lower
+
     def monitor_focus(self):
+        """Monitor the foreground window to detect unauthorized activity.
+
+        Detection flow:
+        1. Get the foreground process (pid, name, title).
+        2. If it's a browser hosting Sadhana → child is focused → reset state.
+        3. If it's an approved app or allowed app → child is sanctioned → reset state.
+        4. If it's a blacklisted/unauthorized app → start grace timer.
+        5. If grace period expires while still outside → record violation.
+        6. When child returns to focus → record the return event.
+        """
         if not (self.state["active"] and self.state["lock_enabled"]):
+            self._reset_focus_state()
             return
         # Approved use: the child is legitimately outside the focus window.
         if self.state["approval_active"] or self.state["paused"]:
+            self._reset_focus_state()
             return
         if not self.is_windows():
             return
-        title = self.foreground_window_title() or ""
-        # The focus browser window should have a normal title. If the foreground
-        # is the desktop / task switching, treat it as a minimize / leave attempt.
-        desktop_titles = {"program manager", "", "task switching", "task switching"}
-        if title.strip().lower() in desktop_titles:
+
+        pid, proc_name, title = self.get_foreground_process_info()
+        now = time.time()
+
+        # --- Check 1: Is the focus browser window in the foreground? ---
+        if self.is_focus_browser_window(proc_name, title):
+            # Child is in the focus environment
+            if self._left_focus_at > 0:
+                # Child just returned from an interruption
+                self._handle_focus_returned(now)
+            self._left_focus_at = 0.0
+            self._last_foreground_pid = pid
+            self._last_foreground_name = proc_name
+            self._violation_recorded = False
+            return
+
+        # --- Check 2: Is this an authorized app (launched through Sadhana)? ---
+        is_unauth, app_name = self.is_unauthorized_app(proc_name)
+        if not is_unauth:
+            # Authorized app — not a violation
+            if self._left_focus_at > 0:
+                self._handle_focus_returned(now)
+            self._left_focus_at = 0.0
+            self._last_foreground_pid = pid
+            self._last_foreground_name = proc_name
+            self._violation_recorded = False
+            return
+
+        # --- Check 3: Unauthorized app detected ---
+        # Start the grace timer if this is a new departure
+        if self._left_focus_at == 0.0:
+            self._left_focus_at = now
+            self._violation_recorded = False
+            log.info(
+                "Focus lost — unauthorized app detected: %s (grace period: %ds)",
+                proc_name or title or 'Unknown',
+                self._grace_seconds,
+            )
+            self._last_foreground_pid = pid
+            self._last_foreground_name = proc_name
+            return
+
+        # Still outside focus — check if grace period has expired
+        elapsed = now - self._left_focus_at
+        if elapsed >= self._grace_seconds and not self._violation_recorded:
+            self._violation_recorded = True
+            detail = f"Unauthorized app in foreground: {proc_name or title or 'Unknown'}"
+            log.warning("GRACE PERIOD EXPIRED — recording violation: %s", detail)
+
+            # Queue the violation event
+            self.queue_event(
+                "UNAUTHORIZED_ACTIVITY",
+                detail,
+                {
+                    "process": proc_name or '',
+                    "window_title": title or '',
+                    "grace_period_seconds": self._grace_seconds,
+                    "elapsed_seconds": round(elapsed),
+                },
+                dedup_key=f"unauth:{proc_name}",
+            )
+
+            # Also queue a MINIMIZE event since the child is not in the focus window
             self.queue_event(
                 "MINIMIZE",
-                "Focus window minimized or desktop shown",
+                f"Focus window not in foreground — {proc_name or title or 'Unknown'} is active",
                 dedup_key="minimize",
             )
+
+            # Best effort: try to restore focus
             if self.config["restore_focus_window"]:
                 self._restore_focus()
+
+        # Also detect desktop/task switching (empty or Program Manager title)
+        desktop_titles = {"program manager", "", "task switching"}
+        if (title or '').strip().lower() in desktop_titles:
+            if self._left_focus_at == 0.0:
+                self._left_focus_at = now
+                self._violation_recorded = False
+            elif (now - self._left_focus_at) >= self._grace_seconds and not self._violation_recorded:
+                self._violation_recorded = True
+                self.queue_event(
+                    "MINIMIZE",
+                    "Focus window minimized or desktop shown",
+                    dedup_key="minimize",
+                )
+                if self.config["restore_focus_window"]:
+                    self._restore_focus()
+
+    def _reset_focus_state(self):
+        """Reset focus tracking state when enforcement is not active."""
+        self._left_focus_at = 0.0
+        self._last_foreground_pid = 0
+        self._last_foreground_name = ""
+        self._violation_recorded = False
+
+    def _handle_focus_returned(self, now):
+        """Handle the child returning to the focus environment after being away."""
+        if self._left_focus_at <= 0:
+            return
+        away_seconds = now - self._left_focus_at
+        log.info("Child returned to focus after %.1f seconds away", away_seconds)
+        # If a violation was recorded, we don't need to do anything special —
+        # the server already has the event. Just log the return.
+        if self._violation_recorded:
+            log.info("Violation was already recorded for this leave event")
+        self._left_focus_at = 0.0
+        self._violation_recorded = False
 
     def _restore_focus(self):
         # Bring the front-most browser-like window back (best effort on Windows).
@@ -342,6 +543,8 @@ class FocusAgent:
             log.error("No device token configured. Add one to %s", config_path)
             return
         last_process_check = 0.0
+        last_focus_check = 0.0
+        focus_check_interval = 1.0  # Check focus every 1 second for responsive detection
         while True:
             now = time.time()
             data = self.fetch_status()
@@ -352,6 +555,7 @@ class FocusAgent:
                     log.info("Lock ACTIVE (session #%s)", self.state["session_id"])
                 if not self.state["lock_enabled"] and was_locked:
                     log.info("Lock released")
+                    self._reset_focus_state()
                 if self.state["commands"]:
                     self.run_pending_commands()
                 self.send_heartbeat()
@@ -359,6 +563,10 @@ class FocusAgent:
             if now - last_process_check >= self.config["process_check_interval_seconds"]:
                 last_process_check = now
                 self.enforce_processes()
+
+            # Focus monitoring runs more frequently for responsive detection
+            if now - last_focus_check >= focus_check_interval:
+                last_focus_check = now
                 self.monitor_focus()
 
             time.sleep(self.config["poll_interval_seconds"])

@@ -329,8 +329,9 @@
 <div id="focusWarningOverlay" class="fs-warning-overlay" hidden>
     <div class="fs-warning-card">
         <div class="fs-warning-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-        <h3>Stay Focused</h3>
-        <p>Leaving or minimizing Focus Mode may be recorded as an interruption. Please stay in Focus Mode.</p>
+        <h3 id="focusWarningTitle">⚠️ Focus Session Active</h3>
+        <p id="focusWarningMessage">Don't minimize your window, otherwise your parent will get notified about that.</p>
+        <p class="fs-warning-grace" id="focusWarningGrace">Returning within <b id="focusGraceCountdown">5</b>s will not count as a violation.</p>
         <div class="fs-warning-actions">
             <button class="fs-btn fs-btn-stay" id="focusWarningStay">
                 <i class="fa-solid fa-arrow-left"></i> Stay Focused
@@ -559,6 +560,11 @@
     let focusWarningShown = false;  // true while the warning modal is visible
     let focusWarningContinued = false; // true if child chose "Continue Anyway"
 
+    // Grace period state for focus loss detection (client-side)
+    const CLIENT_GRACE_PERIOD_MS = 5000; // 5 seconds grace period
+    let clientFocusLostAt = 0;       // timestamp when focus was lost (0 = focused)
+    let clientViolationRecorded = false; // true once we've recorded a violation for this leave
+
     // Allowed-app launch guard: set when the child opens an app/website through
     // the Sadhana Allowed Apps section. The visibilitychange handler uses this
     // to send FOCUS (not DISTRACTED) so the distraction timer stays at zero.
@@ -749,11 +755,21 @@
         if (!currentSessionId || sessionEnded) return;
         if (document.hidden) {
             const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
-            // Show warning modal if session is active and not already shown.
-            // Skip the guard: allowed-app launches through Sadhana are permitted.
-            // Skip also when the child is using the inline chat (allowed activity).
-            if (!sessionPaused && !manualPaused && !focusWarningShown && !focusWarningContinued && !allowedAppGuard && !focusChatOpen) {
-                showFocusWarning();
+            // Start the grace period for focus loss detection
+            if (!sessionPaused && !manualPaused && !focusWarningContinued && !allowedAppGuard && !focusChatOpen && !usingApproval) {
+                if (clientFocusLostAt === 0) {
+                    clientFocusLostAt = Date.now();
+                    clientViolationRecorded = false;
+                }
+                // Show warning modal after a short delay (within the grace period)
+                if (!focusWarningShown) {
+                    setTimeout(() => {
+                        // Only show if still hidden and grace period hasn't expired yet
+                        if (document.hidden && clientFocusLostAt > 0 && !clientViolationRecorded && !focusWarningShown) {
+                            showFocusWarning("Don't minimize your window, otherwise your parent will get notified about that.");
+                        }
+                    }, 1000); // Show warning after 1 second
+                }
             } else if (usingApproval || focusWarningContinued || allowedAppGuard || focusChatOpen) {
                 // Approved app usage, chat, or already acknowledged: report quietly.
                 if (!usingApproval && !allowedAppGuard && !focusChatOpen && lockEnabled) reportLockEvent('TAB_HIDE', 'Child switched away from the focus window');
@@ -766,6 +782,17 @@
             // Page became visible again - reset the continued flag so next leave shows warning
             if (focusWarningContinued && !sessionEnded) {
                 focusWarningContinued = false;
+            }
+            // Handle grace period return
+            if (clientFocusLostAt > 0) {
+                const awayMs = Date.now() - clientFocusLostAt;
+                console.log(`[Focus Page] Focus returned after ${awayMs}ms`);
+                // If the child returned within the grace period, don't count as serious violation
+                if (!clientViolationRecorded && awayMs < CLIENT_GRACE_PERIOD_MS) {
+                    console.log('[Focus Page] Returned within grace period — no violation recorded');
+                }
+                clientFocusLostAt = 0;
+                clientViolationRecorded = false;
             }
             // Close out the PREVIOUS period.  The page was hidden until now,
             // so the delta since the last tick was DISTRACTED time — unless
@@ -784,15 +811,54 @@
     }
 
     // ─── Focus warning modal (minimize / split-screen / tab switch) ───
-    function showFocusWarning() {
+    let focusWarningCountdownInterval = null;
+
+    function showFocusWarning(message) {
         if (!currentSessionId || sessionEnded || focusWarningShown) return;
         focusWarningShown = true;
+
+        // Update the warning message
+        const titleEl = document.getElementById('focusWarningTitle');
+        const msgEl = document.getElementById('focusWarningMessage');
+        if (titleEl) titleEl.textContent = '⚠️ Focus Session Active';
+        if (msgEl) msgEl.textContent = message || "Don't minimize your window, otherwise your parent will get notified about that.";
+
         document.getElementById('focusWarningOverlay').hidden = false;
+
+        // Start grace period countdown
+        let remaining = Math.ceil(CLIENT_GRACE_PERIOD_MS / 1000);
+        const countdownEl = document.getElementById('focusGraceCountdown');
+        const graceEl = document.getElementById('focusWarningGrace');
+        if (countdownEl) countdownEl.textContent = remaining;
+        if (graceEl) graceEl.hidden = false;
+
+        if (focusWarningCountdownInterval) clearInterval(focusWarningCountdownInterval);
+        focusWarningCountdownInterval = setInterval(() => {
+            remaining--;
+            if (countdownEl) countdownEl.textContent = Math.max(0, remaining);
+            if (remaining <= 0) {
+                clearInterval(focusWarningCountdownInterval);
+                focusWarningCountdownInterval = null;
+                if (graceEl) graceEl.hidden = true;
+                // Grace period expired — record violation if child hasn't returned
+                if (clientFocusLostAt > 0 && !clientViolationRecorded) {
+                    clientViolationRecorded = true;
+                    if (lockEnabled) {
+                        reportLockEvent('MINIMIZE', 'Grace period expired — child left Focus Mode');
+                    }
+                    setStatus('Your parent has been notified of this interruption.', 'is-bad');
+                }
+            }
+        }, 1000);
     }
 
     function hideFocusWarning() {
         focusWarningShown = false;
         document.getElementById('focusWarningOverlay').hidden = true;
+        if (focusWarningCountdownInterval) {
+            clearInterval(focusWarningCountdownInterval);
+            focusWarningCountdownInterval = null;
+        }
     }
 
     document.getElementById('focusWarningStay').addEventListener('click', () => {
@@ -802,6 +868,7 @@
 
     document.getElementById('focusWarningContinue').addEventListener('click', () => {
         focusWarningContinued = true;
+        clientViolationRecorded = true;
         hideFocusWarning();
         if (currentSessionId) {
             // Record the event - record_lock_event will notify the parent
@@ -1071,6 +1138,8 @@
         focusWarningShown = false;
         focusWarningContinued = false;
         allowedAppLaunchedAt = 0;
+        clientFocusLostAt = 0;
+        clientViolationRecorded = false;
         pendingRequests.clear();
 
         document.getElementById('fsTaskNameText').textContent = taskName || 'Free focus';
@@ -1087,6 +1156,12 @@
         usingApproval = null;
         focusWarningShown = false;
         focusWarningContinued = false;
+        clientFocusLostAt = 0;
+        clientViolationRecorded = false;
+        if (focusWarningCountdownInterval) {
+            clearInterval(focusWarningCountdownInterval);
+            focusWarningCountdownInterval = null;
+        }
         hideFocusWarning();
         hideStage();
         document.getElementById('fsChatDrawer').hidden = true;
