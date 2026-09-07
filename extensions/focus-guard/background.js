@@ -122,6 +122,8 @@ function applyStatus(data) {
   // Approved use is sanctioned: pause window enforcement while it lasts.
   state.approvalActive = !!data.approval_active;
   state.paused = !!data.paused;
+  // Break state: all activity temporarily authorized
+  state.onBreak = !!data.on_break;
 
   state.whitelistPatterns = (data.whitelist || [])
     .filter(w => w.category === 'WEBSITE' && w.url_pattern)
@@ -138,14 +140,18 @@ function applyStatus(data) {
   applyBlockingRules();
 
   // Reset grace period state when session state changes
-  if (state.approvalActive || state.paused) {
+  if (state.approvalActive || state.paused || state.onBreak) {
     focusLostAt = 0;
     focusViolationRecorded = false;
   }
 
   if (state.active && state.lockEnabled) {
-    setBadge(state.approvalActive ? 'app' : 'lock');
-    if (!state.approvalActive) bringFocusWindowToFront();
+    if (state.onBreak) {
+      setBadge('brk');
+    } else {
+      setBadge(state.approvalActive ? 'app' : 'lock');
+    }
+    if (!state.approvalActive && !state.onBreak) bringFocusWindowToFront();
     flushPending();
   } else if (state.active && !state.lockEnabled) {
     setBadge('on');
@@ -279,6 +285,8 @@ function bringFocusWindowToFront() {
   if (state.approvalActive || state.paused) return;
   // During an allowed-app launch guard, the child legitimately navigated away.
   if (isAllowedAppGuardActive()) return;
+  // During break, all activity is temporarily authorized
+  if (state.onBreak) return;
   try {
     chrome.windows.get(state.focusWindowId, w => {
       if (chrome.runtime.lastError || !w) return;
@@ -296,6 +304,8 @@ chrome.webNavigation.onCommitted.addListener(details => {
 // Tab became active (user switched tabs).
 chrome.tabs.onActivated.addListener(async info => {
   if (!state.active || !state.lockEnabled) return;
+  // During break, all activity is temporarily authorized
+  if (state.onBreak) return;
   const tab = await chrome.tabs.get(info.tabId).catch(() => null);
   if (!tab) return;
   if (isFocusTab(tab.url)) {
@@ -351,6 +361,8 @@ chrome.windows.onFocusChanged.addListener(windowId => {
   if (state.approvalActive || state.paused) return;
   // Allowed-app launch: the child just opened an app through Sadhana.
   if (isAllowedAppGuardActive()) return;
+  // Break state: all activity is temporarily authorized
+  if (state.onBreak) return;
 
   if (windowId === chrome.windows.WINDOW_ID_NONE && state.focusWindowId) {
     // Focus left the browser entirely (minimize, alt-tab, etc.)
@@ -407,7 +419,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === 'TAB_HIDDEN') {
     // While an approved app is in use the focus page is legitimately hidden.
     // Also during an allowed-app launch guard: the child opened an app through Sadhana.
-    if (!state.approvalActive && !state.paused && !isAllowedAppGuardActive()) {
+    // Also during break: all activity is temporarily authorized.
+    if (!state.approvalActive && !state.paused && !isAllowedAppGuardActive() && !state.onBreak) {
       // Start grace period if not already started
       if (focusLostAt === 0) {
         focusLostAt = Date.now();
@@ -422,11 +435,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 // Periodic enforcement: keep the focus window in front while locked -
-// but never fight the child during sanctioned approved-app usage or
-// allowed-app launches through Sadhana.
+// but never fight the child during sanctioned approved-app usage,
+// allowed-app launches through Sadhana, or break time.
 // Also check if the grace period has expired and record the violation.
 setInterval(() => {
-  if (state.active && state.lockEnabled && !state.approvalActive && !state.paused && !isAllowedAppGuardActive()) {
+  if (state.active && state.lockEnabled && !state.approvalActive && !state.paused && !isAllowedAppGuardActive() && !state.onBreak) {
     // Check if grace period has expired
     if (focusLostAt > 0 && !focusViolationRecorded) {
       const elapsed = Date.now() - focusLostAt;

@@ -11,6 +11,7 @@ class FocusSession(models.Model):
 
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
+        BREAK = 'BREAK', 'Break'
         COMPLETED = 'COMPLETED', 'Completed'
         INTERRUPTED = 'INTERRUPTED', 'Interrupted'
 
@@ -42,6 +43,13 @@ class FocusSession(models.Model):
     last_tick_at = models.DateTimeField(null=True, blank=True, help_text="Last presence tick received from the child's focus page (server-side timing)")
     paused_at = models.DateTimeField(null=True, blank=True, help_text="Set while an approved app is being used - focus timer is frozen")
     pause_seconds_total = models.IntegerField(default=0, help_text="Total seconds the session was paused for approved app usage")
+
+    # Break fields
+    break_started_at = models.DateTimeField(null=True, blank=True, help_text="When the break started")
+    break_end_time = models.DateTimeField(null=True, blank=True, help_text="When the break is scheduled to end")
+    break_duration = models.IntegerField(default=0, help_text="Duration of the current/last break in seconds")
+    breaks_taken = models.IntegerField(default=0, help_text="Number of breaks taken during this session")
+    total_break_seconds = models.IntegerField(default=0, help_text="Total break time across all breaks in seconds")
 
     class Meta:
         ordering = ['-start_time']

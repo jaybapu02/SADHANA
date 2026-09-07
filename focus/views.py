@@ -13,6 +13,10 @@ from .models import (
     FocusSession, WhitelistItem, BlacklistItem, AccessRequest, FocusAnalytics,
     FocusDevice, FocusDeviceCommand, FocusLockEvent,
 )
+from .break_policy import (
+    get_break_policy, validate_break_duration, can_start_break,
+    MIN_BREAK_INTERVAL_SECONDS,
+)
 from tasks.models import Task
 from notifications.models import Notification
 from notifications.services import NotificationService
@@ -73,17 +77,33 @@ STALE_SESSION_TIMEOUT_SECONDS = 300  # 5 minutes without a tick → session aban
 
 
 def cleanup_stale_sessions(child=None):
-    """Mark abandoned ACTIVE sessions as INTERRUPTed.
+    """Mark abandoned ACTIVE sessions as INTERRUPTed and handle expired breaks.
 
     A session is considered stale/abandoned when:
     - It has been ACTIVE for longer than its planned duration + grace, OR
     - It has not received a presence tick for STALE_SESSION_TIMEOUT_SECONDS.
+
+    A session in BREAK status with an expired break_end_time is transitioned
+    back to ACTIVE.
 
     This covers: browser close, tab close, network loss, server restart.
     Does NOT delete the session — it is preserved as INTERRUPTED in history.
     """
     now = timezone.now()
     stale_cutoff = now - timedelta(seconds=STALE_SESSION_TIMEOUT_SECONDS)
+
+    # Handle expired breaks: transition BREAK -> ACTIVE
+    break_qs = FocusSession.objects.filter(status=FocusSession.Status.BREAK)
+    if child:
+        break_qs = break_qs.filter(child=child)
+    for session in break_qs:
+        if session.break_end_time and session.break_end_time <= now:
+            # Break expired — transition back to ACTIVE
+            session.status = FocusSession.Status.ACTIVE
+            session.break_started_at = None
+            session.break_end_time = None
+            session.last_tick_at = now
+            session.save(update_fields=['status', 'break_started_at', 'break_end_time', 'last_tick_at'])
 
     qs = FocusSession.objects.filter(status=FocusSession.Status.ACTIVE)
     if child:
@@ -188,8 +208,10 @@ def get_device_from_request(request):
 
 
 def get_active_session(child):
+    """Return the active session for a child (ACTIVE or BREAK status)."""
     return FocusSession.objects.filter(
-        child=child, status=FocusSession.Status.ACTIVE
+        child=child,
+        status__in=[FocusSession.Status.ACTIVE, FocusSession.Status.BREAK]
     ).select_related('task').first()
 
 
@@ -359,15 +381,30 @@ def device_status_payload(child, session, device=None):
             status=FocusDeviceCommand.Status.QUEUED,
         ).order_by('created_at')[:10]]
 
+    # Determine break state
+    is_on_break = False
+    break_remaining_seconds = 0
+    if session and session.status == FocusSession.Status.BREAK:
+        is_on_break = True
+        if session.break_end_time:
+            break_remaining_seconds = max(0, int((session.break_end_time - now).total_seconds()))
+
     return {
-        'active': session is not None and session.status == FocusSession.Status.ACTIVE,
+        'active': session is not None and session.status in (
+            FocusSession.Status.ACTIVE, FocusSession.Status.BREAK),
         'lock_enabled': bool(session and session.lock_enabled),
         'session_id': session.id if session else None,
+        'session_status': session.status if session else None,
         'task_name': session.task.task_name if session and session.task else None,
         'planned_duration': session.planned_duration if session else 0,
         'start_time': session.start_time.isoformat() if session else None,
         'focus_seconds': session.actual_focus_seconds if session else 0,
         'paused': bool(session and session.paused_at),
+        'on_break': is_on_break,
+        'break_remaining_seconds': break_remaining_seconds,
+        'break_end_time': session.break_end_time.isoformat() if session and session.break_end_time else None,
+        'breaks_taken': session.breaks_taken if session else 0,
+        'total_break_seconds': session.total_break_seconds if session else 0,
         'approval_active': active_approval is not None,
         'active_approval': approval_payload(active_approval, now) if active_approval else None,
         'blocked_attempts': session.blocked_attempts if session else 0,
@@ -502,8 +539,22 @@ def api_end_session(request):
         return JsonResponse({'error': 'Invalid data.'}, status=400)
 
     session = get_object_or_404(FocusSession, id=session_id, child=request.user)
-    if session.status != FocusSession.Status.ACTIVE:
+    # Allow ending session from both ACTIVE and BREAK status
+    if session.status not in (FocusSession.Status.ACTIVE, FocusSession.Status.BREAK):
         return JsonResponse({'error': 'Session is not active.'}, status=400)
+
+    # If on break, finalize break time first
+    if session.status == FocusSession.Status.BREAK:
+        now = timezone.now()
+        if session.break_started_at:
+            actual_break = int((now - session.break_started_at).total_seconds())
+            session.total_break_seconds += actual_break
+            session.break_seconds = session.total_break_seconds
+        session.status = FocusSession.Status.ACTIVE
+        session.break_started_at = None
+        session.break_end_time = None
+        session.save(update_fields=['status', 'break_started_at', 'break_end_time',
+                                    'total_break_seconds', 'break_seconds'])
 
     # Finalize any approved-app usage so paused time isn't counted either way.
     sweep_approved_usage(request.user)
@@ -665,12 +716,47 @@ def api_session_tick(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid data.'}, status=400)
 
     session = get_object_or_404(FocusSession, id=session_id, child=request.user)
-    if session.status != FocusSession.Status.ACTIVE:
+    if session.status not in (FocusSession.Status.ACTIVE, FocusSession.Status.BREAK):
         # Session may have been cleaned up as stale between ticks
         return JsonResponse({'status': 'error', 'message': 'Session is not active.'}, status=400)
 
     sweep_approved_usage(request.user)
     now = timezone.now()
+
+    # If session is on break, check if break has expired
+    if session.status == FocusSession.Status.BREAK:
+        if session.break_end_time and session.break_end_time <= now:
+            # Break expired — transition to ACTIVE
+            break_actual = int((now - session.break_started_at).total_seconds()) if session.break_started_at else 0
+            session.total_break_seconds += break_actual
+            session.break_seconds = session.total_break_seconds
+            session.status = FocusSession.Status.ACTIVE
+            session.break_started_at = None
+            session.break_end_time = None
+            session.last_tick_at = now
+            session.save(update_fields=['status', 'break_started_at', 'break_end_time',
+                                        'last_tick_at', 'total_break_seconds', 'break_seconds'])
+            return JsonResponse({
+                'status': 'success',
+                'focus_seconds': session.actual_focus_seconds,
+                'distraction_seconds': session.distraction_seconds,
+                'paused': False,
+                'on_break': False,
+                'break_expired': True,
+                'remaining_seconds': max(0, session.planned_duration * 60 - session.actual_focus_seconds),
+            })
+        # Still on break — no time accumulation
+        return JsonResponse({
+            'status': 'success',
+            'focus_seconds': session.actual_focus_seconds,
+            'distraction_seconds': session.distraction_seconds,
+            'paused': False,
+            'on_break': True,
+            'break_remaining_seconds': max(0, int((session.break_end_time - now).total_seconds())),
+            'remaining_seconds': max(0, session.planned_duration * 60 - session.actual_focus_seconds),
+        })
+
+    # Normal ACTIVE session timing
     delta = 0
     if session.last_tick_at:
         delta = max(0, min(TICK_MAX_DELTA_SECONDS,
@@ -702,6 +788,7 @@ def api_session_tick(request):
         'focus_seconds': session.actual_focus_seconds,
         'distraction_seconds': session.distraction_seconds,
         'paused': bool(session.paused_at),
+        'on_break': False,
         'remaining_seconds': remaining_seconds,
     })
 
@@ -741,18 +828,33 @@ def api_session_state(request):
         last_seen__gte=now - timedelta(seconds=120),
     ).exists()
 
+    # Determine break state
+    is_on_break = session.status == FocusSession.Status.BREAK
+    break_remaining = 0
+    break_policy = get_break_policy(session.planned_duration)
+    if is_on_break and session.break_end_time:
+        break_remaining = max(0, int((session.break_end_time - now).total_seconds()))
+
     return JsonResponse({
         'active': True,
         'session_id': session.id,
         'session_type': session.session_type,
+        'session_status': session.status,
         'task_name': session.task.task_name if session.task else None,
         'lock_enabled': session.lock_enabled,
         'planned_duration': session.planned_duration,
         'focus_seconds': session.actual_focus_seconds,
         'distraction_seconds': session.distraction_seconds,
+        'break_seconds': session.total_break_seconds,
         'remaining_seconds': max(0, planned_seconds - session.actual_focus_seconds)
             if planned_seconds else None,
         'paused': bool(session.paused_at),
+        'on_break': is_on_break,
+        'break_remaining_seconds': break_remaining,
+        'break_end_time': session.break_end_time.isoformat() if session.break_end_time else None,
+        'breaks_taken': session.breaks_taken,
+        'total_break_seconds': session.total_break_seconds,
+        'break_policy': break_policy,
         'blocked_attempts': session.blocked_attempts,
         'lock_violations': session.lock_violations,
         'agent_online': agent_online,
@@ -901,8 +1003,9 @@ def api_session_leave(request):
     except (ValueError, TypeError, json.JSONDecodeError):
         return JsonResponse({'status': 'error', 'message': 'Invalid data.'}, status=400)
 
+    # Allow leaving from both ACTIVE and BREAK status
     session = FocusSession.objects.filter(
-        id=session_id, child=request.user, status=FocusSession.Status.ACTIVE
+        id=session_id, child=request.user, status__in=[FocusSession.Status.ACTIVE, FocusSession.Status.BREAK]
     ).first()
     if not session:
         return JsonResponse({'status': 'ok'})
@@ -1000,6 +1103,151 @@ def api_launch_app(request):
         })
 
     return JsonResponse({'status': 'error', 'message': 'Unknown source.'}, status=400)
+
+
+# ─── Child: Break Management ───
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_break_policy(request):
+    """Return the break policy for the current session based on planned duration."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+    try:
+        data = json.loads(request.body)
+        session_id = data.get('session_id')
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'error': 'Invalid data.'}, status=400)
+
+    session = get_object_or_404(FocusSession, id=session_id, child=request.user)
+    policy = get_break_policy(session.planned_duration)
+    can_start = can_start_break(session)
+
+    return JsonResponse({
+        'status': 'success',
+        'policy': policy,
+        'can_start': can_start['can_start'],
+        'reason': can_start['reason'],
+        'planned_duration': session.planned_duration,
+        'breaks_taken': session.breaks_taken,
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_start_break(request):
+    """Start a break for the current focus session."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+    try:
+        data = json.loads(request.body)
+        session_id = data.get('session_id')
+        break_duration_minutes = int(data.get('break_duration', 0))
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'error': 'Invalid data.'}, status=400)
+
+    session = get_object_or_404(FocusSession, id=session_id, child=request.user)
+
+    # Check if session is eligible for a break
+    can_start = can_start_break(session)
+    if not can_start['can_start']:
+        return JsonResponse({'error': can_start['reason']}, status=400)
+
+    # Validate the requested break duration
+    validation = validate_break_duration(
+        session.planned_duration,
+        break_duration_minutes,
+        session.breaks_taken
+    )
+    if not validation['valid']:
+        return JsonResponse({'error': validation['error']}, status=400)
+
+    now = timezone.now()
+    break_duration_seconds = break_duration_minutes * 60
+
+    # Set break state
+    session.status = FocusSession.Status.BREAK
+    session.break_started_at = now
+    session.break_end_time = now + timedelta(seconds=break_duration_seconds)
+    session.break_duration = break_duration_seconds
+    session.breaks_taken += 1
+    session.last_tick_at = now
+    session.save(update_fields=[
+        'status', 'break_started_at', 'break_end_time', 'break_duration',
+        'breaks_taken', 'last_tick_at',
+    ])
+
+    # Record lock event
+    record_lock_event(
+        session, request.user, None,
+        FocusLockEvent.EventType.APPROVED_APP_START,
+        detail=f'Break started — {break_duration_minutes} minutes',
+        metadata={'break_duration_seconds': break_duration_seconds, 'break_number': session.breaks_taken},
+        notify=False,
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': f'Break started — {break_duration_minutes} minutes. Enjoy your break!',
+        'break_duration_minutes': break_duration_minutes,
+        'break_end_time': session.break_end_time.isoformat(),
+        'breaks_taken': session.breaks_taken,
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+@csrf_exempt
+def api_end_break(request):
+    """Manually end a break early and return to focus mode."""
+    if request.user.role != 'CHILD':
+        return JsonResponse({'error': 'Unauthorized.'}, status=403)
+    try:
+        data = json.loads(request.body)
+        session_id = data.get('session_id')
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({'error': 'Invalid data.'}, status=400)
+
+    session = get_object_or_404(FocusSession, id=session_id, child=request.user)
+
+    if session.status != FocusSession.Status.BREAK:
+        return JsonResponse({'error': 'Session is not on a break.'}, status=400)
+
+    now = timezone.now()
+
+    # Calculate actual break time
+    if session.break_started_at:
+        actual_break = int((now - session.break_started_at).total_seconds())
+        session.total_break_seconds += actual_break
+        session.break_seconds = session.total_break_seconds
+
+    # Transition back to ACTIVE
+    session.status = FocusSession.Status.ACTIVE
+    session.break_started_at = None
+    session.break_end_time = None
+    session.last_tick_at = now
+    session.save(update_fields=[
+        'status', 'break_started_at', 'break_end_time',
+        'total_break_seconds', 'break_seconds', 'last_tick_at',
+    ])
+
+    # Record lock event
+    record_lock_event(
+        session, request.user, None,
+        FocusLockEvent.EventType.APPROVED_APP_END,
+        detail=f'Break ended early — returned to focus mode',
+        metadata={'break_ended_early': True},
+        notify=False,
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': 'Break ended. Welcome back to Focus Mode!',
+        'break_seconds': session.total_break_seconds,
+        'focus_seconds': session.actual_focus_seconds,
+    })
 
 
 # ─── Device: Command Acknowledgement ───
@@ -1521,7 +1769,7 @@ def api_parent_active_sessions(request):
         # Clean up stale sessions for each child
         cleanup_stale_sessions(child=conn.child)
         session = FocusSession.objects.filter(
-            child=conn.child, status=FocusSession.Status.ACTIVE
+            child=conn.child, status__in=[FocusSession.Status.ACTIVE, FocusSession.Status.BREAK]
         ).select_related('task').first()
         if not session:
             continue
@@ -1533,6 +1781,13 @@ def api_parent_active_sessions(request):
             focus_seconds = max(0, int((now - session.start_time).total_seconds()))
         remaining = max(0, session.planned_duration * 60 - focus_seconds)
         active_approval = get_active_approval(conn.child)
+
+        # Calculate break state
+        on_break = session.status == FocusSession.Status.BREAK
+        break_remaining = 0
+        if on_break and session.break_end_time:
+            break_remaining = max(0, int((session.break_end_time - now).total_seconds()))
+
         data.append({
             'child_id': conn.child.id,
             'child_name': conn.child.username,
@@ -1545,6 +1800,10 @@ def api_parent_active_sessions(request):
             'lock_enabled': session.lock_enabled,
             'lock_violations': session.lock_violations,
             'paused': bool(session.paused_at),
+            'on_break': on_break,
+            'break_remaining_seconds': break_remaining,
+            'breaks_taken': session.breaks_taken,
+            'total_break_seconds': session.total_break_seconds,
             'approved_app': (active_approval.blacklist_item.name
                              if active_approval else None),
             'approved_app_remaining': (

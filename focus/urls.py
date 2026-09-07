@@ -27,6 +27,11 @@ urlpatterns = [
     path('api/approved-app/<int:request_id>/release/', views.api_release_approved_app, name='api_release_approved_app'),
     path('api/launch-app/', views.api_launch_app, name='api_launch_app'),
 
+    # Child: Break management
+    path('api/break-policy/', views.api_break_policy, name='api_break_policy'),
+    path('api/start-break/', views.api_start_break, name='api_start_break'),
+    path('api/end-break/', views.api_end_break, name='api_end_break'),
+
     # Child: Super Power Saving Mode devices
     path('api/devices/', views.api_list_devices, name='api_list_devices'),
     path('api/devices/register/', views.api_register_device, name='api_register_device'),

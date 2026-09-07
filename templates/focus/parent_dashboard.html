@@ -502,22 +502,28 @@
                     const pct = s.planned_duration > 0
                         ? Math.min(100, Math.round((s.focus_seconds / (s.planned_duration * 60)) * 100))
                         : 0;
+                    const onBreak = s.on_break;
+                    const breakStatus = onBreak
+                        ? `<span class="badge bg-warning text-dark me-1" title="Child is on a break"><i class="fa-solid fa-mug-hot me-1"></i>On Break (${Math.ceil(s.break_remaining_seconds / 60)} min left)</span>`
+                        : '';
                     html += `
                     <div class="col-md-6">
-                        <div class="card border-success border-opacity-25 h-100">
+                        <div class="card border-${onBreak ? 'warning' : 'success'} border-opacity-25 h-100">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-circle text-success me-1"></i>${s.child_name}</h6>
+                                    <h6 class="fw-bold mb-0"><i class="fa-solid fa-circle text-${onBreak ? 'warning' : 'success'} me-1"></i>${s.child_name}</h6>
                                     <span>
                                         ${s.lock_enabled ? '<span class="badge bg-danger me-1" title="Super Power Saving Mode active"><i class="fa-solid fa-lock me-1"></i>Locked</span>' : ''}
-                                        ${s.paused
+                                        ${breakStatus}
+                                        ${onBreak ? '' : (s.paused
                                             ? `<span class="badge bg-info" title="Child is using a parent-approved app - the focus timer is paused, no penalty accrues"><i class="fa-solid fa-circle-play me-1"></i>Approved app</span>`
-                                            : '<span class="badge bg-success"><i class="fa-solid fa-fire me-1"></i>Focusing</span>'}
+                                            : '<span class="badge bg-success"><i class="fa-solid fa-fire me-1"></i>Focusing</span>')}
                                     </span>
                                 </div>
                                 <p class="small text-muted mb-2">
                                     <i class="fa-solid fa-list-check me-1"></i>Task: <strong>${s.task_name || 'Free focus'}</strong>
-                                    ${s.paused && s.approved_app ? `<span class="d-block text-info mt-1"><i class="fa-solid fa-thumbs-up me-1"></i>Approved use: ${s.approved_app} — timer paused (${Math.ceil((s.approved_app_remaining || 0) / 60)} min left)</span>` : ''}
+                                    ${onBreak ? `<span class="d-block text-warning mt-1"><i class="fa-solid fa-mug-hot me-1"></i>On break — ${Math.ceil(s.break_remaining_seconds / 60)} min remaining (Break ${s.breaks_taken}/3)</span>` : ''}
+                                    ${!onBreak && s.paused && s.approved_app ? `<span class="d-block text-info mt-1"><i class="fa-solid fa-thumbs-up me-1"></i>Approved use: ${s.approved_app} — timer paused (${Math.ceil((s.approved_app_remaining || 0) / 60)} min left)</span>` : ''}
                                     ${s.lock_violations ? `<span class="d-block text-danger mt-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>${s.lock_violations} lock violation(s)</span>` : ''}
                                 </p>
                                 <div class="d-flex justify-content-between small text-muted mb-1">

@@ -99,11 +99,13 @@ class FocusAgent:
             "active": False,
             "lock_enabled": False,
             "session_id": None,
+            "session_status": None,  # ACTIVE, BREAK, etc.
             "blacklist_apps": [],   # [app_name]
             "whitelist_apps": [],
             "approved_apps": [],    # [app_name]
             "approval_active": False,  # child is inside an approved app right now
             "paused": False,
+            "on_break": False,      # child is on a break
             "commands": [],         # queued LAUNCH_APP commands from the focus page
         }
         self.pending_events = []
@@ -173,10 +175,13 @@ class FocusAgent:
         self.state["active"] = active
         self.state["lock_enabled"] = lock_enabled
         self.state["session_id"] = data.get("session_id")
+        self.state["session_status"] = data.get("session_status")
         # While an approved app is in use the child is ALLOWED to be outside
         # the focus window - minimize detection must stand down.
         self.state["approval_active"] = bool(data.get("approval_active"))
         self.state["paused"] = bool(data.get("paused"))
+        # Break state: during a break, all activity is temporarily authorized
+        self.state["on_break"] = bool(data.get("on_break"))
         self.state["commands"] = data.get("commands") or []
 
         self.state["blacklist_apps"] = [
@@ -399,12 +404,18 @@ class FocusAgent:
         4. If it's a blacklisted/unauthorized app → start grace timer.
         5. If grace period expires while still outside → record violation.
         6. When child returns to focus → record the return event.
+
+        During BREAK state: all activity is temporarily authorized — no violations.
         """
         if not (self.state["active"] and self.state["lock_enabled"]):
             self._reset_focus_state()
             return
         # Approved use: the child is legitimately outside the focus window.
         if self.state["approval_active"] or self.state["paused"]:
+            self._reset_focus_state()
+            return
+        # Break state: all activity is temporarily authorized
+        if self.state["on_break"]:
             self._reset_focus_state()
             return
         if not self.is_windows():

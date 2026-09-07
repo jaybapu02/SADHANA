@@ -278,6 +278,9 @@
                 <i class="fa-regular fa-comment-dots"></i> Chat
                 <span class="fs-chat-badge" id="fsChatBadge" hidden>0</span>
             </button>
+            <button id="fsBreakBtn" class="fs-btn fs-btn-break" title="Take a Break" hidden>
+                <i class="fa-solid fa-mug-hot"></i> Break
+            </button>
             <button id="fsPauseBtn" class="fs-btn fs-btn-warn" hidden>
                 <i class="fa-solid fa-pause"></i> Pause
             </button>
@@ -285,6 +288,47 @@
                 <i class="fa-solid fa-stop"></i> End Session
             </button>
         </footer>
+    </div>
+</div>
+
+<!-- Break Selection Modal -->
+<div id="breakModal" class="fs-break-overlay" hidden>
+    <div class="fs-break-card">
+        <div class="fs-break-icon"><i class="fa-solid fa-mug-hot"></i></div>
+        <h3>Take a Break</h3>
+        <p id="breakPolicyText">Choose your break duration:</p>
+        <div class="fs-break-options" id="breakOptions"></div>
+        <div class="fs-break-actions">
+            <button class="fs-btn fs-btn-light" id="breakCancelBtn">
+                <i class="fa-solid fa-xmark"></i> Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Break Active Banner -->
+<div id="breakActiveBanner" class="fs-break-banner" hidden>
+    <div class="fs-break-banner-inner">
+        <div class="fs-break-banner-icon"><i class="fa-solid fa-mug-hot"></i></div>
+        <div class="fs-break-banner-body">
+            <strong>Break Time!</strong>
+            <span>Break ends in: <b id="breakCountdown">00:00</b></span>
+        </div>
+        <button class="fs-btn fs-btn-focus" id="endBreakBtn">
+            <i class="fa-solid fa-play"></i> End Break Early
+        </button>
+    </div>
+</div>
+
+<!-- Break Over Alert -->
+<div id="breakOverAlert" class="fs-break-over-alert" hidden>
+    <div class="fs-break-over-card">
+        <div class="fs-break-over-icon"><i class="fa-solid fa-bell"></i></div>
+        <h3>Break Over!</h3>
+        <p>Welcome back to Focus Mode. Stay focused!</p>
+        <button class="fs-btn fs-btn-focus" id="breakOverOkBtn">
+            <i class="fa-solid fa-check"></i> Got it!
+        </button>
     </div>
 </div>
 
@@ -527,6 +571,90 @@
 }
 .fs-chat-badge[hidden] { display: none; }
 
+/* ─── Break UI Styles ─── */
+.fs-btn-break {
+    position: relative;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff; border-color: #f59e0b;
+}
+.fs-btn-break:hover { background: linear-gradient(135deg, #d97706, #b45309); transform: translateY(-1px); }
+
+.fs-break-overlay {
+    position: fixed; inset: 0; z-index: 5500;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    animation: fs-fade-in 0.18s ease-out;
+}
+.fs-break-overlay[hidden] { display: none; }
+@keyframes fs-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.fs-break-card {
+    background: var(--sd-surface); border-radius: var(--rd-xl);
+    padding: 2rem; text-align: center; max-width: 380px; width: 90%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    animation: fs-pop-in 0.2s ease-out;
+}
+@keyframes fs-pop-in { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.fs-break-icon { font-size: 2.5rem; color: #f59e0b; margin-bottom: 0.5rem; }
+.fs-break-card h3 { font-weight: 700; margin-bottom: 0.5rem; color: var(--sd-text); }
+.fs-break-card p { color: var(--sd-text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+
+.fs-break-options {
+    display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;
+}
+.fs-break-option {
+    padding: 0.75rem 1rem; border-radius: var(--rd-lg);
+    border: 2px solid var(--sd-border); background: var(--sd-surface-2);
+    cursor: pointer; transition: all 0.15s;
+    font-weight: 600; color: var(--sd-text);
+}
+.fs-break-option:hover { border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
+.fs-break-option.selected { border-color: #f59e0b; background: rgba(245, 158, 11, 0.15); }
+.fs-break-option small { display: block; font-weight: 400; color: var(--sd-text-muted); font-size: 0.8rem; }
+
+.fs-break-actions { display: flex; gap: 0.5rem; justify-content: center; }
+
+.fs-break-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 5400;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #fff; padding: 0.75rem 1rem;
+    animation: fs-slide-down 0.3s ease-out;
+}
+.fs-break-banner[hidden] { display: none; }
+@keyframes fs-slide-down { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+.fs-break-banner-inner {
+    display: flex; align-items: center; justify-content: center; gap: 1rem;
+    max-width: 600px; margin: 0 auto;
+}
+.fs-break-banner-icon { font-size: 1.5rem; }
+.fs-break-banner-body { display: flex; flex-direction: column; gap: 0.2rem; }
+.fs-break-banner-body strong { font-size: 1rem; }
+.fs-break-banner-body span { font-size: 0.85rem; opacity: 0.9; }
+.fs-btn-focus {
+    background: #fff; color: #d97706; border-color: #fff;
+    font-weight: 600;
+}
+.fs-btn-focus:hover { background: rgba(255,255,255,0.9); }
+
+.fs-break-over-alert {
+    position: fixed; inset: 0; z-index: 5600;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    animation: fs-fade-in 0.18s ease-out;
+}
+.fs-break-over-alert[hidden] { display: none; }
+.fs-break-over-card {
+    background: var(--sd-surface); border-radius: var(--rd-xl);
+    padding: 2rem; text-align: center; max-width: 340px; width: 90%;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    animation: fs-pop-in 0.2s ease-out;
+}
+.fs-break-over-icon { font-size: 2.5rem; color: #22c55e; margin-bottom: 0.5rem; }
+.fs-break-over-card h3 { font-weight: 700; margin-bottom: 0.5rem; color: var(--sd-text); }
+.fs-break-over-card p { color: var(--sd-text-muted); font-size: 0.9rem; margin-bottom: 1rem; }
+
 @media (max-width: 575.98px) {
     .fs-chat-drawer { width: 100vw; }
 }
@@ -570,6 +698,13 @@
     // to send FOCUS (not DISTRACTED) so the distraction timer stays at zero.
     let allowedAppLaunchedAt = 0;  // timestamp when the guard was set
     const ALLOWED_APP_GUARD_MS = 15000; // grace period (new tab needs time to load)
+
+    // Break state
+    let onBreak = false;
+    let breakEndTime = null;
+    let breaksTaken = 0;
+    let breakPolicy = null;
+    let breakCountdownInterval = null;
 
     // ─── Utils ───
     function getCookie(name) {
@@ -615,6 +750,121 @@
         div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
     }
+
+    // ─── Break Management ───
+    function openBreakModal() {
+        if (!currentSessionId || sessionEnded || onBreak) return;
+        postJSON('/focus/api/break-policy/', { session_id: currentSessionId })
+            .then(d => {
+                if (d.status === 'success') {
+                    breakPolicy = d.policy;
+                    renderBreakOptions(d.can_start, d.reason);
+                    document.getElementById('breakModal').hidden = false;
+                }
+            })
+            .catch(() => showToast('Error', 'Could not load break policy.', 'danger'));
+    }
+
+    function renderBreakOptions(canStart, reason) {
+        const container = document.getElementById('breakOptions');
+        const policyText = document.getElementById('breakPolicyText');
+        if (!canStart) {
+            policyText.textContent = reason || 'Break not available right now.';
+            container.innerHTML = '';
+            return;
+        }
+        policyText.textContent = `Choose your break duration (${breakPolicy.min}-${breakPolicy.max} minutes):`;
+        container.innerHTML = '';
+        for (let m = breakPolicy.min; m <= breakPolicy.max; m++) {
+            const btn = document.createElement('button');
+            btn.className = 'fs-break-option';
+            btn.innerHTML = `${m} minute${m === 1 ? '' : 's'}<small>Relax and recharge</small>`;
+            btn.onclick = () => startBreak(m);
+            container.appendChild(btn);
+        }
+    }
+
+    function startBreak(durationMinutes) {
+        if (!currentSessionId) return;
+        document.getElementById('breakModal').hidden = true;
+        postJSON('/focus/api/start-break/', { session_id: currentSessionId, break_duration: durationMinutes })
+            .then(d => {
+                if (d.status === 'success') {
+                    onBreak = true;
+                    breakEndTime = new Date(d.break_end_time);
+                    breaksTaken = d.breaks_taken;
+                    showBreakBanner();
+                    showToast('Break Started', d.message, 'success');
+                    pollState();
+                } else {
+                    showToast('Error', d.error || 'Could not start break.', 'danger');
+                }
+            })
+            .catch(() => showToast('Error', 'Network error.', 'danger'));
+    }
+
+    function endBreakEarly() {
+        if (!currentSessionId || !onBreak) return;
+        postJSON('/focus/api/end-break/', { session_id: currentSessionId })
+            .then(d => {
+                if (d.status === 'success') {
+                    onBreak = false;
+                    breakEndTime = null;
+                    hideBreakBanner();
+                    showToast('Break Ended', d.message, 'success');
+                    pollState();
+                } else {
+                    showToast('Error', d.error || 'Could not end break.', 'danger');
+                }
+            })
+            .catch(() => showToast('Error', 'Network error.', 'danger'));
+    }
+
+    function showBreakBanner() {
+        document.getElementById('breakActiveBanner').hidden = false;
+        document.getElementById('fsBreakBtn').hidden = true;
+        startBreakCountdown();
+    }
+
+    function hideBreakBanner() {
+        document.getElementById('breakActiveBanner').hidden = true;
+        if (breakCountdownInterval) {
+            clearInterval(breakCountdownInterval);
+            breakCountdownInterval = null;
+        }
+    }
+
+    function startBreakCountdown() {
+        if (breakCountdownInterval) clearInterval(breakCountdownInterval);
+        breakCountdownInterval = setInterval(() => {
+            if (!breakEndTime) return;
+            const remaining = Math.max(0, Math.ceil((breakEndTime - Date.now()) / 1000));
+            document.getElementById('breakCountdown').textContent = formatTime(remaining);
+            if (remaining <= 0) {
+                clearInterval(breakCountdownInterval);
+                breakCountdownInterval = null;
+                onBreak = false;
+                breakEndTime = null;
+                hideBreakBanner();
+                showBreakOverAlert();
+                pollState();
+            }
+        }, 1000);
+    }
+
+    function showBreakOverAlert() {
+        document.getElementById('breakOverAlert').hidden = false;
+    }
+
+    // Break button click
+    document.getElementById('fsBreakBtn').addEventListener('click', openBreakModal);
+    document.getElementById('breakCancelBtn').addEventListener('click', () => {
+        document.getElementById('breakModal').hidden = true;
+    });
+    document.getElementById('endBreakBtn').addEventListener('click', endBreakEarly);
+    document.getElementById('breakOverOkBtn').addEventListener('click', () => {
+        document.getElementById('breakOverAlert').hidden = true;
+    });
 
     // App icon resolver: returns {style, name} so Font Awesome always gets a
     // valid combination (no raw/blank glyph boxes).
@@ -702,13 +952,45 @@
         alertNote.hidden = !violations;
         alertNote.textContent = violations ? ` \u00b7 ${violations} alert${violations === 1 ? '' : 's'} sent` : '';
 
+        // Handle break state
+        const wasOnBreak = onBreak;
+        onBreak = !!d.on_break;
+        breaksTaken = d.breaks_taken || 0;
+        breakPolicy = d.break_policy || null;
+
+        if (d.break_end_time) {
+            breakEndTime = new Date(d.break_end_time);
+        }
+
+        // Show/hide break button based on session status and breaks taken
+        const breakBtn = document.getElementById('fsBreakBtn');
+        const canTakeBreak = breakPolicy && breaksTaken < 3 && !onBreak;
+        breakBtn.hidden = !canTakeBreak;
+
+        // Handle break state transitions
+        if (onBreak && !wasOnBreak) {
+            // Just entered break
+            showBreakBanner();
+        } else if (!onBreak && wasOnBreak) {
+            // Just exited break (server-side expiry or manual end)
+            hideBreakBanner();
+        }
+
+        // Update break banner countdown if on break
+        if (onBreak && breakEndTime) {
+            const remaining = Math.max(0, Math.ceil((breakEndTime - Date.now()) / 1000));
+            document.getElementById('breakCountdown').textContent = formatTime(remaining);
+        }
+
         renderApprovedApps(d.approved || []);
 
         const active = d.active_approval;
         if (active && !usingApproval) enterUsingMode(active);
         else if (!active && usingApproval) exitUsingMode(false);
 
-        if (sessionPaused && usingApproval) {
+        if (onBreak) {
+            setStatus('On Break — relax and recharge!', 'is-info');
+        } else if (sessionPaused && usingApproval) {
             setStatus(`Using "${usingApproval.name}" — focus timer paused`, 'is-info');
         } else if (document.hidden) {
             setStatus('You moved away — distraction tracking active', 'is-bad');
@@ -735,6 +1017,8 @@
     // credits the correct bucket.
     function sendTick(forceKind) {
         if (!currentSessionId || sessionEnded) return;
+        // During break, the server handles timing — no need to send ticks
+        if (onBreak) return;
         const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
         const kind = forceKind || (manualPaused ? 'PAUSED'
             : (sessionPaused || usingApproval || allowedAppGuard || focusChatOpen) ? 'FOCUS'
@@ -746,6 +1030,13 @@
                     distractionSeconds = d.distraction_seconds;
                     lastSyncMs = Date.now();
                     sessionPaused = !!d.paused;
+                    // Handle break expired from tick response
+                    if (d.break_expired) {
+                        onBreak = false;
+                        breakEndTime = null;
+                        hideBreakBanner();
+                        showBreakOverAlert();
+                    }
                 }
             }).catch(() => {});
     }
@@ -753,6 +1044,8 @@
     // ─── Tab visibility → distraction accounting + warning modal ───
     document.addEventListener('visibilitychange', () => {
         if (!currentSessionId || sessionEnded) return;
+        // During break, all activity is temporarily authorized — no warnings
+        if (onBreak) return;
         if (document.hidden) {
             const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
             // Start the grace period for focus loss detection
@@ -1141,6 +1434,13 @@
         clientFocusLostAt = 0;
         clientViolationRecorded = false;
         pendingRequests.clear();
+        // Break state
+        onBreak = false;
+        breakEndTime = null;
+        breaksTaken = 0;
+        breakPolicy = null;
+        hideBreakBanner();
+        document.getElementById('breakOverAlert').hidden = true;
 
         document.getElementById('fsTaskNameText').textContent = taskName || 'Free focus';
         document.getElementById('fsEndBtn').disabled = false;
@@ -1158,6 +1458,14 @@
         focusWarningContinued = false;
         clientFocusLostAt = 0;
         clientViolationRecorded = false;
+        // Clean up break state
+        onBreak = false;
+        breakEndTime = null;
+        breaksTaken = 0;
+        breakPolicy = null;
+        hideBreakBanner();
+        document.getElementById('breakOverAlert').hidden = true;
+        document.getElementById('breakModal').hidden = true;
         if (focusWarningCountdownInterval) {
             clearInterval(focusWarningCountdownInterval);
             focusWarningCountdownInterval = null;
