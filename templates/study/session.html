@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="row mt-4">
-    <div class="col-12 mb-4">
+<div class="row mt-3 mt-md-4">
+    <div class="col-12 mb-3 mb-md-4">
         <div class="d-flex justify-content-between align-items-center">
-            <h2 class="fw-bold"><i class="fa-solid fa-clock text-primary me-2"></i>Study Session</h2>
+            <h2 class="fw-bold fs-4 fs-md-2"><i class="fa-solid fa-clock text-primary me-2"></i>Study Session</h2>
             <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
         </div>
         <hr>
@@ -11,55 +11,58 @@
 </div>
 
 <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="col-12 col-md-8">
         <div class="card shadow border-0 rounded-4">
-            <div class="card-body p-4 text-center">
-                <div class="mb-4">
-                    <div class="display-1 fw-bold" id="timerDisplay">00:00</div>
-                    <p class="text-muted">Elapsed Time</p>
+            <div class="card-body p-3 p-md-4 text-center">
+                <div class="mb-3 mb-md-4">
+                    <div class="display-1 fw-bold" id="timerDisplay" style="font-size: clamp(2.5rem, 10vw, 4rem);">00:00</div>
+                    <p class="text-muted small mb-0">Elapsed Time</p>
                 </div>
 
-                <div class="row justify-content-center mb-4">
+                <div class="row justify-content-center mb-3 mb-md-4 g-2">
                     <div class="col-4">
-                        <button id="startBtn" class="btn btn-success btn-lg rounded-pill px-4 w-100"><i class="fa-solid fa-play me-2"></i>Start</button>
+                        <button id="startBtn" class="btn btn-success btn-lg rounded-pill px-3 px-md-4 w-100"><i class="fa-solid fa-play me-1 me-md-2"></i>Start</button>
                     </div>
                     <div class="col-4">
-                        <button id="pauseBtn" class="btn btn-warning btn-lg rounded-pill px-4 w-100" disabled><i class="fa-solid fa-pause me-2"></i>Pause</button>
+                        <button id="pauseBtn" class="btn btn-warning btn-lg rounded-pill px-3 px-md-4 w-100" disabled><i class="fa-solid fa-pause me-1 me-md-2"></i>Pause</button>
                     </div>
                     <div class="col-4">
-                        <button id="endBtn" class="btn btn-danger btn-lg rounded-pill px-4 w-100" disabled><i class="fa-solid fa-stop me-2"></i>End</button>
+                        <button id="endBtn" class="btn btn-danger btn-lg rounded-pill px-3 px-md-4 w-100" disabled><i class="fa-solid fa-stop me-1 me-md-2"></i>End</button>
                     </div>
                 </div>
 
-                <div class="row g-3 mt-4">
+                <div class="row g-2 g-md-3 mt-3 mt-md-4">
                     <div class="col-4">
                         <div class="card bg-secondary bg-opacity-10 border-0 rounded-3">
                             <div class="card-body py-2">
-                                <h6 class="text-muted small mb-1">Break</h6>
-                                <h4 class="fw-bold mb-0" id="breakDisplay">00:00</h4>
+                                <h6 class="text-muted small mb-1 d-none d-md-block">Break</h6>
+                                <h6 class="text-muted mb-1 d-md-none">Break</h6>
+                                <h4 class="fw-bold mb-0" id="breakDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">00:00</h4>
                             </div>
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="card bg-secondary bg-opacity-10 border-0 rounded-3">
                             <div class="card-body py-2">
-                                <h6 class="text-muted small mb-1">Distraction</h6>
-                                <h4 class="fw-bold mb-0 text-danger" id="distractionDisplay">00:00</h4>
+                                <h6 class="text-muted small mb-1 d-none d-md-block">Distraction</h6>
+                                <h6 class="text-muted mb-1 d-md-none">Distr.</h6>
+                                <h4 class="fw-bold mb-0 text-danger" id="distractionDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">00:00</h4>
                             </div>
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="card bg-secondary bg-opacity-10 border-0 rounded-3">
                             <div class="card-body py-2">
-                                <h6 class="text-muted small mb-1">Focus Score</h6>
-                                <h4 class="fw-bold mb-0 text-success" id="focusScoreDisplay">--</h4>
+                                <h6 class="text-muted small mb-1 d-none d-md-block">Focus Score</h6>
+                                <h6 class="text-muted mb-1 d-md-none">Focus</h6>
+                                <h4 class="fw-bold mb-0 text-success" id="focusScoreDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">--</h4>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-4">
-                    <button id="breakBtn" class="btn btn-outline-info rounded-pill me-2"><i class="fa-solid fa-mug-saucer me-1"></i> Take Break</button>
+                <div class="mt-3 mt-md-4 d-flex flex-column flex-sm-row gap-2 justify-content-center">
+                    <button id="breakBtn" class="btn btn-outline-info rounded-pill"><i class="fa-solid fa-mug-saucer me-1"></i> Take Break</button>
                     <button id="distractionBtn" class="btn btn-outline-danger rounded-pill"><i class="fa-solid fa-eye-slash me-1"></i> Mark Distracted</button>
                 </div>
             </div>

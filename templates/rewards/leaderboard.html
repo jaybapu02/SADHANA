@@ -9,11 +9,12 @@
         <p class="sd-page-subtitle">Top students ranked by XP</p>
     </div>
     <div class="sd-page-actions">
-        <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary">Back</a>
+        <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
     </div>
 </div>
 
-<div class="sd-table-wrap">
+<!-- Desktop table view -->
+<div class="sd-table-wrap d-none d-md-block">
     {% if leaderboard %}
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -46,6 +47,45 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <span class="es-icon"><i class="fa-solid fa-trophy"></i></span>
+        <p class="es-text">No students yet.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Mobile card view -->
+<div class="d-md-none">
+    {% if leaderboard %}
+    <div class="d-flex flex-column gap-2">
+        {% for p in leaderboard %}
+        <div class="card">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="flex-shrink-0">
+                        {% if forloop.counter <= 3 %}
+                            <span class="leader-rank r{{ forloop.counter }}">{{ forloop.counter }}</span>
+                        {% else %}
+                            <span class="leader-rank">{{ forloop.counter }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="fw-semibold">{{ p.user.username }}</div>
+                        <div class="d-flex gap-3 mt-1 flex-wrap">
+                            <span class="badge soft-primary">Lv.{{ p.level }}</span>
+                            <span class="small tabular"><strong>{{ p.xp }}</strong> XP</span>
+                            <span class="small tabular"><i class="fa-solid fa-coins text-warning me-1"></i>{{ p.coins }}</span>
+                            {% if p.current_streak > 0 %}
+                                <span class="small tabular"><i class="fa-solid fa-fire text-warning me-1"></i>{{ p.current_streak }}d</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">

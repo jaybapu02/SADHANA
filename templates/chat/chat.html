@@ -284,10 +284,22 @@
     .modal-header { border-color: var(--wa-border); }
 
     @media (max-width: 768px) {
-        .wa-app { flex-direction: column; height: calc(100vh - var(--topbar-h)); }
+        .wa-app { flex-direction: column; height: calc(100vh - var(--topbar-h-mobile, var(--topbar-h))); }
         .wa-sidebar { width: 100%; min-width: 0; max-width: none; border-right: none; border-bottom: 1px solid var(--wa-border); }
-        .wa-conv-list { max-height: 35vh; }
+        .wa-conv-list { max-height: 40vh; min-height: 120px; }
         .wa-bubble { max-width: 88%; }
+        .wa-msgs { padding: 0.75rem; }
+        .wa-composer { padding: 0.5rem 0.75rem; }
+        .wa-input { padding: 0.55rem 0.85rem; font-size: 0.88rem; }
+        .wa-send { width: 40px; height: 40px; }
+        .wa-quick-row { gap: 0.35rem; }
+        .wa-chip { padding: 0.25rem 0.65rem; font-size: 0.75rem; }
+    }
+    @media (max-width: 375px) {
+        .wa-conv { padding: 0.55rem 0.7rem; }
+        .wa-avatar { width: 42px; height: 42px; font-size: 0.9rem; }
+        .wa-conv-name { font-size: 0.88rem; }
+        .wa-input-row { gap: 0.3rem; }
     }
 </style>
 

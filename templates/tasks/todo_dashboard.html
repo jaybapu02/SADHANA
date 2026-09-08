@@ -12,11 +12,11 @@
     </div>
 </div>
 
-<div class="row g-4">
+<div class="row g-3 g-lg-4">
     <!-- LEFT COLUMN -->
     <div class="col-lg-4">
-        <div class="card mb-4">
-            <div class="card-body p-4">
+        <div class="card mb-3 mb-lg-4">
+            <div class="card-body p-3 p-md-4">
                 <h5 class="sd-card-title"><i class="fa-solid fa-plus"></i> Add New Task</h5>
                 <form action="{% url 'add_task' %}" method="POST">
                     {% csrf_token %}
@@ -55,7 +55,7 @@
         </div>
 
         <div class="card">
-            <div class="card-body p-4">
+            <div class="card-body p-3 p-md-4">
                 <h5 class="sd-card-title"><i class="fa-solid fa-chart-simple" style="color: var(--sd-success);"></i> Completion Stats</h5>
                 <div class="mb-3">
                     <div class="d-flex justify-content-between small mb-1 tabular">
@@ -88,20 +88,20 @@
 
     <!-- RIGHT COLUMN -->
     <div class="col-lg-8">
-        <div class="row g-3 mb-4">
-            <div class="col-md-4 col-4">
+        <div class="row g-3 mb-3 mb-lg-4">
+            <div class="col-4">
                 <div class="stat-card text-center py-3 tint-primary">
                     <div class="stat-label">Total</div>
                     <div class="stat-value">{{ today_total }}</div>
                 </div>
             </div>
-            <div class="col-md-4 col-4">
+            <div class="col-4">
                 <div class="stat-card text-center py-3 tint-success">
                     <div class="stat-label">Completed</div>
                     <div class="stat-value">{{ today_completed }}</div>
                 </div>
             </div>
-            <div class="col-md-4 col-4">
+            <div class="col-4">
                 <div class="stat-card text-center py-3 tint-danger">
                     <div class="stat-label">Pending</div>
                     <div class="stat-value">{{ today_pending }}</div>

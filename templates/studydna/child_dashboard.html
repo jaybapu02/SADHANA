@@ -22,22 +22,22 @@
 </div>
 {% endif %}
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3 col-6">
+<div class="row g-3 mb-3 mb-lg-4">
+    <div class="col-6 col-md-3">
         <div class="stat-card tint-primary">
             <div class="stat-label">Productivity</div>
             <div class="stat-value">{{ productivity_score|floatformat:0 }}<small>%</small></div>
             <div class="progress progress-thin mt-2"><div class="progress-bar bg-primary" style="width:{{ productivity_score }}%;"></div></div>
         </div>
     </div>
-    <div class="col-md-3 col-6">
+    <div class="col-6 col-md-3">
         <div class="stat-card tint-success">
             <div class="stat-label">Consistency</div>
             <div class="stat-value">{{ consistency_score|floatformat:0 }}<small>%</small></div>
             <div class="progress progress-thin mt-2"><div class="progress-bar bg-success" style="width:{{ consistency_score }}%;"></div></div>
         </div>
     </div>
-    <div class="col-md-3 col-6">
+    <div class="col-6 col-md-3">
         <div class="stat-card tint-warning">
             <div class="stat-label">Study Streak</div>
             <div class="stat-value">{{ streak }}<small> days</small></div>
@@ -46,7 +46,7 @@
             {% endif %}
         </div>
     </div>
-    <div class="col-md-3 col-6">
+    <div class="col-6 col-md-3">
         <div class="stat-card tint-info">
             <div class="stat-label">Monthly Improvement</div>
             <div class="stat-value">
@@ -61,8 +61,8 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-body">
+<div class="card mb-3 mb-lg-4">
+    <div class="card-body p-3 p-md-4">
         <h6 class="sd-card-title mb-3"><i class="fa-solid fa-fingerprint"></i> Your Learning Profile</h6>
         <div class="row g-3 row-cols-2 row-cols-md-3 row-cols-xl-6">
             <div class="col"><div><div class="dna-mini-label mb-1">Best Time</div><span class="fw-750 small">{% if best_study_time %}{{ best_study_time|truncatechars:35 }}{% else %}&mdash;{% endif %}</span></div></div>
@@ -75,10 +75,10 @@
     </div>
 </div>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-3 mb-lg-4">
     <div class="col-md-4">
         <div class="card h-100">
-            <div class="card-body">
+            <div class="card-body p-3 p-md-4">
                 <h6 class="sd-card-title"><i class="fa-solid fa-bullseye"></i> Goal Progress</h6>
                 {% if goal_progress %}
                 <div class="mb-2">
@@ -119,8 +119,8 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-body">
+<div class="card mb-3 mb-lg-4">
+    <div class="card-body p-3 p-md-4">
         <h6 class="sd-card-title mb-3"><i class="fa-solid fa-fire"></i> Focus Mode Stats</h6>
         {% if focus_stats %}
         <div class="row g-2 row-cols-2 row-cols-md-4 row-cols-xl-7">
@@ -136,10 +136,10 @@
     </div>
 </div>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-3 mb-lg-4">
     <div class="col-lg-8">
         <div class="card h-100">
-            <div class="card-body">
+            <div class="card-body p-3 p-md-4">
                 <h6 class="sd-card-title mb-3"><i class="fa-solid fa-chart-column"></i> Weekly Focus Trend</h6>
                 <div class="chart-box" style="height:220px;"><canvas id="weeklyFocusChart"></canvas></div>
             </div>
@@ -156,8 +156,8 @@
 </div>
 
 {% if subject_data %}
-<div class="card mb-4">
-    <div class="card-body">
+<div class="card mb-3 mb-lg-4">
+    <div class="card-body p-3 p-md-4">
         <h6 class="sd-card-title mb-3"><i class="fa-solid fa-book"></i> Subject-wise Performance</h6>
         <div class="row g-3" id="subjectBars">
             {% for s in subject_data %}
@@ -191,8 +191,8 @@
 {% endif %}
 
 {% if parent_tasks and parent_tasks.total > 0 %}
-<div class="card mb-4">
-    <div class="card-body">
+<div class="card mb-3 mb-lg-4">
+    <div class="card-body p-3 p-md-4">
         <h6 class="sd-card-title mb-3"><i class="fa-solid fa-people-group"></i> Parent-Assigned Tasks</h6>
         <div class="d-flex align-items-center gap-3 flex-wrap">
             <div class="text-center">
@@ -212,8 +212,8 @@
 {% endif %}
 
 {% if recommendations %}
-<div class="card mb-4">
-    <div class="card-body">
+<div class="card mb-3 mb-lg-4">
+    <div class="card-body p-3 p-md-4">
         <h6 class="sd-card-title mb-3"><i class="fa-solid fa-lightbulb"></i> AI Recommendations</h6>
         <div class="row g-3">
             {% for rec in recommendations %}
