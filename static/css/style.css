@@ -1539,6 +1539,15 @@ textarea.form-control { min-height: 96px; }
   border-radius: var(--rd-pill);
   letter-spacing: 0.02em;
   transition: all var(--tr-fast);
+  color: var(--sd-accent);
+  border-color: rgba(6, 182, 212, 0.45);
+}
+.copy-child-id-btn:hover,
+.copy-child-id-btn:focus-visible {
+  color: #22d3ee;
+  border-color: #22d3ee;
+  background: rgba(6, 182, 212, 0.12);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
 }
 .copy-child-id-btn.copied {
   background: var(--sd-success);
