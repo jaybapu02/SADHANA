@@ -1540,14 +1540,14 @@ textarea.form-control { min-height: 96px; }
   letter-spacing: 0.02em;
   transition: all var(--tr-fast);
   color: var(--sd-accent);
-  border-color: rgba(6, 182, 212, 0.45);
+  border-color: rgba(8, 89, 104, 0.45);
 }
 .copy-child-id-btn:hover,
 .copy-child-id-btn:focus-visible {
   color: #22d3ee;
-  border-color: #22d3ee;
-  background: rgba(6, 182, 212, 0.12);
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
+  border-color: #288493;
+  background: rgba(8, 135, 157, 0.12);
+  box-shadow: 0 0 12px rgba(10, 115, 134, 0.25);
 }
 .copy-child-id-btn.copied {
   background: var(--sd-success);
