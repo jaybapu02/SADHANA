@@ -1526,6 +1526,29 @@ textarea.form-control { min-height: 96px; }
 }
 [data-bs-theme="dark"] .child-id-display { color: #a5adff; }
 
+/* Child ID copy wrapper */
+.child-id-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.copy-child-id-btn {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.9rem;
+  border-radius: var(--rd-pill);
+  letter-spacing: 0.02em;
+  transition: all var(--tr-fast);
+}
+.copy-child-id-btn.copied {
+  background: var(--sd-success);
+  border-color: var(--sd-success);
+  color: #fff;
+}
+.copy-child-id-btn .copy-label {
+  margin-left: 0.25rem;
+}
+
 /* Notifications feed */
 .notif-row {
   display: flex;
