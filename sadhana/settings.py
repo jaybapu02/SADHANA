@@ -117,10 +117,11 @@ DATABASES = {
     }
 }
 
-if os.environ.get("DATABASE_URL"):
+_db_url = os.environ.get("DATABASE_URL", "").strip()
+if _db_url:
     import dj_database_url
     DATABASES["default"] = dj_database_url.parse(
-        os.environ.get("DATABASE_URL"),
+        _db_url,
         conn_max_age=600,
         ssl_require=True,
     )
