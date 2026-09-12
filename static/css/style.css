@@ -1967,6 +1967,31 @@ textarea.form-control { min-height: 96px; }
   }
 }
 
+/* Mobile pending requests card highlight */
+@media (max-width: 991.98px) {
+  .d-lg-none > .card.border-warning {
+    border-width: 2px !important;
+    box-shadow: 0 2px 12px rgba(255, 193, 7, 0.15);
+  }
+  .d-lg-none > .card.border-warning .sd-card-title {
+    font-size: 1rem;
+  }
+  /* Parent dashboard connection status - prevent badge overflow on mobile */
+  .list-group-item.d-flex {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .list-group-item .badge {
+    flex-shrink: 0;
+  }
+  /* Child ID display - fit on small screens */
+  .child-id-display {
+    font-size: 1.4rem;
+    letter-spacing: 0.18em;
+    padding: 0.9rem;
+  }
+}
+
 /* Small mobile (< 375px): Extra compact */
 @media (max-width: 374.98px) {
   .sd-content { padding-inline: 0.7rem; }
