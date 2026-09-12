@@ -122,8 +122,9 @@ if _db_url:
     import dj_database_url
     DATABASES["default"] = dj_database_url.parse(
         _db_url,
-        conn_max_age=600,
+        conn_max_age=300,
         ssl_require=True,
+        conn_health_checks=True,
     )
 
 
