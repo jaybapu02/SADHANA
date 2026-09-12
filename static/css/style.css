@@ -2159,6 +2159,19 @@ textarea.form-control { min-height: 96px; }
 
 /* ===== PAGE-SPECIFIC MOBILE OVERRIDES ===== */
 
+/* Child dashboard: proper column ordering and spacing on mobile */
+@media (max-width: 991.98px) {
+  .child-dashboard-row { gap: 0.75rem !important; }
+}
+@media (max-width: 575.98px) {
+  .sd-hero-panel {
+    padding: 0.85rem;
+    margin-bottom: 0;
+  }
+  .sd-hero-panel h4 { margin-bottom: 0.25rem !important; }
+  .sd-hero-panel p { margin-bottom: 0.5rem !important; font-size: 0.8rem !important; }
+}
+
 /* Chat page: hide sidebar on mobile, full-screen chat */
 @media (max-width: 991.98px) {
   .page-chat .wa-app { flex-direction: column; }
