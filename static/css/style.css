@@ -25,10 +25,12 @@
   --sd-info: #3b82f6;
 
   /* Radii */
+  --rd-xs: 4px;
   --rd-sm: 8px;
   --rd-md: 12px;
   --rd-lg: 16px;
   --rd-xl: 20px;
+  --rd-2xl: 24px;
   --rd-pill: 999px;
 
   /* Motion */
@@ -137,7 +139,7 @@ hr {
 code {
   background: var(--sd-surface-3);
   padding: 0.15em 0.45em;
-  border-radius: 6px;
+  border-radius: var(--rd-sm);
   font-size: 0.85em;
 }
 
@@ -151,7 +153,7 @@ code {
 :focus-visible {
   outline: 2px solid var(--sd-primary);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--rd-xs);
 }
 
 .skip-link {
@@ -210,7 +212,7 @@ code {
 .sd-brand-mark {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--rd-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -233,7 +235,7 @@ code {
 }
 .sd-brand-name small {
   display: block;
-  font-size: 0.62rem;
+  font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -249,7 +251,7 @@ code {
 }
 
 .sd-nav-heading {
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -292,7 +294,7 @@ code {
 .sd-nav-link.active::before {
   content: '';
   position: absolute;
-  left: -0.85rem;
+  left: 0;
   top: 18%;
   bottom: 18%;
   width: 3px;
@@ -302,7 +304,7 @@ code {
 }
 .sd-nav-link .sd-nav-badge {
   margin-left: auto;
-  font-size: 0.66rem;
+  font-size: 0.7rem;
   font-weight: 700;
   padding: 0.18em 0.55em;
   border-radius: var(--rd-pill);
@@ -640,7 +642,7 @@ body.page-full .sd-content { max-width: none; }
 .stat-card .stat-icon {
   width: 44px;
   height: 44px;
-  border-radius: 13px;
+  border-radius: var(--rd-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -780,8 +782,11 @@ body.page-full .sd-content { max-width: none; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: var(--rd-sm);
+  transition: all var(--tr-fast);
 }
+.btn-action:hover { background: var(--sd-surface-3); transform: translateY(-1px); }
+.btn-action:active { transform: scale(0.94); }
 
 /* --------------------------------------------------------------------------
    7. Forms
@@ -1347,15 +1352,15 @@ textarea.form-control { min-height: 96px; }
 [data-bs-theme="dark"] .approved-app-tile.in-use { color: #34d399; }
 .approved-app-tile .fa-solid,
 .approved-app-tile .fa-brands { font-size: 1.2rem; }
-.approved-app-tile .in-use-badge { font-size: 0.65rem; padding: 0.15rem 0.4rem; }
+.approved-app-tile .in-use-badge { font-size: 0.7rem; padding: 0.15rem 0.4rem; }
 
 /* Focus page access-result toast */
 #accessResultToast {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  z-index: 9999;
-  min-width: 320px;
+  z-index: 1050;
+  min-width: min(320px, calc(100vw - 2rem));
   box-shadow: var(--shadow-lg);
 }
 
@@ -1542,6 +1547,7 @@ textarea.form-control { min-height: 96px; }
   color: var(--sd-accent);
   border-color: rgba(8, 89, 104, 0.45);
 }
+[data-bs-theme="dark"] .copy-child-id-btn { border-color: rgba(6, 182, 212, 0.3); }
 .copy-child-id-btn:hover,
 .copy-child-id-btn:focus-visible {
   color: #22d3ee;
@@ -1690,7 +1696,7 @@ textarea.form-control { min-height: 96px; }
 .strip-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
 .strip-stat .ss-value { font-weight: 750; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .strip-stat .ss-label {
-  font-size: 0.64rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1726,10 +1732,16 @@ textarea.form-control { min-height: 96px; }
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.sd-content > .container > *,
-.sd-content > * {
+.sd-content > .container > *:not(style):not(script),
+.sd-content > *:not(style):not(script):not(.d-none) {
   animation: rise-in 0.35s ease both;
 }
+.sd-content > .container > *:nth-child(2) { animation-delay: 0.04s; }
+.sd-content > .container > *:nth-child(3) { animation-delay: 0.08s; }
+.sd-content > .container > *:nth-child(4) { animation-delay: 0.12s; }
+.sd-content > .container > *:nth-child(5) { animation-delay: 0.16s; }
+.sd-content > .container > *:nth-child(6) { animation-delay: 0.20s; }
+.sd-content > .container > *:nth-child(n+7) { animation-delay: 0.24s; }
 
 /* --------------------------------------------------------------------------
    14. Marketing (guest landing)
@@ -1817,6 +1829,8 @@ textarea.form-control { min-height: 96px; }
 [data-bs-theme="dark"] .feature-icon.amber  { color: #fbbf24; }
 [data-bs-theme="dark"] .feature-icon.blue   { color: #a5adff; }
 [data-bs-theme="dark"] .feature-icon.green  { color: #34d399; }
+[data-bs-theme="dark"] .feature-icon.purple { color: #c4b5fd; }
+[data-bs-theme="dark"] .feature-icon.orange { color: #fb923c; }
 .marketing-hero-img {
   border-radius: var(--rd-xl);
   background:
@@ -2004,7 +2018,7 @@ textarea.form-control { min-height: 96px; }
     font-size: 1.5rem;
   }
   .stat-card .stat-label {
-    font-size: 0.66rem;
+    font-size: 0.7rem;
   }
 
   .card {
@@ -2052,7 +2066,7 @@ textarea.form-control { min-height: 96px; }
     font-size: 1.3rem;
   }
   .reward-stat .rs-label {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
   }
 
   /* Badge tiles: reduce icon size */
@@ -2674,13 +2688,13 @@ body.focus-stage-open #flashToasts { display: none !important; }
   .fs-timer { font-size: clamp(2.6rem, 14vw, 4rem); }
   .fs-stats { gap: 0.45rem; max-width: 100%; }
   .fs-stat { padding: 0.55rem 0.35rem; }
-  .fs-stat span { font-size: 0.62rem; }
+  .fs-stat span { font-size: 0.7rem; }
   .fs-stat b { font-size: 0.92rem; }
   .fs-tiles { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.5rem; }
   .fs-app { padding: 0.65rem 0.45rem 0.55rem; gap: 0.35rem; border-radius: var(--rd-md); }
   .fs-app-icon { width: 36px; height: 36px; font-size: 0.95rem; }
   .fs-app-name { font-size: 0.75rem; }
-  .fs-btn-mini, .fs-btn-request { font-size: 0.66rem; padding: 0.28rem 0.55rem; max-width: 100%; }
+  .fs-btn-mini, .fs-btn-request { font-size: 0.7rem; padding: 0.28rem 0.55rem; max-width: 100%; }
   .fs-controls { flex-direction: column; gap: 0.6rem; }
   .fs-controls .fs-btn { width: 100%; min-width: 0; }
   .fs-btn { min-width: 0; padding: 0.65rem 1.2rem; font-size: 0.88rem; }

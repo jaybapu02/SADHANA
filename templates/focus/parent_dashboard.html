@@ -45,7 +45,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="history-tab" data-bs-toggle="pill" data-bs-target="#history" type="button">
-            <i class="fa-solid fa-clock-rotate-left me-1"></i> Access History
+            <i class="fa-solid fa-history me-1"></i> Access History
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -151,13 +151,13 @@
                 </div>
                 <div id="analyticsDisplay">
                     <div class="text-center py-5 text-muted">
-                        <i class="fa-solid fa-arrow-up fa-3x mb-3"></i>
+                        <i class="fa-solid fa-chart-line fa-3x mb-3"></i>
                         <p>Select a child to view focus analytics.</p>
                     </div>
                 </div>
                 {% else %}
                 <div class="text-center py-4 text-muted">
-                    <i class="fa-solid fa-chain-broken fa-3x mb-3"></i>
+                    <i class="fa-solid fa-link-slash fa-3x mb-3"></i>
                     <p>No children connected yet.</p>
                 </div>
                 {% endif %}
@@ -181,13 +181,13 @@
                 </div>
                 <div id="sessionsDisplay">
                     <div class="text-center py-5 text-muted">
-                        <i class="fa-solid fa-arrow-up fa-3x mb-3"></i>
+                        <i class="fa-solid fa-clock-rotate-left fa-3x mb-3"></i>
                         <p>Select a child to view session history.</p>
                     </div>
                 </div>
                 {% else %}
                 <div class="text-center py-4 text-muted">
-                    <i class="fa-solid fa-chain-broken fa-3x mb-3"></i>
+                    <i class="fa-solid fa-link-slash fa-3x mb-3"></i>
                     <p>No children connected yet.</p>
                 </div>
                 {% endif %}
@@ -785,7 +785,7 @@
         const childId = document.getElementById('sessionChildSelect').value;
         if (!childId) {
             document.getElementById('sessionsDisplay').innerHTML = `<div class="text-center py-5 text-muted">
-                <i class="fa-solid fa-arrow-up fa-3x mb-3"></i>
+                <i class="fa-solid fa-clock-rotate-left fa-3x mb-3"></i>
                 <p>Select a child to view session history.</p>
             </div>`;
             return;

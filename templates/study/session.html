@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="row mt-3 mt-md-4">
-    <div class="col-12 mb-3 mb-md-4">
-        <div class="d-flex justify-content-between align-items-center">
-            <h2 class="fw-bold fs-4 fs-md-2"><i class="fa-solid fa-clock text-primary me-2"></i>Study Session</h2>
-            <a href="{% url 'dashboard_router' %}" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
-        </div>
-        <hr>
+<div class="sd-page-header">
+    <div>
+        <h2 class="sd-page-title"><span class="sd-title-icon"><i class="fa-solid fa-clock"></i></span> Study Session</h2>
+        <p class="sd-page-subtitle">Track your focus time, breaks, and distractions.</p>
+    </div>
+    <div class="sd-page-actions">
+        <a href="{% url 'dashboard_router' %}" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Back</a>
     </div>
 </div>
 
@@ -33,30 +33,24 @@
 
                 <div class="row g-2 g-md-3 mt-3 mt-md-4">
                     <div class="col-4">
-                        <div class="card bg-secondary bg-opacity-10 border-0 rounded-3">
-                            <div class="card-body py-2">
-                                <h6 class="text-muted small mb-1 d-none d-md-block">Break</h6>
-                                <h6 class="text-muted mb-1 d-md-none">Break</h6>
-                                <h4 class="fw-bold mb-0" id="breakDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">00:00</h4>
-                            </div>
+                        <div class="session-stats-card">
+                            <h6 class="text-muted small mb-1 d-none d-md-block">Break</h6>
+                            <h6 class="text-muted mb-1 d-md-none">Break</h6>
+                            <h4 class="fw-bold mb-0" id="breakDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">00:00</h4>
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="card bg-secondary bg-opacity-10 border-0 rounded-3">
-                            <div class="card-body py-2">
-                                <h6 class="text-muted small mb-1 d-none d-md-block">Distraction</h6>
-                                <h6 class="text-muted mb-1 d-md-none">Distr.</h6>
-                                <h4 class="fw-bold mb-0 text-danger" id="distractionDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">00:00</h4>
-                            </div>
+                        <div class="session-stats-card">
+                            <h6 class="text-muted small mb-1 d-none d-md-block">Distraction</h6>
+                            <h6 class="text-muted mb-1 d-md-none">Distr.</h6>
+                            <h4 class="fw-bold mb-0 text-danger" id="distractionDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">00:00</h4>
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="card bg-secondary bg-opacity-10 border-0 rounded-3">
-                            <div class="card-body py-2">
-                                <h6 class="text-muted small mb-1 d-none d-md-block">Focus Score</h6>
-                                <h6 class="text-muted mb-1 d-md-none">Focus</h6>
-                                <h4 class="fw-bold mb-0 text-success" id="focusScoreDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">--</h4>
-                            </div>
+                        <div class="session-stats-card">
+                            <h6 class="text-muted small mb-1 d-none d-md-block">Focus Score</h6>
+                            <h6 class="text-muted mb-1 d-md-none">Focus</h6>
+                            <h4 class="fw-bold mb-0 text-success" id="focusScoreDisplay" style="font-size: clamp(1rem, 3vw, 1.5rem);">--</h4>
                         </div>
                     </div>
                 </div>
