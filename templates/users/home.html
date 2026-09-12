@@ -24,6 +24,7 @@
         color: var(--sd-primary);
         border: 1px solid rgba(90, 103, 242, 0.25);
         margin-bottom: 1.5rem;
+        animation: rise-in 0.5s ease both;
     }
     [data-bs-theme="dark"] .hero-badge { color: #a5adff; }
     .stat-number {
@@ -55,6 +56,47 @@
         font-size: 1.1rem;
         z-index: 2;
     }
+    /* Hero text animations */
+    .hero-section .display-4 { animation: rise-in 0.6s ease both; }
+    .hero-section .display-4:nth-of-type(2) { animation-delay: 0.1s; }
+    .hero-section .lead { animation: rise-in 0.6s ease 0.2s both; }
+    .hero-section .d-flex.flex-wrap.gap-3.mb-4 { animation: rise-in 0.6s ease 0.3s both; }
+    .hero-section .d-flex.flex-wrap.align-items-center { animation: rise-in 0.6s ease 0.4s both; }
+
+    /* Stats band glow effect */
+    .stats-band {
+        position: relative;
+        overflow: hidden;
+    }
+    .stats-band::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120%;
+        height: 200%;
+        background: radial-gradient(ellipse, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    /* CTA band glow */
+    .cta-band {
+        position: relative;
+        overflow: hidden;
+    }
+    .cta-band::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
+        pointer-events: none;
+    }
+
     @media (max-width: 767.98px) {
         .hero-section {
             min-height: auto;
@@ -166,7 +208,7 @@
         <div class="text-center mb-4 mb-md-5">
             <span class="hero-badge"><i class="fa-solid fa-layer-group"></i> Features</span>
             <h2 class="display-6 fw-bold">Everything You Need to <span class="gradient-text">Excel</span></h2>
-            <p class="text-muted mx-auto">
+            <p class="text-muted mx-auto" style="max-width: 560px;">
                 A complete ecosystem built for serious students who want to build discipline and track progress.
             </p>
         </div>
@@ -222,19 +264,19 @@
         <div class="row g-4">
             <div class="col-6 col-lg-3 text-center">
                 <div class="stat-number gradient-text">100%</div>
-                <div class="text-muted mt-2">Free &amp; Open</div>
+                <div class="text-muted mt-2 fw-semibold">Free &amp; Open</div>
             </div>
             <div class="col-6 col-lg-3 text-center">
                 <div class="stat-number gradient-text">24/7</div>
-                <div class="text-muted mt-2">Study Tracking</div>
+                <div class="text-muted mt-2 fw-semibold">Study Tracking</div>
             </div>
             <div class="col-6 col-lg-3 text-center">
                 <div class="stat-number gradient-text">Smart</div>
-                <div class="text-muted mt-2">AI-Powered Insights</div>
+                <div class="text-muted mt-2 fw-semibold">AI-Powered Insights</div>
             </div>
             <div class="col-6 col-lg-3 text-center">
                 <div class="stat-number gradient-text">100%</div>
-                <div class="text-muted mt-2">Privacy Guaranteed</div>
+                <div class="text-muted mt-2 fw-semibold">Privacy Guaranteed</div>
             </div>
         </div>
     </div>
@@ -243,7 +285,7 @@
     <div class="cta-band mt-4 mt-md-5">
         <div class="position-relative" style="z-index: 1;">
             <h2 class="display-6 fw-bold mb-3">Ready to Transform <span style="text-decoration: underline 3px rgba(255,255,255,.35); text-underline-offset: 6px;">Your Study Habit?</span></h2>
-            <p class="mb-4 mx-auto opacity-90">
+            <p class="mb-4 mx-auto opacity-90" style="max-width: 500px;">
                 Join Sadhana today and start building the discipline that will last a lifetime.
             </p>
             <div class="d-flex flex-wrap gap-3 justify-content-center mt-4">
