@@ -807,12 +807,22 @@
                         <th>Duration</th>
                         <th>Focus</th>
                         <th>Distraction</th>
+                        <th>Resume Time</th>
                         <th>Status</th>
                     </tr></thead><tbody>`;
                 sessions.forEach(s => {
                     const focusMin = Math.round(s.actual_focus_seconds / 60);
                     const distractMin = Math.round(s.distraction_seconds / 60);
                     const planned = s.planned_duration;
+                    const resumeSec = s.resume_seconds || 0;
+                    let resumeDisplay;
+                    if (resumeSec <= 0) {
+                        resumeDisplay = '&mdash;';
+                    } else if (resumeSec < 60) {
+                        resumeDisplay = resumeSec + ' sec';
+                    } else {
+                        resumeDisplay = Math.round(resumeSec / 60) + ' min';
+                    }
                     const statusBadge = s.status === 'COMPLETED'
                         ? '<span class="badge bg-success"><i class="fa-solid fa-check me-1"></i>Completed</span>'
                         : '<span class="badge bg-danger"><i class="fa-solid fa-xmark me-1"></i>Interrupted</span>';
@@ -824,6 +834,7 @@
                         <td>${planned} min</td>
                         <td>${focusMin} min</td>
                         <td>${distractMin} min</td>
+                        <td>${resumeDisplay}</td>
                         <td>${statusBadge}</td>
                     </tr>`;
                 });

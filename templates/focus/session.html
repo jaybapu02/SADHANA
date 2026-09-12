@@ -229,6 +229,7 @@
 
             <div class="fs-stats">
                 <div class="fs-stat"><span>Focused</span><b id="fsFocusedStat">00:00</b></div>
+                <div class="fs-stat"><span>Resumed</span><b id="fsResumedStat">00:00</b></div>
                 <div class="fs-stat"><span>Distracted</span><b id="fsDistractedStat" class="is-bad">00:00</b></div>
                 <div class="fs-stat"><span>Blocked</span><b id="fsBlockedCount">0</b></div>
             </div>
@@ -675,9 +676,10 @@
     // Server-owned clock (reconciled by polls + ticks)
     let focusSeconds = 0;          // last server-known value
     let distractionSeconds = 0;
+    let resumeSeconds = 0;         // total resume time from server
     let lastSyncMs = Date.now();   // when focusSeconds was true
     let sessionPaused = false;     // frozen because approved app in use
-    let manualPaused = false;      // non-lock sessions: explicit pause button
+    let resuming = false;          // server-side resuming state
     let sessionEnded = false;
 
     // Approved usage state
@@ -898,27 +900,33 @@
 
     // ─── Display loop ───
     function liveFocusSeconds() {
-        if (sessionPaused || manualPaused) return focusSeconds;
-        const drift = Math.floor((Date.now() - lastSyncMs) / 1000);
-        if (plannedDuration > 0) {
-            const planned = plannedDuration * 60;
-            return Math.min(focusSeconds + drift, planned);
+        // When the page is hidden or paused, don't add client-side drift.
+        if (sessionPaused || document.hidden) {
+            return resuming ? resumeSeconds : focusSeconds;
         }
-        return focusSeconds + drift;
+        const drift = Math.floor((Date.now() - lastSyncMs) / 1000);
+        const base = resuming ? resumeSeconds : focusSeconds;
+        // Only cap focus time at planned duration — resume time is uncapped
+        if (!resuming && plannedDuration > 0) {
+            const planned = plannedDuration * 60;
+            return Math.min(base + drift, planned);
+        }
+        return base + drift;
     }
 
     function renderTimer() {
         const shown = liveFocusSeconds();
         document.getElementById('fsTimerDisplay').textContent = formatTime(shown);
-        document.getElementById('fsFocusedStat').textContent = formatTime(shown);
+        document.getElementById('fsFocusedStat').textContent = formatTime(focusSeconds);
+        document.getElementById('fsResumedStat').textContent = formatTime(resumeSeconds);
         document.getElementById('fsDistractedStat').textContent = formatTime(distractionSeconds);
         if (plannedDuration > 0) {
             const planned = plannedDuration * 60;
-            const pct = Math.min(100, Math.round((shown / planned) * 100));
+            const pct = Math.min(100, Math.round((focusSeconds / planned) * 100));
             document.getElementById('fsProgressBar').style.width = `${pct}%`;
             document.getElementById('fsProgressPct').textContent = `${pct}% complete`;
             document.getElementById('fsRemainingChip').textContent =
-                formatTime(Math.max(0, planned - shown));
+                formatTime(Math.max(0, planned - focusSeconds));
         } else {
             document.getElementById('fsProgressBar').style.width = '100%';
             document.getElementById('fsProgressPct').textContent = 'Free session';
@@ -927,7 +935,7 @@
         if (usingApproval) {
             document.getElementById('fsUsingCountdown').textContent = formatTime(usingApproval.remaining);
         }
-        if (!sessionEnded && plannedDuration > 0 && shown >= plannedDuration * 60) {
+        if (!sessionEnded && plannedDuration > 0 && focusSeconds >= plannedDuration * 60) {
             endSession(true); // natural completion - no scary confirm
         }
     }
@@ -943,8 +951,10 @@
     function applyServerState(d) {
         focusSeconds = d.focus_seconds || 0;
         distractionSeconds = d.distraction_seconds || 0;
+        resumeSeconds = d.resume_seconds || 0;
         lastSyncMs = Date.now();
         sessionPaused = !!d.paused;
+        resuming = !!d.resuming;
         document.getElementById('fsBlockedCount').textContent = d.blocked_attempts ?? 0;
 
         const alertNote = document.getElementById('fsAlertNote');
@@ -988,14 +998,26 @@
         if (active && !usingApproval) enterUsingMode(active);
         else if (!active && usingApproval) exitUsingMode(false);
 
+        // Update Pause/Resume button to reflect current resuming state
+        const pauseBtn = document.getElementById('fsPauseBtn');
+        if (!lockEnabled && pauseBtn) {
+            if (resuming) {
+                pauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
+            } else {
+                pauseBtn.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
+            }
+        }
+
         if (onBreak) {
             setStatus('On Break — relax and recharge!', 'is-info');
         } else if (sessionPaused && usingApproval) {
             setStatus(`Using "${usingApproval.name}" — focus timer paused`, 'is-info');
         } else if (document.hidden) {
             setStatus('You moved away — distraction tracking active', 'is-bad');
-        } else if (!manualPaused) {
-            setStatus('Stay focused!', '');
+        } else if (resuming) {
+            setStatus('Resume Time active — Focus Time paused', 'is-info');
+        } else {
+            setStatus('Focus Time active', '');
         }
     }
 
@@ -1020,14 +1042,17 @@
         // During break, the server handles timing — no need to send ticks
         if (onBreak) return;
         const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
-        const kind = forceKind || (manualPaused ? 'PAUSED'
-            : (sessionPaused || usingApproval || allowedAppGuard || focusChatOpen) ? 'FOCUS'
+        // The server determines whether to credit focus_seconds or resume_seconds
+        // based on its own resuming_since flag. We just report the activity kind.
+        const kind = forceKind || (
+            (sessionPaused || usingApproval || allowedAppGuard || focusChatOpen) ? 'FOCUS'
             : document.hidden ? 'DISTRACTED' : 'FOCUS');
         postJSON('/focus/api/session-tick/', { session_id: currentSessionId, kind })
             .then(d => {
                 if (d.status === 'success') {
                     focusSeconds = d.focus_seconds;
                     distractionSeconds = d.distraction_seconds;
+                    resumeSeconds = d.resume_seconds || 0;
                     lastSyncMs = Date.now();
                     sessionPaused = !!d.paused;
                     // Handle break expired from tick response
@@ -1049,7 +1074,7 @@
         if (document.hidden) {
             const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
             // Start the grace period for focus loss detection
-            if (!sessionPaused && !manualPaused && !focusWarningContinued && !allowedAppGuard && !focusChatOpen && !usingApproval) {
+            if (!sessionPaused && !focusWarningContinued && !allowedAppGuard && !focusChatOpen && !usingApproval) {
                 if (clientFocusLostAt === 0) {
                     clientFocusLostAt = Date.now();
                     clientViolationRecorded = false;
@@ -1089,10 +1114,10 @@
             }
             // Close out the PREVIOUS period.  The page was hidden until now,
             // so the delta since the last tick was DISTRACTED time — unless
-            // the child was chatting / using an approved app / manually paused,
-            // in which case the hidden period still counts as FOCUS / PAUSED.
+            // the child was chatting / using an approved app,
+            // in which case the hidden period still counts as FOCUS.
             const allowedAppGuard = (Date.now() - allowedAppLaunchedAt) < ALLOWED_APP_GUARD_MS;
-            const wasFocused = manualPaused || sessionPaused || usingApproval || allowedAppGuard || focusChatOpen;
+            const wasFocused = sessionPaused || usingApproval || allowedAppGuard || focusChatOpen;
             sendTick(wasFocused ? 'FOCUS' : 'DISTRACTED');
             pollState();
         }
@@ -1181,6 +1206,9 @@
         stage.style.display = 'flex';
         document.getElementById('fsPauseBtn').hidden = lockEnabled;
         document.getElementById('fsLockBadge').hidden = !lockEnabled;
+        // Initial button state: Focus Time active, show Resume to switch
+        const btn = document.getElementById('fsPauseBtn');
+        btn.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
         buildAppGrids();
     }
 
@@ -1423,10 +1451,11 @@
         lockEnabled = !!isLocked;
         focusSeconds = 0;
         distractionSeconds = 0;
+        resumeSeconds = 0;
         lastSyncMs = Date.now();
         sessionEnded = false;
         sessionPaused = false;
-        manualPaused = false;
+        resuming = false;
         usingApproval = null;
         focusWarningShown = false;
         focusWarningContinued = false;
@@ -1458,6 +1487,8 @@
         focusWarningContinued = false;
         clientFocusLostAt = 0;
         clientViolationRecorded = false;
+        resuming = false;
+        resumeSeconds = 0;
         // Clean up break state
         onBreak = false;
         breakEndTime = null;
@@ -1516,24 +1547,32 @@
             .finally(() => setSessionInactive());
     }
 
-    // Pause is only available for NON-lock sessions (no bypass in Super Power mode).
+    // Pause/Resume toggle: switches between Focus Time and Resume Time.
+    // Pressing Resume → Focus Time stops, Resume Time starts.
+    // Pressing Pause/Continue → Resume Time stops, Focus Time starts.
     document.getElementById('fsPauseBtn').addEventListener('click', () => {
         if (!currentSessionId || lockEnabled) return;
-        manualPaused = !manualPaused;
         const btn = document.getElementById('fsPauseBtn');
-        if (manualPaused) {
-            btn.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
-            setStatus('Session paused', 'is-warn');
-            sendTick();
-        } else {
-            btn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
-            setStatus('Stay focused!', '');
-            lastSyncMs = Date.now();
-            sendTick();
-            // Notify linked parent that the child resumed
-            postJSON('/focus/api/resume-session/', { session_id: currentSessionId })
-                .catch(() => {});
-        }
+        // Call the server toggle endpoint
+        postJSON('/focus/api/resume-session/', { session_id: currentSessionId })
+            .then(d => {
+                if (d.status === 'success') {
+                    resuming = d.resuming;
+                    if (resuming) {
+                        // Resume Time started — Focus Time stopped
+                        btn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause';
+                        setStatus('Resume Time active — Focus Time paused', 'is-info');
+                    } else {
+                        // Focus Time started — Resume Time stopped
+                        btn.innerHTML = '<i class="fa-solid fa-play"></i> Resume';
+                        setStatus('Focus Time active — Resume Time paused', 'is-ok');
+                    }
+                    resumeSeconds = d.resume_seconds || 0;
+                    lastSyncMs = Date.now();
+                    sendTick();
+                }
+            })
+            .catch(() => {});
     });
 
     document.getElementById('fsEndBtn').addEventListener('click', () => endSession(false));

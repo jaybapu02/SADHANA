@@ -51,6 +51,10 @@ class FocusSession(models.Model):
     breaks_taken = models.IntegerField(default=0, help_text="Number of breaks taken during this session")
     total_break_seconds = models.IntegerField(default=0, help_text="Total break time across all breaks in seconds")
 
+    # Resume tracking fields
+    resume_seconds = models.IntegerField(default=0, help_text="Total focused time accumulated during resume periods")
+    resuming_since = models.DateTimeField(null=True, blank=True, help_text="When the current resume period started (null if not resuming)")
+
     class Meta:
         ordering = ['-start_time']
 

@@ -152,7 +152,8 @@ def _interrupt_stale_session(session):
 
     session.refresh_from_db(fields=['paused_at', 'pause_seconds_total',
                                     'actual_focus_seconds',
-                                    'distraction_seconds'])
+                                    'distraction_seconds',
+                                    'resume_seconds'])
 
     # Bank trailing seconds since last tick (up to one tick interval)
     if session.last_tick_at:
@@ -160,8 +161,13 @@ def _interrupt_stale_session(session):
         if 0 <= trailing <= TICK_MAX_DELTA_SECONDS:
             if session.paused_at:
                 session.pause_seconds_total += trailing
+            elif session.resuming_since:
+                session.resume_seconds += trailing
             else:
                 session.actual_focus_seconds += trailing
+
+    # Finalize any open resume period
+    session.resuming_since = None
 
     session.end_time = now
     session.last_tick_at = None
@@ -581,6 +587,8 @@ def api_end_session(request):
         if 0 <= trailing <= 15:
             if session.paused_at:
                 session.pause_seconds_total += trailing
+            elif session.resuming_since:
+                session.resume_seconds += trailing
             else:
                 session.actual_focus_seconds += trailing
         focus_seconds = session.actual_focus_seconds
@@ -592,12 +600,16 @@ def api_end_session(request):
         session.actual_focus_seconds = focus_seconds
         session.distraction_seconds = distraction_seconds
 
+    # Finalize any open resume period
+    session.resuming_since = None
+
     planned_seconds = session.planned_duration * 60
     session.end_time = now
     session.last_tick_at = None
 
+    # Completion is judged on focus_seconds alone (resume time is a separate stat)
     # Small grace window absorbs tick-interval rounding on the completion line.
-    if session.planned_duration == 0 or focus_seconds >= max(0, planned_seconds - 10):
+    if session.planned_duration == 0 or session.actual_focus_seconds >= max(0, planned_seconds - 10):
         session.status = FocusSession.Status.COMPLETED
         session.early_exit = False
     else:
@@ -617,7 +629,7 @@ def api_end_session(request):
             NotificationService.lock_deactivated(parent, request.user)
 
     parents = get_connected_parents(request.user)
-    duration_minutes = round(focus_seconds / 60)
+    duration_minutes = round(session.actual_focus_seconds / 60)
     for parent in parents:
         if session.status == FocusSession.Status.COMPLETED:
             NotificationService.focus_completed(parent, request.user, duration_minutes)
@@ -638,6 +650,7 @@ def api_end_session(request):
         'early_exit': session.early_exit,
         'actual_focus_seconds': session.actual_focus_seconds,
         'distraction_seconds': session.distraction_seconds,
+        'resume_seconds': session.resume_seconds,
         'pause_seconds_total': session.pause_seconds_total,
         'approved_usage': {
             r.blacklist_item.name: r.usage_seconds
@@ -768,17 +781,44 @@ def api_session_tick(request):
         # approved app. Any other kind (e.g. explicit PAUSED) is a no-op too.
         if kind == 'DISTRACTED':
             session.distraction_seconds += delta
-        elif kind == 'FOCUS':
-            if session.planned_duration:
+            # Interruption detected — finalize the current resume period
+            if session.resuming_since:
+                session.resuming_since = None
+                session.save(update_fields=['last_tick_at', 'actual_focus_seconds',
+                                            'distraction_seconds', 'pause_seconds_total',
+                                            'resuming_since', 'resume_seconds'])
                 planned_seconds = session.planned_duration * 60
-                remaining = max(0, planned_seconds - session.actual_focus_seconds)
-                session.actual_focus_seconds += min(delta, remaining)
+                remaining_seconds = max(0, planned_seconds - session.actual_focus_seconds) \
+                    if planned_seconds else None
+                return JsonResponse({
+                    'status': 'success',
+                    'focus_seconds': session.actual_focus_seconds,
+                    'distraction_seconds': session.distraction_seconds,
+                    'resume_seconds': session.resume_seconds,
+                    'paused': bool(session.paused_at),
+                    'on_break': False,
+                    'remaining_seconds': remaining_seconds,
+                })
+        elif kind == 'FOCUS':
+            # Focus Time and Resume Time are mutually exclusive:
+            # - Normal state (resuming_since=None): credit focus_seconds
+            # - Resumed state (resuming_since set): credit resume_seconds only
+            if session.resuming_since:
+                # Resumed state — only resume_seconds increases, no cap
+                session.resume_seconds += delta
             else:
-                session.actual_focus_seconds += delta
+                # Normal state — only focus_seconds increases
+                if session.planned_duration:
+                    planned_seconds = session.planned_duration * 60
+                    remaining = max(0, planned_seconds - session.actual_focus_seconds)
+                    session.actual_focus_seconds += min(delta, remaining)
+                else:
+                    session.actual_focus_seconds += delta
 
     session.last_tick_at = now
     session.save(update_fields=['last_tick_at', 'actual_focus_seconds',
-                                'distraction_seconds', 'pause_seconds_total'])
+                                'distraction_seconds', 'pause_seconds_total',
+                                'resuming_since', 'resume_seconds'])
 
     planned_seconds = session.planned_duration * 60
     remaining_seconds = max(0, planned_seconds - session.actual_focus_seconds) \
@@ -787,6 +827,7 @@ def api_session_tick(request):
         'status': 'success',
         'focus_seconds': session.actual_focus_seconds,
         'distraction_seconds': session.distraction_seconds,
+        'resume_seconds': session.resume_seconds,
         'paused': bool(session.paused_at),
         'on_break': False,
         'remaining_seconds': remaining_seconds,
@@ -845,6 +886,8 @@ def api_session_state(request):
         'planned_duration': session.planned_duration,
         'focus_seconds': session.actual_focus_seconds,
         'distraction_seconds': session.distraction_seconds,
+        'resume_seconds': session.resume_seconds,
+        'resuming': session.resuming_since is not None,
         'break_seconds': session.total_break_seconds,
         'remaining_seconds': max(0, planned_seconds - session.actual_focus_seconds)
             if planned_seconds else None,
@@ -966,8 +1009,9 @@ def api_release_approved_app(request, request_id):
 @require_http_methods(['POST'])
 @csrf_exempt
 def api_resume_session(request):
-    """Child resumes a manually paused focus session. Notifies all linked
-    parents that the child has resumed their session."""
+    """Child resumes or unpauses a focus session. Toggles the server-side
+    resuming state: when resuming, Focus Time stops and Resume Time starts;
+    when unpausing, Resume Time stops and Focus Time starts again."""
     if request.user.role != 'CHILD':
         return JsonResponse({'status': 'error', 'message': 'Only children.'}, status=403)
     try:
@@ -980,10 +1024,32 @@ def api_resume_session(request):
     if session.status != FocusSession.Status.ACTIVE:
         return JsonResponse({'status': 'error', 'message': 'Session is not active.'}, status=400)
 
+    now = timezone.now()
+
+    if session.resuming_since:
+        # Currently resuming → stop resuming (unpause/continue)
+        # Finalize the resume period: bank any trailing focused time
+        elapsed = int((now - session.resuming_since).total_seconds())
+        if 0 < elapsed <= TICK_MAX_DELTA_SECONDS:
+            session.resume_seconds += elapsed
+        session.resuming_since = None
+        session.save(update_fields=['resuming_since', 'resume_seconds'])
+        message = 'Focus Time resumed.'
+    else:
+        # Not resuming → start resuming
+        session.resuming_since = now
+        session.save(update_fields=['resuming_since'])
+        message = 'Resume Time started.'
+
     for parent in get_connected_parents(request.user):
         NotificationService.focus_resumed(parent, request.user)
 
-    return JsonResponse({'status': 'success', 'message': 'Resume notification sent.'})
+    return JsonResponse({
+        'status': 'success',
+        'message': message,
+        'resuming': session.resuming_since is not None,
+        'resume_seconds': session.resume_seconds,
+    })
 
 
 @login_required
@@ -1701,6 +1767,16 @@ def api_focus_analytics(request, child_id):
     })
 
 
+def _calc_resume_seconds(session):
+    """Return total focused time accumulated during resume periods.
+
+    This uses the server-tracked ``resume_seconds`` field on FocusSession,
+    which is updated in real-time by the tick handler and finalised on
+    session end / interruption.  Falls back to 0 for sessions that were
+    created before the resume-tracking feature was added."""
+    return getattr(session, 'resume_seconds', 0) or 0
+
+
 @login_required
 def api_parent_child_sessions(request, child_id):
     if request.user.role != 'PARENT':
@@ -1714,11 +1790,13 @@ def api_parent_child_sessions(request, child_id):
     sessions = FocusSession.objects.filter(child_id=child_id).order_by('-start_time')[:50]
     data = []
     for s in sessions:
+        resume_seconds = _calc_resume_seconds(s)
         data.append({
             'id': s.id,
             'planned_duration': s.planned_duration,
             'actual_focus_seconds': s.actual_focus_seconds,
             'distraction_seconds': s.distraction_seconds,
+            'resume_seconds': resume_seconds,
             'status': s.status,
             'start_time': s.start_time.isoformat(),
             'end_time': s.end_time.isoformat() if s.end_time else None,
