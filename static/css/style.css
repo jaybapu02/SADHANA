@@ -1897,14 +1897,80 @@ textarea.form-control { min-height: 96px; }
   .sd-topbar {
     height: var(--topbar-h-mobile);
   }
+
+  /* Hero glow: hide decorative pseudo-elements that overflow on mobile */
+  .hero-glow::before,
+  .hero-glow::after {
+    display: none;
+  }
+
+  /* Access result toast: prevent horizontal overflow */
+  #accessResultToast {
+    min-width: 0;
+    width: calc(100vw - 2rem);
+    max-width: 360px;
+    right: 1rem;
+    bottom: 1rem;
+  }
+
+  /* Dropdown: allow narrower on small screens */
+  .sd-dropdown {
+    min-width: min(220px, calc(100vw - 2rem));
+  }
+
+  /* Mobile pending requests card highlight */
+  .d-lg-none > .card.border-warning {
+    border-width: 2px !important;
+    box-shadow: 0 2px 12px rgba(255, 193, 7, 0.15);
+  }
+  .d-lg-none > .card.border-warning .sd-card-title {
+    font-size: 1rem;
+  }
+
+  /* Parent dashboard connection status - prevent badge overflow */
+  .list-group-item.d-flex {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .list-group-item .badge {
+    flex-shrink: 0;
+  }
+
+  /* Child ID display - fit on small screens */
+  .child-id-display {
+    font-size: 1.4rem;
+    letter-spacing: 0.18em;
+    padding: 0.9rem;
+  }
+
+  /* Task and notification rows: allow wrapping on narrow screens */
+  .task-row { flex-wrap: wrap; }
+  .notif-row { flex-wrap: wrap; }
+
+  /* Focus dashboard tabs: horizontal scroll on mobile */
+  .nav.nav-pills {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 0.4rem;
+    padding-bottom: 0.3rem;
+  }
+  .nav.nav-pills::-webkit-scrollbar { display: none; }
+  .nav.nav-pills .nav-item { flex-shrink: 0; }
+  .nav.nav-pills .nav-link {
+    font-size: 0.78rem;
+    padding: 0.45rem 0.75rem;
+    white-space: nowrap;
+  }
 }
 
 /* Mobile (< 576px): Compact layout */
 @media (max-width: 575.98px) {
   .sd-content { padding-inline: 1rem; padding-top: 1rem; padding-bottom: 2rem; }
-  .sd-topbar { padding-inline: 0.8rem; }
+  .sd-topbar { padding-inline: 0.8rem; gap: 0.5rem; }
   .sd-page-actions { width: 100%; }
-  .sd-page-actions .btn { flex: 1; }
+  .sd-page-actions .btn { flex: 1; font-size: 0.82rem; }
   .auth-card { padding: 2rem 1.5rem; }
   .card-body { padding: 1.15rem; }
 
@@ -1955,6 +2021,8 @@ textarea.form-control { min-height: 96px; }
   .modal-content {
     border-radius: var(--rd-lg);
   }
+  .modal-header { padding: 1rem; }
+  .modal-body { padding: 1rem; }
 
   .feature-card {
     padding: 1.4rem 1.2rem;
@@ -1965,31 +2033,88 @@ textarea.form-control { min-height: 96px; }
     font-size: 1.2rem;
     margin-bottom: 0.9rem;
   }
-}
 
-/* Mobile pending requests card highlight */
-@media (max-width: 991.98px) {
-  .d-lg-none > .card.border-warning {
-    border-width: 2px !important;
-    box-shadow: 0 2px 12px rgba(255, 193, 7, 0.15);
+  /* Hero panel: reduce padding on mobile */
+  .sd-hero-panel {
+    padding: 1.2rem 1.2rem;
   }
-  .d-lg-none > .card.border-warning .sd-card-title {
-    font-size: 1rem;
+
+  /* Stats band and CTA band: reduce padding */
+  .stats-band {
+    padding: 1.8rem 1.2rem;
   }
-  /* Parent dashboard connection status - prevent badge overflow on mobile */
-  .list-group-item.d-flex {
-    flex-wrap: wrap;
-    gap: 0.5rem;
+  .cta-band {
+    padding: 2.2rem 1.2rem;
   }
-  .list-group-item .badge {
-    flex-shrink: 0;
+
+  /* Reward stats: reduce font size */
+  .reward-stat .rs-value {
+    font-size: 1.3rem;
   }
-  /* Child ID display - fit on small screens */
-  .child-id-display {
+  .reward-stat .rs-label {
+    font-size: 0.6rem;
+  }
+
+  /* Badge tiles: reduce icon size */
+  .badge-tile .bt-icon {
     font-size: 1.4rem;
-    letter-spacing: 0.18em;
-    padding: 0.9rem;
   }
+  .badge-tile {
+    min-width: 56px;
+    padding: 0.45rem 0.3rem;
+  }
+
+  /* Empty state: reduce padding */
+  .empty-state {
+    padding: 2rem 1rem;
+  }
+  .empty-state .es-icon {
+    width: 56px;
+    height: 56px;
+    font-size: 1.3rem;
+  }
+
+  /* Child mini cards: reduce padding */
+  .child-mini-card {
+    padding: 1rem 0.8rem;
+  }
+
+  /* Form inputs: prevent iOS Safari auto-zoom (min 16px) */
+  .form-control, .form-select {
+    font-size: 16px;
+  }
+
+  /* Notification rows: tighter padding */
+  .notif-row {
+    padding: 0.8rem 0.6rem;
+    gap: 0.6rem;
+  }
+
+  /* Task rows: tighter padding */
+  .task-row {
+    padding: 0.6rem 0.3rem;
+    gap: 0.6rem;
+  }
+
+  /* Topbar gap reduction */
+  .sd-topbar .sd-topbar-title {
+    font-size: 0.95rem;
+  }
+
+  /* Parent dashboard child card buttons: larger on mobile */
+  .child-mini-card .d-grid .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+  }
+
+  /* Prevent any horizontal overflow on mobile */
+  html, body { overflow-x: hidden; }
+
+  /* Modal form fields: stack on small screens */
+  .modal .row.g-3 > .col-4 { flex: 0 0 100%; max-width: 100%; }
+
+  /* Action buttons: larger touch targets on mobile */
+  .btn-action { width: 42px; height: 42px; }
 }
 
 /* Small mobile (< 375px): Extra compact */
@@ -1999,6 +2124,11 @@ textarea.form-control { min-height: 96px; }
   .auth-card { padding: 1.5rem 1.1rem; }
   .sd-page-title { font-size: 1.15rem; }
   .stat-card .stat-value { font-size: 1.3rem; }
+  .reward-stat .rs-value { font-size: 1.1rem; }
+  .child-id-display { font-size: 1.2rem; padding: 0.75rem; }
+  .sd-hero-panel { padding: 1rem; }
+  .stats-band { padding: 1.4rem 1rem; }
+  .cta-band { padding: 1.8rem 1rem; }
 }
 
 /* Large tablets (768px - 1024px) */
