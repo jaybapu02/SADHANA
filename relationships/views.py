@@ -19,7 +19,7 @@ def send_request(request):
             return redirect('parent_dashboard')
             
         try:
-            child = User.objects.get(child_id=child_id, role='CHILD')
+            child = User.objects.get(child_id__iexact=child_id, role='CHILD')
         except User.DoesNotExist:
             messages.error(request, 'No child found with that ID.')
             return redirect('parent_dashboard')
