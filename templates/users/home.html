@@ -100,58 +100,103 @@
     @media (max-width: 767.98px) {
         .hero-section {
             min-height: auto;
-            padding-top: 1.5rem;
-            padding-bottom: 0.5rem;
+            padding-top: 1.25rem;
+            padding-bottom: 0.25rem;
         }
         .hero-section .display-4 {
-            font-size: 1.6rem;
+            font-size: clamp(1.8rem, 7vw, 2.5rem);
             line-height: 1.15;
         }
         .hero-section .lead {
-            font-size: 0.9rem;
+            font-size: 0.88rem;
+            line-height: 1.45;
+        }
+        .hero-badge { margin-bottom: 0.75rem; font-size: 0.72rem; }
+        .hero-section .mb-3 { margin-bottom: 0.6rem !important; }
+        .hero-section .mb-4 { margin-bottom: 0.85rem !important; }
+
+        /* Stack hero columns vertically on mobile */
+        .hero-section .row { flex-wrap: wrap; }
+        .hero-section .col-lg-6 { flex: 0 0 100%; max-width: 100%; }
+        .hero-section .row > .col-lg-6:last-child {
+            order: 3;
+            margin-top: 0.75rem;
+            text-align: center;
         }
         .marketing-hero-img {
-            margin-top: 1rem;
-            padding: 1rem;
+            margin-top: 0.5rem;
+            padding: 0.75rem;
         }
         .marketing-hero-img img {
-            max-height: 220px !important;
+            max-height: 200px !important;
         }
-        .float-icon {
-            width: 32px;
-            height: 32px;
-            font-size: 0.85rem;
+
+        /* Hide all float icons on mobile */
+        .float-icon { display: none !important; }
+
+        /* Feature cards: tighter padding and spacing */
+        .feature-card {
+            padding: 1.25rem;
         }
-        .float-icon:nth-child(2) { display: none; }
-        .float-icon:nth-child(3) { display: none; }
+        .feature-icon {
+            width: 42px;
+            height: 42px;
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+        }
+        .feature-card h5 { font-size: 1rem; margin-bottom: 0.4rem !important; }
+        .feature-card p { font-size: 0.82rem; }
+        .row.g-3 > [class*="col-"] { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+
+        /* Stats band */
         .stats-band {
-            padding: 1.5rem 1rem;
+            padding: 1.25rem 0.75rem;
         }
         .stat-number {
-            font-size: 1.6rem;
+            font-size: 1.45rem;
         }
+        .stats-band .text-muted {
+            font-size: 0.78rem;
+        }
+
+        /* CTA band */
         .cta-band {
-            padding: 2rem 1rem;
+            padding: 1.5rem 1rem;
         }
         .cta-band .display-6 {
-            font-size: 1.25rem;
+            font-size: clamp(1.15rem, 5vw, 1.35rem);
         }
         .cta-band .btn {
             width: 100%;
             justify-content: center;
+            padding: 0.7rem 1.5rem;
         }
-        /* Reduce section spacing on mobile */
-        .mt-5.pt-5 { margin-top: 2.5rem !important; padding-top: 2.5rem !important; }
-        .hero-badge { margin-bottom: 1rem; font-size: 0.72rem; }
-        .hero-section .mb-3 { margin-bottom: 0.8rem !important; }
-        .hero-section .mb-4 { margin-bottom: 1rem !important; }
+
+        /* Hero CTA buttons: full width, stacked */
+        .hero-section .d-flex.flex-wrap.gap-3.mb-4 .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* Trust points: wrap with smaller gap */
+        .hero-section .d-flex.flex-wrap.align-items-center {
+            gap: 0.5rem 1rem !important;
+        }
+        .hero-section .d-flex.flex-wrap.align-items-center span {
+            font-size: 0.78rem;
+        }
+
+        /* General section spacing */
+        .mt-5.pt-5 { margin-top: 2rem !important; padding-top: 2rem !important; }
+        .mt-4.mt-md-5 { margin-top: 1.5rem !important; }
     }
     @media (max-width: 374.98px) {
-        .hero-section .display-4 { font-size: 1.35rem; }
-        .hero-section .lead { font-size: 0.82rem; }
-        .marketing-hero-img img { max-height: 180px !important; }
-        .stat-number { font-size: 1.35rem; }
-        .cta-band .display-6 { font-size: 1.1rem; }
+        .hero-section .display-4 { font-size: 1.5rem; }
+        .hero-section .lead { font-size: 0.8rem; }
+        .marketing-hero-img img { max-height: 160px !important; }
+        .stat-number { font-size: 1.25rem; }
+        .cta-band .display-6 { font-size: 1.05rem; }
+        .feature-card { padding: 1rem; }
     }
 </style>
 

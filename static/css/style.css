@@ -1909,10 +1909,10 @@ textarea.form-control { min-height: 96px; }
 }
 
 /* --------------------------------------------------------------------------
-   15. Responsive
+   15. Responsive — Mobile-first overhaul
    -------------------------------------------------------------------------- */
 
-/* Tablet and below (< 992px): Mobile drawer sidebar */
+/* ===== TABLET & BELOW (< 992px): Drawer sidebar, compact shell ===== */
 @media (max-width: 991.98px) {
   body.has-sidebar .sd-main { margin-left: 0; }
 
@@ -1920,6 +1920,7 @@ textarea.form-control { min-height: 96px; }
     transform: translateX(-105%);
     box-shadow: none;
     width: var(--sidebar-w);
+    z-index: 1050;
   }
   .sd-sidebar.mobile-open {
     transform: translateX(0);
@@ -1935,262 +1936,259 @@ textarea.form-control { min-height: 96px; }
   .sd-desktop-only { display: none !important; }
   .sd-user-name, .sd-user-role { display: none; }
 
-  .sd-topbar {
-    height: var(--topbar-h-mobile);
-  }
+  .sd-topbar { height: var(--topbar-h-mobile); }
 
-  /* Hero glow: hide decorative pseudo-elements that overflow on mobile */
-  .hero-glow::before,
-  .hero-glow::after {
-    display: none;
-  }
+  .hero-glow::before, .hero-glow::after { display: none; }
 
-  /* Access result toast: prevent horizontal overflow */
   #accessResultToast {
-    min-width: 0;
-    width: calc(100vw - 2rem);
-    max-width: 360px;
-    right: 1rem;
-    bottom: 1rem;
+    min-width: 0; width: calc(100vw - 2rem); max-width: 360px;
+    right: 1rem; bottom: 1rem;
   }
 
-  /* Dropdown: allow narrower on small screens */
-  .sd-dropdown {
-    min-width: min(220px, calc(100vw - 2rem));
-  }
+  .sd-dropdown { min-width: min(220px, calc(100vw - 2rem)); }
 
-  /* Mobile pending requests card highlight */
   .d-lg-none > .card.border-warning {
     border-width: 2px !important;
     box-shadow: 0 2px 12px rgba(255, 193, 7, 0.15);
   }
-  .d-lg-none > .card.border-warning .sd-card-title {
-    font-size: 1rem;
-  }
+  .d-lg-none > .card.border-warning .sd-card-title { font-size: 1rem; }
 
-  /* Parent dashboard connection status - prevent badge overflow */
-  .list-group-item.d-flex {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  .list-group-item .badge {
-    flex-shrink: 0;
-  }
+  .list-group-item.d-flex { flex-wrap: wrap; gap: 0.5rem; }
+  .list-group-item .badge { flex-shrink: 0; }
 
-  /* Child ID display - fit on small screens */
-  .child-id-display {
-    font-size: 1.4rem;
-    letter-spacing: 0.18em;
-    padding: 0.9rem;
-  }
+  .child-id-display { font-size: 1.4rem; letter-spacing: 0.18em; padding: 0.9rem; }
 
-  /* Task and notification rows: allow wrapping on narrow screens */
   .task-row { flex-wrap: wrap; }
   .notif-row { flex-wrap: wrap; }
 
-  /* Focus dashboard tabs: horizontal scroll on mobile */
+  /* Tabs: horizontal scroll */
   .nav.nav-pills {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    gap: 0.4rem;
-    padding-bottom: 0.3rem;
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; gap: 0.4rem; padding-bottom: 0.3rem;
   }
   .nav.nav-pills::-webkit-scrollbar { display: none; }
   .nav.nav-pills .nav-item { flex-shrink: 0; }
   .nav.nav-pills .nav-link {
-    font-size: 0.78rem;
-    padding: 0.45rem 0.75rem;
-    white-space: nowrap;
-  }
-}
-
-/* Mobile (< 576px): Compact layout */
-@media (max-width: 575.98px) {
-  .sd-content { padding-inline: 1rem; padding-top: 1rem; padding-bottom: 2rem; }
-  .sd-topbar { padding-inline: 0.8rem; gap: 0.5rem; }
-  .sd-page-actions { width: 100%; }
-  .sd-page-actions .btn { flex: 1; font-size: 0.82rem; }
-  .auth-card { padding: 2rem 1.5rem; }
-  .card-body { padding: 1.15rem; }
-
-  .sd-page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.8rem;
-    margin-bottom: 1.25rem;
+    font-size: 0.78rem; padding: 0.45rem 0.75rem; white-space: nowrap;
   }
 
-  .sd-page-title {
-    font-size: 1.3rem;
+  /* Marketing nav: compact */
+  .marketing-nav .container { padding-inline: 0.75rem; }
+
+  /* Tables: horizontal scroll, never page overflow */
+  .sd-table-wrap, .table-responsive {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
   }
 
-  .sd-page-title .sd-title-icon {
-    width: 38px;
-    height: 38px;
-    font-size: 1rem;
-  }
+  /* Dashboard grids: single column */
+  .row.g-3.g-lg-4 > [class*="col-lg-"] { flex: 0 0 100%; max-width: 100%; }
 
-  .stat-card {
-    padding: 1rem 0.9rem;
-  }
-  .stat-card .stat-icon {
-    width: 38px;
-    height: 38px;
-    font-size: 1rem;
-    margin-bottom: 0.65rem;
-  }
-  .stat-card .stat-value {
-    font-size: 1.5rem;
-  }
-  .stat-card .stat-label {
-    font-size: 0.7rem;
-  }
-
-  .card {
-    border-radius: var(--rd-lg);
-  }
-
-  .sd-table-wrap {
-    border-radius: var(--rd-md);
-  }
-
-  .modal-dialog {
-    margin: 0.8rem;
-  }
-  .modal-content {
-    border-radius: var(--rd-lg);
-  }
-  .modal-header { padding: 1rem; }
-  .modal-body { padding: 1rem; }
-
-  .feature-card {
-    padding: 1.4rem 1.2rem;
-  }
-  .feature-icon {
-    width: 46px;
-    height: 46px;
-    font-size: 1.2rem;
-    margin-bottom: 0.9rem;
-  }
-
-  /* Hero panel: reduce padding on mobile */
-  .sd-hero-panel {
-    padding: 1.2rem 1.2rem;
-  }
-
-  /* Stats band and CTA band: reduce padding */
-  .stats-band {
-    padding: 1.8rem 1.2rem;
-  }
-  .cta-band {
-    padding: 2.2rem 1.2rem;
-  }
-
-  /* Reward stats: reduce font size */
-  .reward-stat .rs-value {
-    font-size: 1.3rem;
-  }
-  .reward-stat .rs-label {
-    font-size: 0.7rem;
-  }
-
-  /* Badge tiles: reduce icon size */
-  .badge-tile .bt-icon {
-    font-size: 1.4rem;
-  }
-  .badge-tile {
-    min-width: 56px;
-    padding: 0.45rem 0.3rem;
-  }
-
-  /* Empty state: reduce padding */
-  .empty-state {
-    padding: 2rem 1rem;
-  }
-  .empty-state .es-icon {
-    width: 56px;
-    height: 56px;
-    font-size: 1.3rem;
-  }
-
-  /* Child mini cards: reduce padding */
-  .child-mini-card {
-    padding: 1rem 0.8rem;
-  }
-
-  /* Form inputs: prevent iOS Safari auto-zoom (min 16px) */
-  .form-control, .form-select {
-    font-size: 16px;
-  }
-
-  /* Notification rows: tighter padding */
-  .notif-row {
-    padding: 0.8rem 0.6rem;
-    gap: 0.6rem;
-  }
-
-  /* Task rows: tighter padding */
-  .task-row {
-    padding: 0.6rem 0.3rem;
-    gap: 0.6rem;
-  }
-
-  /* Topbar gap reduction */
-  .sd-topbar .sd-topbar-title {
-    font-size: 0.95rem;
-  }
-
-  /* Parent dashboard child card buttons: larger on mobile */
+  /* Parent dashboard child card buttons: larger touch targets */
   .child-mini-card .d-grid .btn {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.82rem;
+    padding: 0.6rem 0.75rem; font-size: 0.85rem; min-height: 40px;
   }
 
-  /* Prevent any horizontal overflow on mobile */
-  html, body { overflow-x: hidden; }
-
-  /* Modal form fields: stack on small screens */
+  /* Focus parent dashboard modals: stack form fields */
   .modal .row.g-3 > .col-4 { flex: 0 0 100%; max-width: 100%; }
 
-  /* Action buttons: larger touch targets on mobile */
-  .btn-action { width: 42px; height: 42px; }
+  /* Charts: responsive */
+  .chart-box canvas, .chart-box { max-width: 100%; }
 }
 
-/* Small mobile (< 375px): Extra compact */
-@media (max-width: 374.98px) {
-  .sd-content { padding-inline: 0.7rem; }
-  .sd-topbar { padding-inline: 0.65rem; }
-  .auth-card { padding: 1.5rem 1.1rem; }
-  .sd-page-title { font-size: 1.15rem; }
-  .stat-card .stat-value { font-size: 1.3rem; }
-  .reward-stat .rs-value { font-size: 1.1rem; }
-  .child-id-display { font-size: 1.2rem; padding: 0.75rem; }
+/* ===== MOBILE (< 576px): Compact mobile layout ===== */
+@media (max-width: 575.98px) {
+  /* Content spacing */
+  .sd-content { padding-inline: 0.875rem; padding-top: 0.875rem; padding-bottom: 2rem; }
+
+  /* Topbar */
+  .sd-topbar { padding-inline: 0.65rem; gap: 0.4rem; }
+  .sd-topbar .sd-topbar-title { font-size: 0.9rem; }
+
+  /* Page header: stack vertically */
+  .sd-page-header {
+    flex-direction: column; align-items: flex-start;
+    gap: 0.6rem; margin-bottom: 1rem;
+  }
+  .sd-page-title { font-size: clamp(1.15rem, 4vw, 1.3rem); }
+  .sd-page-title .sd-title-icon { width: 36px; height: 36px; font-size: 0.95rem; border-radius: 10px; }
+  .sd-page-actions { width: 100%; }
+  .sd-page-actions .btn { flex: 1; font-size: 0.8rem; }
+
+  /* Cards */
+  .card { border-radius: var(--rd-lg); }
+  .card-body { padding: 1rem; }
+  .sd-table-wrap { border-radius: var(--rd-md); }
+
+  /* Stat cards */
+  .stat-card { padding: 0.85rem 0.8rem; }
+  .stat-card .stat-icon { width: 36px; height: 36px; font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .stat-card .stat-value { font-size: 1.4rem; }
+  .stat-card .stat-label { font-size: 0.68rem; }
+
+  /* Hero panel */
   .sd-hero-panel { padding: 1rem; }
-  .stats-band { padding: 1.4rem 1rem; }
-  .cta-band { padding: 1.8rem 1rem; }
+  .sd-hero-panel h4 { font-size: 1.05rem; }
+  .sd-hero-panel .fa-2x { font-size: 1.5em; }
+
+  /* Features */
+  .feature-card { padding: 1.1rem 1rem; }
+  .feature-icon { width: 42px; height: 42px; font-size: 1.1rem; margin-bottom: 0.75rem; border-radius: 12px; }
+
+  /* Stats band */
+  .stats-band { padding: 1.25rem 0.75rem; }
+  .stats-band .stat-number { font-size: clamp(1.3rem, 5vw, 1.6rem); }
+
+  /* CTA band */
+  .cta-band { padding: 1.5rem 1rem; }
+  .cta-band .display-6 { font-size: clamp(1.1rem, 4.5vw, 1.35rem); }
+  .cta-band .btn { width: 100%; justify-content: center; padding: 0.65rem 1rem; }
+
+  /* Auth */
+  .auth-card { padding: 1.5rem 1.25rem; border-radius: var(--rd-lg); }
+  .auth-wrap { padding: 1rem 0.75rem; }
+
+  /* Rewards */
+  .reward-stat .rs-value { font-size: 1.2rem; }
+  .reward-stat .rs-label { font-size: 0.68rem; }
+  .badge-tile { min-width: 52px; padding: 0.4rem 0.25rem; border-radius: var(--rd-md); }
+  .badge-tile .bt-icon { font-size: 1.3rem; }
+  .badge-tile .bt-name { font-size: 0.65rem; }
+
+  /* Empty states */
+  .empty-state { padding: 1.5rem 0.75rem; }
+  .empty-state .es-icon { width: 48px; height: 48px; font-size: 1.15rem; border-radius: 14px; margin-bottom: 0.6rem; }
+  .empty-state .es-text { font-size: 0.82rem; }
+
+  /* Child mini cards */
+  .child-mini-card { padding: 0.85rem 0.75rem; }
+  .child-mini-card .cmc-avatar { width: 46px; height: 46px; font-size: 1.1rem; border-radius: 14px; }
+  .child-mini-card .cmc-name { font-size: 0.92rem; }
+
+  /* Child ID */
+  .child-id-display { font-size: 1.2rem; letter-spacing: 0.15em; padding: 0.75rem; }
+
+  /* Notifications */
+  .notif-row { padding: 0.7rem 0.5rem; gap: 0.5rem; }
+  .notif-icon { width: 34px; height: 34px; font-size: 0.85rem; border-radius: 10px; }
+
+  /* Tasks */
+  .task-row { padding: 0.55rem 0.25rem; gap: 0.5rem; }
+  .task-check { width: 28px; height: 28px; border-radius: 8px; }
+
+  /* Forms: prevent iOS zoom */
+  .form-control, .form-select, textarea.form-control { font-size: 16px; }
+  .form-label { font-size: 0.78rem; margin-bottom: 0.3rem; }
+
+  /* Buttons: touch-friendly */
+  .btn { min-height: 40px; }
+  .btn-sm { min-height: 36px; font-size: 0.78rem; }
+  .btn-action { width: 40px; height: 40px; }
+  .btn-lg { padding: 0.6rem 1.2rem; font-size: 0.88rem; }
+
+  /* Modals */
+  .modal-dialog { margin: 0.5rem; }
+  .modal-content { border-radius: var(--rd-lg); }
+  .modal-header { padding: 0.85rem 1rem; }
+  .modal-body { padding: 0.85rem 1rem; }
+
+  /* Tables: card-like on mobile */
+  .table { font-size: 0.82rem; }
+  .table > :not(caption) > * > * { padding: 0.55rem 0.6rem; }
+  .table thead th { font-size: 0.64rem; padding: 0.5rem 0.6rem; }
+
+  /* Topbar actions */
+  .sd-icon-btn { width: 38px; height: 38px; font-size: 0.95rem; }
+
+  /* Prevent overflow */
+  html, body { overflow-x: hidden; }
+
+  /* Global box-sizing safety */
+  img, video, canvas, svg { max-width: 100%; height: auto; }
+
+  /* Connection request cards on parent dashboard */
+  .request-card .card-body { padding: 0.85rem; }
+  .request-card h6 { font-size: 0.88rem; }
+
+  /* Leaderboard */
+  .leader-rank { width: 32px; height: 32px; font-size: 0.8rem; }
+
+  /* Rec cards */
+  .rec-card { padding: 0.75rem 0.85rem; }
 }
 
-/* Large tablets (768px - 1024px) */
+/* ===== EXTRA SMALL (< 375px): Maximum compactness ===== */
+@media (max-width: 374.98px) {
+  .sd-content { padding-inline: 0.6rem; padding-top: 0.65rem; }
+  .sd-topbar { padding-inline: 0.5rem; }
+  .auth-card { padding: 1.25rem 1rem; }
+  .sd-page-title { font-size: 1.05rem; }
+  .sd-page-title .sd-title-icon { width: 32px; height: 32px; }
+  .stat-card .stat-value { font-size: 1.25rem; }
+  .stat-card .stat-icon { width: 32px; height: 32px; }
+  .reward-stat .rs-value { font-size: 1rem; }
+  .child-id-display { font-size: 1.05rem; padding: 0.65rem; letter-spacing: 0.12em; }
+  .sd-hero-panel { padding: 0.85rem; }
+  .stats-band { padding: 1rem 0.6rem; }
+  .cta-band { padding: 1.25rem 0.75rem; }
+  .feature-card { padding: 0.9rem 0.8rem; }
+  .feature-icon { width: 38px; height: 38px; font-size: 1rem; }
+  .card-body { padding: 0.85rem; }
+  .btn-action { width: 38px; height: 38px; }
+  .child-mini-card .cmc-avatar { width: 40px; height: 40px; }
+}
+
+/* ===== LARGE TABLETS (768px - 1024px) ===== */
 @media (min-width: 768px) and (max-width: 1023.98px) {
   .sd-content { padding: 1.5rem clamp(1.25rem, 3vw, 2rem) 2.5rem; }
 }
 
-/* Desktop (1024px+) */
+/* ===== DESKTOP (992px+) ===== */
 @media (min-width: 992px) {
-  .sd-sidebar {
-    transition: width var(--tr-base);
-  }
+  .sd-sidebar { transition: width var(--tr-base); }
 }
 
-/* Large desktop (1440px+) */
+/* ===== LARGE DESKTOP (1440px+) ===== */
 @media (min-width: 1440px) {
   .sd-content { max-width: 1440px; }
 }
 
+/* ===== ACCESSIBILITY ===== */
 @media (prefers-reduced-motion: reduce) {
   .flash-toast { animation: none; }
+}
+
+/* ===== PAGE-SPECIFIC MOBILE OVERRIDES ===== */
+
+/* Chat page: hide sidebar on mobile, full-screen chat */
+@media (max-width: 991.98px) {
+  .page-chat .wa-app { flex-direction: column; }
+  .page-chat .wa-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--sd-border); max-height: 40vh; }
+  .page-chat .wa-conv-list { max-height: 30vh; }
+  .page-chat .wa-main { min-height: 60vh; }
+}
+@media (max-width: 575.98px) {
+  .page-chat .wa-msgs { padding: 0.5rem; }
+  .page-chat .wa-composer { padding: 0.4rem 0.6rem; }
+  .page-chat .wa-input { font-size: 16px; padding: 0.5rem 0.75rem; }
+  .page-chat .wa-send { width: 40px; height: 40px; }
+  .page-chat .wa-icon-btn { width: 40px; height: 40px; }
+  .page-chat .wa-bubble { max-width: 88%; font-size: 0.88rem; }
+}
+
+/* Child dashboard: compact connection info on mobile */
+@media (max-width: 575.98px) {
+  .child-id-display { font-size: 1.15rem; letter-spacing: 0.14em; padding: 0.7rem; }
+  .copy-child-id-btn { padding: 0.25rem 0.75rem; font-size: 0.78rem; }
+}
+
+/* Parent dashboard: tab badges smaller on mobile */
+@media (max-width: 575.98px) {
+  .nav.nav-pills .badge { font-size: 0.6rem; padding: 0.15em 0.4em; }
+}
+
+/* Leaderboard: mobile card-like rows */
+@media (max-width: 575.98px) {
+  .table-responsive { border-radius: var(--rd-md); }
 }
 
 /* ==========================================================================

@@ -55,7 +55,7 @@
     <!-- LEFT COLUMN -->
     <div class="col-lg-5">
         <div class="card h-100">
-            <div class="card-body p-3 p-md-4">
+            <div class="card-body p-3">
                 <h5 class="sd-card-title"><i class="fa-solid fa-id-card"></i> My Connection Info</h5>
                 <p class="text-muted small mb-3">Your unique ID to share with your parents:</p>
                 <div class="child-id-wrapper">
@@ -71,8 +71,8 @@
         </div>
 
         {% if parents %}
-        <div class="card mt-3 mt-lg-4" style="border-color: rgba(34,197,139,.35) !important;">
-            <div class="card-body text-center p-3 p-md-4">
+        <div class="card mt-3" style="border-color: rgba(34,197,139,.35) !important;">
+            <div class="card-body text-center p-3">
                 <h5 class="fw-bold text-good mb-3">
                     <i class="fa-solid fa-link me-1"></i> Linked Parents
                 </h5>
@@ -88,9 +88,9 @@
         {% endif %}
 
         <!-- DESKTOP: Pending Requests in left column -->
-        <div class="d-none d-lg-block mt-3 mt-lg-4">
+        <div class="d-none d-lg-block mt-3">
             <div class="card">
-                <div class="card-body p-3 p-md-4">
+                <div class="card-body p-3">
                     <h5 class="sd-card-title"><i class="fa-solid fa-bell" style="color: var(--sd-warning);"></i> Pending Requests</h5>
                     {% if pending_requests %}
                         <ul class="list-group list-group-flush">
@@ -130,16 +130,17 @@
     <div class="col-lg-7">
         <!-- Hero CTA -->
         <div class="sd-hero-panel text-center mb-3 mb-lg-4">
-            <i class="fa-solid fa-brain fa-2x mb-3 d-block opacity-75"></i>
-            <h4 class="fw-bold mb-3">Ready for a Session?</h4>
-            <a href="{% url 'focus_session' %}" class="btn btn-light btn-lg rounded-pill px-4 px-md-5 fw-semibold">
+            <i class="fa-solid fa-brain mb-2 d-block opacity-75" style="font-size: clamp(1.5rem, 5vw, 2rem);"></i>
+            <h4 class="fw-bold mb-2" style="font-size: clamp(1rem, 3.5vw, 1.25rem);">Ready for a Session?</h4>
+            <p class="mb-3 opacity-80" style="font-size: 0.85rem;">Start a focused study session and earn rewards.</p>
+            <a href="{% url 'focus_session' %}" class="btn btn-light btn-lg rounded-pill px-4 fw-semibold">
                 Start Studying <i class="fa-solid fa-play ms-2"></i>
             </a>
         </div>
 
         <!-- Rewards -->
         <div class="card mb-3 mb-lg-4">
-            <div class="card-body p-3 p-md-4">
+            <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                     <h5 class="sd-card-title mb-0"><i class="fa-solid fa-star" style="color: var(--sd-warning);"></i> My Rewards</h5>
                     <a href="{% url 'reward_leaderboard' %}" class="btn btn-sm btn-outline-secondary">Leaderboard <i class="fa-solid fa-trophy ms-1"></i></a>
@@ -202,7 +203,7 @@
 
         <!-- Today's tasks -->
         <div class="card mb-3 mb-lg-4">
-            <div class="card-body p-3 p-md-4">
+            <div class="card-body p-3">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="sd-card-title mb-0"><i class="fa-solid fa-list-check" style="color: var(--sd-success);"></i> Today's Tasks</h5>
                     <a href="{% url 'todo_dashboard' %}" class="btn btn-sm btn-outline-secondary">Manage <i class="fa-solid fa-arrow-right ms-1"></i></a>
@@ -248,7 +249,7 @@
 
         <!-- Approved apps (populated by JS) -->
         <div class="card mb-3 mb-lg-4" id="approvedAppsCard" style="display:none;">
-            <div class="card-body p-3 p-md-4">
+            <div class="card-body p-3">
                 <h5 class="sd-card-title"><i class="fa-solid fa-thumbs-up" style="color: var(--sd-info);"></i> Parent Approved Apps</h5>
                 <p class="small text-muted">Click a website to open it. Access expires automatically.</p>
                 <div id="approvedAppsContainer" class="d-flex flex-wrap gap-2"></div>
@@ -257,7 +258,7 @@
 
         <!-- Chart -->
         <div class="card">
-            <div class="card-body p-3 p-md-4">
+            <div class="card-body p-3">
                 <h5 class="sd-card-title">Focus Trend (Today)</h5>
                 <div class="chart-box"><canvas id="childFocusChart" height="120"></canvas></div>
             </div>
