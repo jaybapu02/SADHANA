@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: sadhana
+    runtime: python
+    buildCommand: ./build.sh
+    startCommand: "daphne sadhana.asgi:application --port $PORT --bind 0.0.0.0 -v1"
+    envVars:
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+    healthCheckPath: /admin/

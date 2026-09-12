@@ -1,5 +1,10 @@
-Django>=6.0
+Django>=5.2,<6.0
 channels>=4.2
 daphne>=4.2
 psutil>=5.9.5
 requests>=2.31.0
+dj-database-url>=2.2.0
+whitenoise>=6.7
+gunicorn>=22.0
+psycopg2-binary>=2.9
+channels-redis>=4.2
