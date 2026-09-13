@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import login, authenticate, logout, update_session_auth_hash
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .forms import CustomUserCreationForm
 
@@ -58,3 +59,20 @@ def logout_view(request):
 
 def get_help(request):
     return render(request, 'users/get_help.html')
+
+@login_required
+def change_password(request):
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Your password has been changed successfully.')
+            return redirect('dashboard_router')
+    else:
+        form = PasswordChangeForm(request.user)
+
+    for field in form.fields.values():
+        field.widget.attrs.update({'class': 'form-control'})
+
+    return render(request, 'users/change_password.html', {'form': form})
