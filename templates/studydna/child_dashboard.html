@@ -168,7 +168,7 @@
                 </div>
                 <div class="progress progress-thin">
                     <div class="progress-bar subject-bar" role="progressbar"
-                         style="width:{{ s.pct }}%;background:{% cycle '#5a67f2' '#22d3ee' '#22c58b' '#f5b73d' '#f0647a' '#38bdf8' '#e879f9' '#a3e635' %};"
+                         style="width:{{ s.pct }}%;background:{% cycle '#5b8cff' '#22d3ee' '#22c58b' '#f5b73d' '#f0647a' '#38bdf8' '#e879f9' '#a3e635' %};"
                          data-width="{{ s.pct }}">
                     </div>
                 </div>
@@ -221,7 +221,7 @@
                 <div class="rec-card"
                      style="border-left-color: {% if rec.type == 'positive' %}var(--sd-success){% elif rec.type == 'motivation' %}var(--sd-warning){% elif rec.type == 'improvement' %}var(--sd-danger){% elif rec.type == 'goal' %}var(--sd-info){% elif rec.type == 'action' %}#a78bfa{% else %}var(--sd-primary){% endif %};">
                     <span class="insight-badge"
-                          style="color: {% if rec.type == 'positive' %}var(--sd-success){% elif rec.type == 'motivation' %}var(--sd-warning){% elif rec.type == 'improvement' %}var(--sd-danger){% elif rec.type == 'goal' %}var(--sd-info){% elif rec.type == 'action' %}#a78bfa{% else %}var(--sd-primary){% endif %}; background: {% if rec.type == 'positive' %}rgba(34,197,139,.14){% elif rec.type == 'motivation' %}rgba(245,183,61,.14){% elif rec.type == 'improvement' %}rgba(240,100,122,.14){% elif rec.type == 'goal' %}rgba(56,189,248,.14){% elif rec.type == 'action' %}rgba(167,139,250,.14){% else %}rgba(90,103,242,.14){% endif %};">
+                          style="color: {% if rec.type == 'positive' %}var(--sd-success){% elif rec.type == 'motivation' %}var(--sd-warning){% elif rec.type == 'improvement' %}var(--sd-danger){% elif rec.type == 'goal' %}var(--sd-info){% elif rec.type == 'action' %}#a78bfa{% else %}var(--sd-primary){% endif %}; background: {% if rec.type == 'positive' %}rgba(34,197,139,.14){% elif rec.type == 'motivation' %}rgba(245,183,61,.14){% elif rec.type == 'improvement' %}rgba(240,100,122,.14){% elif rec.type == 'goal' %}rgba(56,189,248,.14){% elif rec.type == 'action' %}rgba(167,139,250,.14){% else %}rgba(91,140,255,.14){% endif %};">
                         {% if rec.type == 'positive' %}Achievement{% elif rec.type == 'motivation' %}Motivation{% elif rec.type == 'improvement' %}Action Item{% elif rec.type == 'goal' %}Goal{% elif rec.type == 'action' %}Action{% else %}Strategy{% endif %}
                     </span>
                     <p class="mb-0 small mt-2">{{ rec.text }}</p>
@@ -287,7 +287,7 @@
     }
 
     Chart.defaults.font.family = 'Inter, sans-serif';
-    Chart.defaults.color = (getComputedStyle(document.body).getPropertyValue('--sd-text-faint') || '').trim() || '#adb5bd';
+    Chart.defaults.color = (getComputedStyle(document.body).getPropertyValue('--sd-text-faint') || '').trim() || '#9aa7ba';
 
     function initCharts() {
         {% if weekly_focus %}
@@ -300,8 +300,8 @@
                     datasets: [{
                         label: 'Focus (min)',
                         data: wf.map(function(d) { return d.minutes; }),
-                        backgroundColor: 'rgba(90,103,242,0.65)',
-                        borderColor: '#5a67f2',
+                        backgroundColor: 'rgba(91,140,255,0.65)',
+                        borderColor: '#5b8cff',
                         borderWidth: 1,
                         borderRadius: 6
                     }]
@@ -329,7 +329,7 @@
                     datasets: [{
                         data: wt.map(function(d) { return d.completed; }),
                         backgroundColor: [
-                            'rgba(34,197,139,0.75)', 'rgba(90,103,242,0.75)',
+                            'rgba(34,197,139,0.75)', 'rgba(91,140,255,0.75)',
                             'rgba(245,183,61,0.75)', 'rgba(240,100,122,0.75)',
                             'rgba(56,189,248,0.75)', 'rgba(232,121,249,0.75)',
                             'rgba(154,163,181,0.75)'
@@ -389,11 +389,11 @@
                     datasets: [{
                         label: 'Completion %',
                         data: mt.map(function(d) { return d.pct; }),
-                        borderColor: '#5a67f2',
-                        backgroundColor: 'rgba(90,103,242,0.1)',
+                        borderColor: '#5b8cff',
+                        backgroundColor: 'rgba(91,140,255,0.1)',
                         fill: true,
                         tension: 0.4,
-                        pointBackgroundColor: '#5a67f2',
+                        pointBackgroundColor: '#5b8cff',
                         pointRadius: 4
                     }]
                 },

@@ -248,7 +248,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     Chart.defaults.font.family = 'Inter, sans-serif';
-    Chart.defaults.color = (getComputedStyle(document.body).getPropertyValue('--sd-text-faint') || '').trim() || '#adb5bd';
+    Chart.defaults.color = (getComputedStyle(document.body).getPropertyValue('--sd-text-faint') || '').trim() || '#9aa7ba';
 
     function initCharts() {
         {% if weekly_focus %}
@@ -261,8 +261,8 @@
                     datasets: [{
                         label: 'Focus (min)',
                         data: wf.map(function(d) { return d.minutes; }),
-                        backgroundColor: 'rgba(90,103,242,0.65)',
-                        borderColor: '#5a67f2',
+                        backgroundColor: 'rgba(91,140,255,0.65)',
+                        borderColor: '#5b8cff',
                         borderWidth: 1,
                         borderRadius: 6
                     }]
@@ -283,7 +283,7 @@
                 type: 'doughnut',
                 data: {
                     labels: wt.map(function(d) { return d.day; }),
-                    datasets: [{                         data: wt.map(function(d) { return d.completed; }), backgroundColor: ['rgba(34,197,139,0.75)','rgba(90,103,242,0.75)','rgba(245,183,61,0.75)','rgba(240,100,122,0.75)','rgba(56,189,248,0.75)','rgba(232,121,249,0.75)','rgba(154,163,181,0.75)'], borderWidth: 0 }]
+                    datasets: [{                         data: wt.map(function(d) { return d.completed; }), backgroundColor: ['rgba(34,197,139,0.75)','rgba(91,140,255,0.75)','rgba(245,183,61,0.75)','rgba(240,100,122,0.75)','rgba(56,189,248,0.75)','rgba(232,121,249,0.75)','rgba(154,163,181,0.75)'], borderWidth: 0 }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
@@ -324,8 +324,8 @@
                     labels: mt.map(function(d) { return d.label; }),
                     datasets: [{
                         label: 'Completion %', data: mt.map(function(d) { return d.pct; }),
-                        borderColor: '#5a67f2', backgroundColor: 'rgba(90,103,242,0.1)', fill: true, tension: 0.4,
-                        pointBackgroundColor: '#5a67f2', pointRadius: 3
+                        borderColor: '#5b8cff', backgroundColor: 'rgba(91,140,255,0.1)', fill: true, tension: 0.4,
+                        pointBackgroundColor: '#5b8cff', pointRadius: 3
                     }]
                 },
                 options: {

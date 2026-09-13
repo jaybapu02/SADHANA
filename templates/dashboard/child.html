@@ -130,9 +130,9 @@
     <div class="col-lg-7 order-1 order-lg-2">
         <!-- Hero CTA -->
         <div class="sd-hero-panel text-center mb-3 mb-lg-4">
-            <i class="fa-solid fa-brain mb-2 d-block opacity-75" style="font-size: clamp(1.5rem, 5vw, 2rem);"></i>
+            <i class="fa-solid fa-brain mb-2 d-block" style="font-size: clamp(1.5rem, 5vw, 2rem); opacity: 0.9;"></i>
             <h4 class="fw-bold mb-2" style="font-size: clamp(1rem, 3.5vw, 1.25rem);">Ready for a Session?</h4>
-            <p class="mb-3 opacity-80" style="font-size: 0.85rem;">Start a focused study session and earn rewards.</p>
+            <p class="mb-3" style="font-size: 0.85rem; opacity: 0.92;">Start a focused study session and earn rewards.</p>
             <a href="{% url 'focus_session' %}" class="btn btn-light btn-lg rounded-pill px-4 fw-semibold">
                 Start Studying <i class="fa-solid fa-play ms-2"></i>
             </a>
@@ -324,8 +324,8 @@
             datasets: [{
                 label: 'Focus Score (%)',
                 data: noData ? [0] : chartData,
-                backgroundColor: 'rgba(13, 110, 253, 0.5)',
-                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(91, 140, 255, 0.5)',
+                borderColor: '#5b8cff',
                 borderWidth: 1,
                 borderRadius: 4
             }]

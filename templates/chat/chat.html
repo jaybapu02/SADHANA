@@ -5,7 +5,7 @@
 <style>
     /* Palette remapped onto Sadhana design tokens (auto light/dark) */
     :root {
-        --wa-sent-bg: #454dc0;
+        --wa-sent-bg: #4a6ee0;
         --wa-sent-fg: #f2f3ff;
         --wa-recv-bg: var(--sd-surface-2);
         --wa-recv-fg: var(--sd-text);
@@ -87,7 +87,7 @@
         display: flex; align-items: center; justify-content: center;
         font-weight: 600; font-size: 1.05rem; color: #fff;
     }
-    .wa-avatar.parent { background: linear-gradient(135deg, #5a67f2, #22d3ee); }
+    .wa-avatar.parent { background: linear-gradient(135deg, #5b8cff, #22d3ee); }
     .wa-avatar.child { background: linear-gradient(135deg, #16a34a, #4ade9e); }
     .wa-avatar.me { background: linear-gradient(135deg, #475569, #94a3b8); }
     .wa-online-dot {
@@ -138,7 +138,7 @@
         flex: 1; overflow-y: auto; padding: 1rem 1.25rem;
         display: flex; flex-direction: column; gap: 3px;
         background:
-            radial-gradient(circle at 20% 20%, rgba(90, 103, 242, 0.06) 0, transparent 40%),
+            radial-gradient(circle at 20% 20%, rgba(91, 140, 255, 0.06) 0, transparent 40%),
             radial-gradient(circle at 80% 70%, rgba(34, 211, 238, 0.05) 0, transparent 40%),
             var(--wa-bg);
     }
@@ -171,7 +171,7 @@
         display: flex; align-items: center; justify-content: flex-end; gap: 0.3rem;
         margin-top: 2px; font-size: 0.68rem; color: var(--wa-meta);
     }
-    .wa-bubble.mine .wa-bubble-meta { color: rgba(233, 237, 239, 0.75); }
+    .wa-bubble.mine .wa-bubble-meta { color: rgba(233, 237, 239, 0.85); }
     [data-bs-theme="light"] .wa-bubble.mine .wa-bubble-meta { color: #667781; }
     .wa-edited { font-size: 0.66rem; font-style: italic; }
     .wa-ticks { font-size: 0.7rem; color: var(--wa-meta); }
@@ -202,7 +202,7 @@
     .wa-quote-text {
         color: var(--wa-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .wa-bubble.mine .wa-quote-text { color: rgba(233, 237, 239, 0.7); }
+    .wa-bubble.mine .wa-quote-text { color: rgba(233, 237, 239, 0.8); }
     [data-bs-theme="light"] .wa-bubble.mine .wa-quote-text { color: #667781; }
     .wa-attachment { margin-bottom: 0.35rem; }
     .wa-img {

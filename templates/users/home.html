@@ -9,7 +9,10 @@
         min-height: calc(100vh - 65px);
         display: flex;
         align-items: center;
+        justify-content: center;
         position: relative;
+        overflow: hidden;
+        padding: 2rem 0;
     }
     .hero-badge {
         display: inline-flex;
@@ -22,11 +25,11 @@
         letter-spacing: 0.02em;
         background: var(--sd-primary-soft);
         color: var(--sd-primary);
-        border: 1px solid rgba(90, 103, 242, 0.25);
+        border: 1px solid rgba(91, 140, 255, 0.25);
         margin-bottom: 1.5rem;
         animation: rise-in 0.5s ease both;
     }
-    [data-bs-theme="dark"] .hero-badge { color: #a5adff; }
+    [data-bs-theme="dark"] .hero-badge { color: #8cb4ff; }
     .stat-number {
         font-size: clamp(2rem, 4vw, 2.6rem);
         font-weight: 800;
@@ -76,7 +79,7 @@
         transform: translateX(-50%);
         width: 120%;
         height: 200%;
-        background: radial-gradient(ellipse, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+        background: radial-gradient(ellipse, rgba(91, 140, 255, 0.06) 0%, transparent 70%);
         pointer-events: none;
     }
 
@@ -102,6 +105,7 @@
             min-height: auto;
             padding-top: 1.25rem;
             padding-bottom: 0.25rem;
+            overflow: visible;
         }
         .hero-section .display-4 {
             font-size: clamp(1.8rem, 7vw, 2.5rem);
@@ -200,7 +204,7 @@
     }
 </style>
 
-<div class="container py-4 py-md-5">
+<div class="container py-4 py-md-5" style="max-width: 1200px;">
     <!-- HERO -->
     <div class="hero-section hero-glow">
         <div class="row align-items-center g-3 g-lg-5 w-100">
@@ -230,9 +234,9 @@
                 </div>
                 <div class="mt-4 pt-3 border-top border-token">
                     <h6 class="fw-semibold mb-0 text-muted">
-                        <i class="fa-solid fa-quote-left me-2 opacity-50"></i>
+                        <i class="fa-solid fa-quote-left me-2" style="opacity: 0.6;"></i>
                         Effort + Commitment = Daily Progress
-                        <i class="fa-solid fa-quote-right ms-2 opacity-50"></i>
+                        <i class="fa-solid fa-quote-right ms-2" style="opacity: 0.6;"></i>
                     </h6>
                 </div>
             </div>
@@ -329,15 +333,15 @@
     <!-- CTA -->
     <div class="cta-band mt-4 mt-md-5">
         <div class="position-relative" style="z-index: 1;">
-            <h2 class="display-6 fw-bold mb-3">Ready to Transform <span style="text-decoration: underline 3px rgba(255,255,255,.35); text-underline-offset: 6px;">Your Study Habit?</span></h2>
-            <p class="mb-4 mx-auto opacity-90" style="max-width: 500px;">
+            <h2 class="display-6 fw-bold mb-3">Ready to Transform <span style="color: #fff; font-style: italic; font-weight: 800; text-shadow: 0 0 20px rgba(255,255,255,0.3);">Your Study Habit?</span></h2>
+            <p class="mb-4 mx-auto" style="max-width: 500px; opacity: 0.95;">
                 Join Sadhana today and start building the discipline that will last a lifetime.
             </p>
             <div class="d-flex flex-wrap gap-3 justify-content-center mt-4">
                 <a href="{% url 'register' %}" class="btn btn-light btn-lg px-4 fw-semibold">
                     <i class="fa-solid fa-rocket me-2"></i>Start Your Journey
                 </a>
-                <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg px-4">
+                <a href="{% url 'login' %}" class="btn btn-light btn-lg px-4 fw-semibold" style="color: #070b14;">
                     <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>I Already Have an Account
                 </a>
             </div>
