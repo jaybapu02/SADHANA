@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Get Help - Sadhana{% endblock %}
+{% block body_class %}page-auth{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+    <div class="auth-card" style="max-width: 520px;">
+        <a href="{% url 'home' %}" class="auth-brand">
+            <span class="sd-brand-mark"><img src="{% static 'images/logo.jpeg' %}" alt="Sadhana logo"></span>
+            <span class="fs-4 fw-bold gradient-text">Sadhana</span>
+        </a>
+
+        <h3 class="text-center fw-bold mb-1">Get Help</h3>
+        <p class="text-center text-muted small mb-4">Report an issue or ask a question — we'll get back to you on WhatsApp</p>
+
+        <form id="helpForm" novalidate>
+            <div class="mb-3">
+                <label class="form-label" for="helpName">Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="helpName" name="name" required
+                       placeholder="Your full name" value="{{ user.get_full_name|default:'' }}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="helpEmail">Email <span class="text-danger">*</span></label>
+                <input type="email" class="form-control" id="helpEmail" name="email" required
+                       placeholder="you@example.com" value="{{ user.email|default:'' }}">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="helpSubject">Issue Type <span class="text-danger">*</span></label>
+                <select class="form-select" id="helpSubject" name="subject" required>
+                    <option value="" disabled selected>Select an issue type</option>
+                    <option value="Technical Issue">Technical Issue</option>
+                    <option value="Account / Login">Account / Login</option>
+                    <option value="Focus Mode">Focus Mode</option>
+                    <option value="Payment">Payment</option>
+                    <option value="Feedback">Feedback</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="helpMessage">Message <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="helpMessage" name="message" rows="4" required
+                          placeholder="Describe your issue or question in detail..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-gradient w-100 py-2 mt-2" id="helpSubmitBtn">
+                <i class="fa-brands fa-whatsapp me-2"></i> Send Message
+            </button>
+        </form>
+
+        <div id="helpSuccess" class="d-none text-center py-4">
+            <div style="font-size: 3rem; color: #25d366; margin-bottom: 0.75rem;">
+                <i class="fa-brands fa-whatsapp"></i>
+            </div>
+            <h5 class="fw-bold mb-2">WhatsApp Opened</h5>
+            <p class="text-muted small mb-3">Your message has been prepared and sent to our support team via WhatsApp. Please check WhatsApp to send it.</p>
+            <button class="btn btn-outline-secondary btn-sm" onclick="resetForm()">
+                <i class="fa-solid fa-arrow-left me-1"></i> Send another message
+            </button>
+        </div>
+
+        <hr class="my-4">
+        <p class="text-center text-muted small mb-0">
+            <a href="{% url 'login' %}" class="fw-semibold text-decoration-none me-2">Sign in</a>
+            <span class="text-subtle">or</span>
+            <a href="{% url 'register' %}" class="fw-semibold text-decoration-none ms-2">Create account</a>
+        </p>
+    </div>
+</div>
+
+<script>
+(function() {
+    const form = document.getElementById('helpForm');
+    const success = document.getElementById('helpSuccess');
+    const WHATSAPP_NUMBER = '919692244008';
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        if (!form.checkValidity()) {
+            form.classList.add('was-validated');
+            return;
+        }
+
+        const name = document.getElementById('helpName').value.trim();
+        const email = document.getElementById('helpEmail').value.trim();
+        const subject = document.getElementById('helpSubject').value;
+        const message = document.getElementById('helpMessage').value.trim();
+
+        const whatsappMessage =
+            '*Sadhana Support Request*\n\n' +
+            '*Name:* ' + name + '\n' +
+            '*Email:* ' + email + '\n' +
+            '*Issue Type:* ' + subject + '\n\n' +
+            '*Message:*\n' + message;
+
+        const encoded = encodeURIComponent(whatsappMessage);
+        const url = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encoded;
+
+        window.open(url, '_blank', 'noopener,noreferrer');
+
+        form.classList.add('d-none');
+        success.classList.remove('d-none');
+    });
+})();
+
+function resetForm() {
+    const form = document.getElementById('helpForm');
+    const success = document.getElementById('helpSuccess');
+    form.reset();
+    form.classList.remove('d-none', 'was-validated');
+    success.classList.add('d-none');
+}
+</script>
+{% endblock %}

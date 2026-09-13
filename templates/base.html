@@ -152,6 +152,11 @@
                                     <i class="fa-solid fa-gauge-high"></i> Dashboard
                                 </a>
                             </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'get_help' %}">
+                                    <i class="fa-solid fa-circle-question"></i> Get Help
+                                </a>
+                            </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <a class="dropdown-item text-danger" href="{% url 'logout' %}">
@@ -188,6 +193,7 @@
                 <button id="theme-toggle" class="sd-icon-btn" type="button" aria-label="Toggle color theme">
                     <i class="fa-solid fa-moon"></i>
                 </button>
+                <a class="btn btn-link btn-sm px-2 text-muted text-decoration-none d-none d-sm-inline-block" href="{% url 'get_help' %}">Get Help</a>
                 <a class="btn btn-outline-secondary btn-sm px-2 px-sm-3" href="{% url 'login' %}">Login</a>
                 <a class="btn btn-gradient btn-sm px-2 px-sm-3 text-nowrap" href="{% url 'register' %}">Get Started</a>
             </div>

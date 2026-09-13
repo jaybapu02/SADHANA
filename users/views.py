@@ -55,3 +55,6 @@ def logout_view(request):
     logout(request)
     messages.info(request, 'You have successfully logged out.')
     return redirect('login')
+
+def get_help(request):
+    return render(request, 'users/get_help.html')
